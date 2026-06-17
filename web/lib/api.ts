@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 
 import type {
   Equipment,
+  FavoriteRecipe,
   NutritionGoal,
   Recipe,
   SearchRequest,
@@ -75,6 +76,46 @@ export async function generateThumbnail(id: string): Promise<string | null> {
   return json.thumbnailUrl;
 }
 
+// --- favoritos (exigem login; sem sessão o backend responde 401) ---
+
+export async function getFavoriteIds(): Promise<string[]> {
+  const res = await fetch(`${API_BASE}/api/v1/favorites/ids`, {
+    cache: "no-store",
+    headers: { ...(await authHeaders()) },
+  });
+  if (res.status === 401) return [];
+  if (!res.ok) throw new Error(`Favoritos falhou: ${res.status}`);
+  return ((await res.json()) as { ids: string[] }).ids;
+}
+
+export async function getFavorites(): Promise<FavoriteRecipe[]> {
+  const res = await fetch(`${API_BASE}/api/v1/favorites`, {
+    cache: "no-store",
+    headers: { ...(await authHeaders()) },
+  });
+  if (res.status === 401) return [];
+  if (!res.ok) throw new Error(`Favoritos falhou: ${res.status}`);
+  return ((await res.json()) as { recipes: FavoriteRecipe[] }).recipes;
+}
+
+export async function addFavorite(recipeId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/favorites`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ recipeId }),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Favoritar falhou: ${res.status}`);
+}
+
+export async function removeFavorite(recipeId: string): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/favorites/${encodeURIComponent(recipeId)}`,
+    { method: "DELETE", cache: "no-store", headers: { ...(await authHeaders()) } },
+  );
+  if (!res.ok) throw new Error(`Desfavoritar falhou: ${res.status}`);
+}
+
 export async function adaptRecipe(id: string, body: AdaptBody): Promise<Recipe> {
   const res = await fetch(
     `${API_BASE}/api/v1/recipes/${encodeURIComponent(id)}/adapt`,
@@ -86,7 +127,15 @@ export async function adaptRecipe(id: string, body: AdaptBody): Promise<Recipe> 
     },
   );
   if (!res.ok) {
-    throw new Error(`Adaptação falhou: ${res.status} ${await res.text()}`);
+    // @fastify/sensible devolve { message } — usa pra mostrar 429/503 ao usuário
+    let msg = `Adaptação falhou (${res.status})`;
+    try {
+      const j = (await res.json()) as { message?: string };
+      if (j?.message) msg = j.message;
+    } catch {
+      /* corpo não-JSON */
+    }
+    throw new Error(msg);
   }
   return res.json() as Promise<Recipe>;
 }

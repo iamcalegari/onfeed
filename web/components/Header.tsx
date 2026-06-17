@@ -24,6 +24,9 @@ export function Header({ clerkEnabled }: { clerkEnabled: boolean }) {
             </SignUpButton>
           </Show>
           <Show when="signed-in">
+            <Link href="/favorites" className="text-sm font-medium text-stone-700">
+              Favoritos
+            </Link>
             <UserButton />
           </Show>
         </div>

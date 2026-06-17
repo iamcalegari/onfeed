@@ -1,7 +1,11 @@
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 
-import { anthropic, EXTRACTION_MODEL } from "@/infra/llm/anthropic.client.js";
+import {
+  anthropic,
+  effortOption,
+  EXTRACTION_MODEL,
+} from "@/infra/llm/anthropic.client.js";
 import { ExtractedRecipeSchema } from "./recipe.extraction.js";
 import { persistExtractedRecipe } from "./recipe.ingestion.js";
 import { getRecipeById } from "./recipe.repository.js";
@@ -91,7 +95,7 @@ export async function adaptRecipe(
     max_tokens: 4000,
     output_config: {
       format: zodOutputFormat(AdaptedRecipeSchema),
-      effort: "medium",
+      ...effortOption("medium"),
     },
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: buildUserPrompt(anchor, constraints) }],

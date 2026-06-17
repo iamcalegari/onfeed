@@ -1,10 +1,12 @@
-import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 
 import { AdaptButton } from "@/components/AdaptButton";
+import { BackButton } from "@/components/BackButton";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { RecipeThumbnail } from "@/components/RecipeThumbnail";
 import { StepTimer } from "@/components/StepTimer";
-import { getRecipe } from "@/lib/api";
+import { getFavoriteIds, getRecipe } from "@/lib/api";
 import { flagEmoji, formatMinutes } from "@/lib/format";
 
 const EQUIPMENT_LABELS: Record<string, string> = {
@@ -27,6 +29,17 @@ export default async function RecipePage({
   const recipe = await getRecipe(id);
   if (!recipe) notFound();
 
+  // logado? então busca os favoritos pra marcar o coração
+  let userId: string | null = null;
+  try {
+    userId = (await auth()).userId;
+  } catch {
+    userId = null;
+  }
+  const favorited = userId
+    ? (await getFavoriteIds()).includes(recipe._id)
+    : false;
+
   // o que o usuário tem (canonicalIds vindos da busca); staples contam como tem
   const haveSet = new Set((have ?? "").split(",").filter(Boolean));
   const hasIt = (canonicalId: string, isStaple: boolean) =>
@@ -41,9 +54,9 @@ export default async function RecipePage({
 
   return (
     <article className="flex flex-col gap-5">
-      <Link href="/results" className="text-sm text-emerald-700">
+      <BackButton className="w-fit text-sm text-emerald-700">
         ← voltar
-      </Link>
+      </BackButton>
 
       <RecipeThumbnail recipeId={recipe._id} initialUrl={recipe.thumbnailUrl} />
 
@@ -65,9 +78,15 @@ export default async function RecipePage({
         <p className="text-sm text-stone-600">{recipe.intro}</p>
       </header>
 
-      {have !== undefined && haveCount < recipe.ingredients.length && (
-        <AdaptButton recipeId={recipe._id} haveIds={[...haveSet]} />
+      {userId && (
+        <FavoriteButton recipeId={recipe._id} initiallyFavorited={favorited} />
       )}
+
+      {userId &&
+        have !== undefined &&
+        haveCount < recipe.ingredients.length && (
+          <AdaptButton recipeId={recipe._id} haveIds={[...haveSet]} />
+        )}
 
       {recipe.nutrition && (
         <section className="grid grid-cols-4 gap-2 rounded-xl border border-stone-200 bg-white p-3 text-center">

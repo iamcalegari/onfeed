@@ -1,3 +1,5 @@
+import sharp from "sharp";
+
 import { env } from "@/config/env.js";
 import type { Recipe } from "@/modules/recipes/recipe.types.js";
 import { generateImage as generateViaBedrock } from "./bedrock.image-generator.js";
@@ -8,6 +10,20 @@ import { presignUpload, putImage } from "./s3.image-store.js";
 const generateImage = env.images.fakeGenerator
   ? generateFake
   : generateViaBedrock;
+
+const THUMB_SIZE = 512;
+
+/**
+ * Normaliza a imagem gerada para thumbnail: o Stable Image Core devolve PNG
+ * 1024x1024 (~4MB), exagero para um card. Reduz para 512x512 e converte para
+ * JPEG (foto de comida comprime bem) — fica na casa de dezenas de KB.
+ */
+async function toThumbnail(input: Buffer): Promise<Buffer> {
+  return sharp(input)
+    .resize(THUMB_SIZE, THUMB_SIZE, { fit: "cover" })
+    .jpeg({ quality: 82, mozjpeg: true })
+    .toBuffer();
+}
 
 /** true se Bedrock+S3 estão configurados; senão tudo vira no-op (placeholder). */
 export const imagesEnabled = env.images.enabled;
@@ -39,8 +55,9 @@ export async function ensureThumbnail(
   if (recipe.thumbnailUrl) return recipe.thumbnailUrl;
   if (!imagesEnabled || !recipe._id) return null;
 
-  const bytes = await generateImage(buildPrompt(recipe));
-  return putImage(`recipes/${recipe._id}.png`, bytes, "image/png");
+  const raw = await generateImage(buildPrompt(recipe));
+  const thumb = await toThumbnail(raw);
+  return putImage(`recipes/${recipe._id}.jpg`, thumb, "image/jpeg");
 }
 
 /** URL pré-assinada para upload do usuário (user-generated). null se desabilitado. */

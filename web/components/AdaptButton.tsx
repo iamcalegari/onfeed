@@ -21,12 +21,9 @@ export function AdaptButton({
   function run() {
     setError(null);
     startTransition(async () => {
-      try {
-        const { id } = await adaptRecipeAction(recipeId, haveIds);
-        router.push(recipeHref(id, haveIds));
-      } catch {
-        setError("Não consegui adaptar agora. Tente de novo.");
-      }
+      const res = await adaptRecipeAction(recipeId, haveIds);
+      if (res.ok) router.push(recipeHref(res.id, haveIds));
+      else setError(res.error); // ex.: limite diário atingido
     });
   }
 

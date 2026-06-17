@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import type { SearchHit } from "@/lib/types";
+import { InfiniteList } from "./InfiniteList";
 import { ResultCard } from "./ResultCard";
 import { SwipeDeck } from "./SwipeDeck";
 
@@ -10,9 +11,11 @@ import { SwipeDeck } from "./SwipeDeck";
 export function ResultsView({
   results,
   haveIds,
+  authenticated,
 }: {
   results: SearchHit[];
   haveIds: string[];
+  authenticated: boolean;
 }) {
   const [view, setView] = useState<"list" | "cards">("list");
 
@@ -28,18 +31,24 @@ export function ResultsView({
       </div>
 
       {view === "list" ? (
-        <div className="flex flex-col gap-3">
-          {results.map((hit, i) => (
+        <InfiniteList
+          items={results}
+          className="flex flex-col gap-3"
+          renderItem={(hit, i) => (
             <ResultCard
               key={hit._id}
               hit={hit}
               haveIds={haveIds}
               highlight={i === 0}
             />
-          ))}
-        </div>
+          )}
+        />
       ) : (
-        <SwipeDeck results={results} haveIds={haveIds} />
+        <SwipeDeck
+          results={results}
+          haveIds={haveIds}
+          authenticated={authenticated}
+        />
       )}
     </div>
   );

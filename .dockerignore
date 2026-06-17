@@ -1,0 +1,13 @@
+node_modules
+dist
+.next
+web
+data
+.git
+.env
+.env.*
+*.log
+*.tsbuildinfo
+README.md
+DEPLOY.md
+docker-compose.yml

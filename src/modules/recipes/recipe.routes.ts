@@ -3,10 +3,13 @@ import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@sinclair/typebox";
 import type { FastifyPluginAsync } from "fastify";
 
+import { env } from "@/config/env.js";
 import {
   createUploadUrl,
   ensureThumbnail,
 } from "@/infra/images/image.service.js";
+import { getUserId, requireAuth } from "@/modules/auth/auth.guard.js";
+import { consumeDailyAdaptQuota } from "@/modules/usage/usage.repository.js";
 import { adaptRecipe } from "./recipe.generation.js";
 import { getRecipeById, setThumbnail } from "./recipe.repository.js";
 
@@ -51,9 +54,11 @@ export const recipeRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   // "Adaptar pro que eu tenho" — gera uma variação ancorada na receita base.
+  // Exige login (é a chamada cara de LLM) e tem teto diário por usuário.
   app.post(
     "/recipes/:id/adapt",
     {
+      preHandler: requireAuth,
       schema: {
         tags: ["recipes"],
         params: Type.Object({ id: Type.String() }),
@@ -62,6 +67,17 @@ export const recipeRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       const body = request.body;
+
+      const quota = await consumeDailyAdaptQuota(
+        getUserId(request)!,
+        env.anthropic.adaptDailyLimit,
+      );
+      if (!quota.allowed) {
+        return reply.tooManyRequests(
+          `Limite diário de adaptações atingido (${quota.limit}/dia). Tente amanhã.`,
+        );
+      }
+
       try {
         const recipe = await adaptRecipe(request.params.id, {
           haveIds: body.haveIds,

@@ -46,8 +46,11 @@ export const env = {
 
   anthropic: {
     apiKey: required("ANTHROPIC_API_KEY"),
-    // Extração estruturada na ingestão (ver recipe.extraction.ts).
-    model: optional("ANTHROPIC_MODEL", "claude-opus-4-8"),
+    // Extração e adaptação. Default Haiku 4.5 (5-10x mais barato que Opus e
+    // suficiente p/ essas tarefas). Troque p/ opus/sonnet se quiser mais qualidade.
+    model: optional("ANTHROPIC_MODEL", "claude-haiku-4-5"),
+    // teto diário de adaptações (LLM) por usuário — segura o custo variável
+    adaptDailyLimit: Number(optional("ADAPT_DAILY_LIMIT", "10")),
   },
 
   // Auth via Clerk. Sem CLERK_SECRET_KEY, `enabled=false` e as rotas protegidas
@@ -69,6 +72,10 @@ export const env = {
       "BEDROCK_IMAGE_MODEL",
       "amazon.titan-image-generator-v2:0",
     ),
+    // Região do Bedrock pode diferir da do S3: os geradores text-to-image da
+    // Stability (Stable Image Core/Ultra) vivem em us-west-2, enquanto o bucket
+    // pode estar em outra região. Default: cai na região do S3.
+    bedrockRegion: optional("BEDROCK_REGION", "") || optional("AWS_REGION", ""),
     // Dev local: aponta o S3 para um endpoint emulado (LocalStack/MinIO).
     // Vazio em produção → usa o S3 real da AWS.
     s3Endpoint: optional("IMAGES_S3_ENDPOINT", ""), // ex: http://localhost:4566

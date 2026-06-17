@@ -1,7 +1,11 @@
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 
-import { anthropic, EXTRACTION_MODEL } from "@/infra/llm/anthropic.client.js";
+import {
+  anthropic,
+  effortOption,
+  EXTRACTION_MODEL,
+} from "@/infra/llm/anthropic.client.js";
 
 /**
  * Extração estruturada de uma receita em texto livre.
@@ -89,8 +93,8 @@ export function buildExtractionParams(input: RawRecipeInput) {
   return {
     model: EXTRACTION_MODEL,
     max_tokens: 4000,
-    // effort baixo: extração é tarefa simples; mantém custo previsível em lote
-    output_config: { format: EXTRACTION_FORMAT, effort: "low" as const },
+    // effort baixo onde suportado (omitido no Haiku, que não aceita)
+    output_config: { format: EXTRACTION_FORMAT, ...effortOption("low") },
     system: EXTRACTION_SYSTEM_PROMPT,
     messages: [
       { role: "user" as const, content: buildExtractionUserContent(input) },

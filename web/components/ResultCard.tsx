@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { flagEmoji, formatMinutes, recipeHref } from "@/lib/format";
 import type { SearchHit } from "@/lib/types";
+import { LazyThumbnail } from "./LazyThumbnail";
 import { MatchScore } from "./MatchScore";
 import { ScoreBars } from "./ScoreBars";
 
@@ -22,7 +23,11 @@ export function ResultCard({
       }`}
     >
       <div className="flex gap-3">
-        <Thumbnail url={hit.thumbnailUrl} />
+        <LazyThumbnail
+          recipeId={hit._id}
+          initialUrl={hit.thumbnailUrl}
+          className="h-20 w-20"
+        />
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex items-start justify-between gap-2">
             <h3 className="truncate text-sm font-semibold">
@@ -56,23 +61,5 @@ export function ResultCard({
         </div>
       </div>
     </Link>
-  );
-}
-
-function Thumbnail({ url }: { url: string }) {
-  if (url) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return (
-      <img
-        src={url}
-        alt=""
-        className="h-20 w-20 shrink-0 rounded-lg object-cover"
-      />
-    );
-  }
-  return (
-    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-2xl">
-      🍽️
-    </div>
   );
 }

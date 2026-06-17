@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 
 import { ResultsView } from "@/components/ResultsView";
@@ -36,6 +37,13 @@ export default async function ResultsPage({
   const req = parseParams(await searchParams);
   const { results, unresolvedIngredients, haveIds } = await searchRecipes(req);
 
+  let authenticated = false;
+  try {
+    authenticated = (await auth()).userId !== null;
+  } catch {
+    authenticated = false;
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <header className="flex items-center justify-between">
@@ -56,7 +64,11 @@ export default async function ResultsPage({
           Nada encontrado. Tente menos restrições.
         </p>
       ) : (
-        <ResultsView results={results} haveIds={haveIds} />
+        <ResultsView
+          results={results}
+          haveIds={haveIds}
+          authenticated={authenticated}
+        />
       )}
     </div>
   );

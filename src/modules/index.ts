@@ -5,3 +5,5 @@
  */
 import "@/modules/ingredients/ingredient.model.js";
 import "@/modules/recipes/recipe.model.js";
+import "@/modules/favorites/favorite.model.js";
+import "@/modules/usage/usage.model.js";

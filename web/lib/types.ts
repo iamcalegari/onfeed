@@ -70,6 +70,15 @@ export interface Nutrition {
   fat: number;
 }
 
+export interface FavoriteRecipe {
+  _id: string;
+  title: string;
+  country: string;
+  thumbnailUrl: string;
+  intro: string;
+  prepTimeMin: number;
+}
+
 export interface Recipe {
   _id: string;
   title: string;

@@ -6,7 +6,20 @@
       "Bash(node -e \"console.log\\('csv-parse', require\\('./package.json'\\).dependencies['csv-parse']\\)\")",
       "WebFetch(domain:clerk.com)",
       "Bash(node -e \"const p=require\\('@clerk/nextjs/package.json'\\); console.log\\(Object.keys\\(p.exports||{}\\)\\)\")",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('sortedMiddleware:', d.get\\('sortedMiddleware'\\)\\)\")"
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('sortedMiddleware:', d.get\\('sortedMiddleware'\\)\\)\")",
+      "Bash(yarn typecheck *)",
+      "Bash(curl -s -m 30 -X POST http://localhost:3000/api/v1/search -H 'content-type: application/json' -d '{\"ingredients\":[\"macarrao\",\"alho\",\"oleo\"]}')",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\('haveIds:',j.haveIds\\);for\\(const r of \\(j.results||[]\\).slice\\(0,2\\)\\)console.log\\(\\\\` - \\\\${r.title}: score=\\\\${r.matchScore} I=\\\\${r.scores.i.toFixed\\(2\\)} missing=[\\\\${r.missing.map\\(m=>m.name\\).join\\(', '\\)}]\\\\`\\)}\\)\")",
+      "Bash(curl -s -m 30 -X POST http://localhost:3000/api/v1/search -H 'content-type: application/json' -d '{\"ingredients\":[\"macarrao\",\"alho\",\"oleo\"]}' -w \"\\\\nHTTP %{http_code}\\\\n\")",
+      "Bash(curl -s -m 3 http://localhost:3000/health -w \" HTTP %{http_code}\\\\n\")",
+      "Bash(npx tsx *)",
+      "Bash(node -e \"console.log\\(require\\('./package.json'\\).scripts.build\\)\")",
+      "Bash(node dist/server.js)",
+      "Bash(docker version *)",
+      "Bash(aws --version)",
+      "Bash(aws sts *)",
+      "Bash(chmod +x /home/alan/Dev/claude/scripts/deploy.sh)",
+      "Bash(yarn add *)"
     ]
   }
 }

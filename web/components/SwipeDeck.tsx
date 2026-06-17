@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { addFavoriteAction } from "@/app/actions";
 import { flagEmoji, formatMinutes, recipeHref } from "@/lib/format";
 import type { SearchHit } from "@/lib/types";
 import { MatchScore } from "./MatchScore";
@@ -33,9 +34,11 @@ function buildDeck(results: SearchHit[]): SearchHit[] {
 export function SwipeDeck({
   results,
   haveIds,
+  authenticated,
 }: {
   results: SearchHit[];
   haveIds: string[];
+  authenticated: boolean;
 }) {
   const [deck] = useState(() => buildDeck(results));
   const [index, setIndex] = useState(0);
@@ -72,6 +75,8 @@ export function SwipeDeck({
       setSelected((prev) =>
         prev.some((s) => s._id === current._id) ? prev : [...prev, current],
       );
+      // logado: persiste o YES como favorito (fire-and-forget)
+      if (authenticated) void addFavoriteAction(current._id).catch(() => {});
     }
     setTimeout(() => {
       setIndex((i) => i + 1);
