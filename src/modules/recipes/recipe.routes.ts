@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@sinclair/typebox";
 import type { FastifyPluginAsync } from "fastify";
@@ -61,19 +62,34 @@ export const recipeRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       const body = request.body;
-      const recipe = await adaptRecipe(request.params.id, {
-        haveIds: body.haveIds,
-        ...(body.equipment !== undefined && {
-          availableEquipment: body.equipment,
-        }),
-        ...(body.maxPrepTimeMin !== undefined && {
-          maxPrepTimeMin: body.maxPrepTimeMin,
-        }),
-        ...(body.goal !== undefined && { goal: body.goal }),
-        ...(body.note !== undefined && { note: body.note }),
-      });
-      if (!recipe) return reply.notFound("Receita base não encontrada");
-      return recipe;
+      try {
+        const recipe = await adaptRecipe(request.params.id, {
+          haveIds: body.haveIds,
+          ...(body.equipment !== undefined && {
+            availableEquipment: body.equipment,
+          }),
+          ...(body.maxPrepTimeMin !== undefined && {
+            maxPrepTimeMin: body.maxPrepTimeMin,
+          }),
+          ...(body.goal !== undefined && { goal: body.goal }),
+          ...(body.note !== undefined && { note: body.note }),
+        });
+        if (!recipe) return reply.notFound("Receita base não encontrada");
+        return recipe;
+      } catch (err) {
+        // Falha na API de IA (sem crédito, rate limit, overload) vira um 503
+        // claro em vez de 500 cru — o front mostra a mensagem ao usuário.
+        if (err instanceof Anthropic.APIError) {
+          request.log.error({ err }, "Adaptação via LLM falhou");
+          const semCredito = /credit|billing/i.test(err.message);
+          return reply.serviceUnavailable(
+            semCredito
+              ? "Geração indisponível: a conta da API de IA está sem créditos."
+              : "Geração indisponível no momento (falha na API de IA). Tente novamente em instantes.",
+          );
+        }
+        throw err;
+      }
     },
   );
 

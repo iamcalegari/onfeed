@@ -9,9 +9,16 @@ interface VoyageResponse {
   usage: { total_tokens: number };
 }
 
+const MAX_RETRIES = 5;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 async function callVoyage(
   input: string[],
   inputType: "document" | "query",
+  attempt = 0,
 ): Promise<number[][]> {
   const res = await fetch(VOYAGE_ENDPOINT, {
     method: "POST",
@@ -26,6 +33,21 @@ async function callVoyage(
       output_dimension: env.voyage.dimensions,
     }),
   });
+
+  // 429 (rate limit) e 5xx são transitórios — espera e tenta de novo.
+  // No free tier da Voyage o limite é 3 RPM, então o backoff cresce até ~30s.
+  if ((res.status === 429 || res.status >= 500) && attempt < MAX_RETRIES) {
+    const retryAfter = Number(res.headers.get("retry-after"));
+    const waitMs =
+      Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter * 1000
+        : Math.min(30_000, 4_000 * 2 ** attempt);
+    console.warn(
+      `[voyage] ${res.status}, retry ${attempt + 1}/${MAX_RETRIES} em ${Math.round(waitMs / 1000)}s`,
+    );
+    await sleep(waitMs);
+    return callVoyage(input, inputType, attempt + 1);
+  }
 
   if (!res.ok) {
     const body = await res.text();

@@ -60,9 +60,11 @@ export async function createPendingIngredient(
   const norm = name.trim().toLowerCase();
   const base = slugify(name) || "ingredient";
 
+  // _id é slug string (não ObjectId), então findById() — que faz toObjectId() —
+  // estouraria; busca por filtro direto.
   let id = base;
   for (let i = 0; i < 5; i++) {
-    const exists = await IngredientModel.findById(id);
+    const exists = await IngredientModel.find({ _id: id });
     if (!exists) break;
     id = `${base}_${Math.random().toString(36).slice(2, 6)}`;
   }

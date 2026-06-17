@@ -5,12 +5,14 @@
  * Rodar com: npm run seed:ingredients
  * Pré-requisito: npm run setup:db (coleções, validators e search indexes).
  */
-import { embeddings } from "@/infra/embeddings/voyage.client.js";
-import { IngredientModel } from "@/modules/ingredients/ingredient.model.js";
-import { INGREDIENT_SEED } from "@/modules/ingredients/ingredient.seed-data.js";
+// connection cria o `new Database()` que o mongoat injeta nos models — tem que
+// vir ANTES de qualquer import de model (IngredientModel abaixo).
 import { connectDatabase, disconnectDatabase } from "./connection.js";
 // Registra os models no mongoat.
 import "@/modules/index.js";
+import { embeddings } from "@/infra/embeddings/voyage.client.js";
+import { IngredientModel } from "@/modules/ingredients/ingredient.model.js";
+import { INGREDIENT_SEED } from "@/modules/ingredients/ingredient.seed-data.js";
 
 async function main(): Promise<void> {
   await connectDatabase();
@@ -31,7 +33,9 @@ async function main(): Promise<void> {
     const embedding = vectors[i]!;
     const now = new Date();
 
-    const exists = await IngredientModel.findById(seed._id);
+    // _id é slug string (não ObjectId), então findById() — que faz toObjectId()
+    // — não serve; busca por filtro direto.
+    const exists = await IngredientModel.find({ _id: seed._id });
     if (exists) {
       await IngredientModel.update(
         { _id: seed._id },

@@ -78,3 +78,37 @@ export async function setupSearchIndexes(): Promise<void> {
   await ensureSearchIndex("recipes", recipeVectorIndexDefinition);
   await ensureSearchIndex("ingredients", ingredientVectorIndexDefinition);
 }
+
+/**
+ * Espera um search index ficar `queryable` (a construção no Atlas é assíncrona).
+ * Crucial antes da ingestão: o fallback semântico da canonicalização depende do
+ * índice de ingredientes — se ainda estiver "building", todo termo novo vira um
+ * `pending` duplicado em vez de casar com o canônico existente.
+ */
+export async function waitForSearchIndexQueryable(
+  collectionName: string,
+  indexName: string,
+  { timeoutMs = 180_000, intervalMs = 5_000 }: { timeoutMs?: number; intervalMs?: number } = {},
+): Promise<void> {
+  const collection = database.getCollection(collectionName);
+  if (!collection) throw new Error(`Coleção não encontrada: ${collectionName}`);
+
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const indexes = (await collection.listSearchIndexes().toArray()) as {
+      name: string;
+      status?: string;
+      queryable?: boolean;
+    }[];
+    const idx = indexes.find((i) => i.name === indexName);
+    if (idx?.queryable) return;
+    if (!idx) throw new Error(`Search index '${indexName}' não existe — rode setup:db.`);
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `Search index '${indexName}' não ficou queryable em ${timeoutMs / 1000}s (status=${idx.status}).`,
+      );
+    }
+    console.log(`[search-index] aguardando '${indexName}' ficar queryable (status=${idx.status})...`);
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}

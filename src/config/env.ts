@@ -22,6 +22,11 @@ export const env = {
   http: {
     port: Number(optional("PORT", "3000")),
     host: optional("HOST", "0.0.0.0"),
+    // origens permitidas no CORS (lista separada por vírgula)
+    corsOrigin: optional("FRONTEND_ORIGIN", "http://localhost:3001")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
   },
 
   mongo: {
@@ -43,6 +48,14 @@ export const env = {
     apiKey: required("ANTHROPIC_API_KEY"),
     // Extração estruturada na ingestão (ver recipe.extraction.ts).
     model: optional("ANTHROPIC_MODEL", "claude-opus-4-8"),
+  },
+
+  // Auth via Clerk. Sem CLERK_SECRET_KEY, `enabled=false` e as rotas protegidas
+  // respondem 401 (app sobe normalmente em dev sem auth configurada).
+  clerk: {
+    enabled: Boolean(process.env.CLERK_SECRET_KEY),
+    secretKey: optional("CLERK_SECRET_KEY", ""),
+    publishableKey: optional("CLERK_PUBLISHABLE_KEY", ""),
   },
 
   // Thumbnails (Bedrock + S3 + CloudFront). Tudo opcional: sem bucket/região,

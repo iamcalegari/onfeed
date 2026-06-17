@@ -34,10 +34,10 @@ const CORE_WEIGHT = 3;
 const NONCORE_WEIGHT = 1;
 
 const DEFAULT_WEIGHTS: DimensionWeights = {
-  semantic: 0.35,
-  i: 0.3,
+  semantic: 0.25,
+  i: 0.45, // ingredientes são o sinal mais forte do match — pesam mais
   e: 0.1,
-  t: 0.15,
+  t: 0.1,
   n: 0.1,
 };
 

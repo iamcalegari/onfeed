@@ -4,6 +4,7 @@ import {
   createPendingIngredient,
   findNearestIngredient,
 } from "./ingredient.repository.js";
+import { expandWithSubstitutes } from "./ingredient.substitutions.js";
 
 /**
  * Resolve termos digitados pelo usuário ("azeite", "tomate") para canonicalIds.
@@ -39,7 +40,8 @@ export async function resolveUserIngredients(
     }
   }
 
-  const haveIds = [...new Set([...termToId.values()])];
+  // expande com substitutos: ter óleo "cobre" uma receita que pede azeite
+  const haveIds = expandWithSubstitutes([...new Set([...termToId.values()])]);
   const unresolved = normalized.filter((t) => !termToId.has(t));
 
   return { haveIds, unresolved };
@@ -72,7 +74,14 @@ export async function resolveCanonicalForIngestion(
   if (exact) return { canonicalId: exact._id, isStaple: exact.isStaple };
 
   const vec = await embeddings.embedQuery(norm);
-  const near = await findNearestIngredient(vec);
+  // o vector index de ingredientes pode ainda estar "building" no Atlas; nesse
+  // caso o fallback semântico falha e a gente apenas cria um pending.
+  let near: Awaited<ReturnType<typeof findNearestIngredient>> = null;
+  try {
+    near = await findNearestIngredient(vec);
+  } catch {
+    near = null;
+  }
   if (near && near.score >= SEMANTIC_MATCH_THRESHOLD) {
     await IngredientModel.update(
       { _id: near._id },

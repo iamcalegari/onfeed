@@ -11,16 +11,22 @@
  *
  * Pré-requisitos: npm run setup:db && npm run seed:ingredients
  */
-import { loadRecipesFromCsv } from "@/infra/dataset/csv-loader.js";
-import { ADAPTERS } from "@/infra/dataset/dataset.adapter.js";
+// connection cria o `new Database()` que o mongoat injeta nos models — tem que
+// vir ANTES de qualquer import que toque um model (runBatchIngestion abaixo).
 import {
   connectDatabase,
   disconnectDatabase,
 } from "@/infra/database/connection.js";
-import { runBatchIngestion } from "@/modules/recipes/recipe.batch-ingestion.js";
-import type { RecipeSource } from "@/modules/recipes/recipe.types.js";
 // Registra os models no mongoat.
 import "@/modules/index.js";
+import {
+  INGREDIENT_VECTOR_INDEX,
+  waitForSearchIndexQueryable,
+} from "@/infra/database/search-indexes.js";
+import { loadRecipesFromCsv } from "@/infra/dataset/csv-loader.js";
+import { ADAPTERS } from "@/infra/dataset/dataset.adapter.js";
+import { runBatchIngestion } from "@/modules/recipes/recipe.batch-ingestion.js";
+import type { RecipeSource } from "@/modules/recipes/recipe.types.js";
 
 function getFlag(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -52,6 +58,12 @@ async function main(): Promise<void> {
   }
 
   await connectDatabase();
+
+  // O fallback semântico da canonicalização depende deste índice. Se estiver
+  // "building", termos novos viram pendings duplicados (ex: macarrao_espaguete
+  // em vez de casar com macarrao). Espera ficar queryable antes de ingerir.
+  await waitForSearchIndexQueryable("ingredients", INGREDIENT_VECTOR_INDEX);
+
   const report = await runBatchIngestion(recipes, { source });
 
   console.log(`[ingest] batch ${report.batchId}: ${report.succeeded} ok`);

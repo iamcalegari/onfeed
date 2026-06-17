@@ -1,5 +1,7 @@
+import { clerkPlugin } from "@clerk/fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
+import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
 import {
   type TypeBoxTypeProvider,
@@ -7,6 +9,8 @@ import {
 } from "@fastify/type-provider-typebox";
 import Fastify, { type FastifyInstance } from "fastify";
 
+import { env } from "@/config/env.js";
+import { authRoutes } from "@/modules/auth/auth.routes.js";
 import { recipeRoutes } from "@/modules/recipes/recipe.routes.js";
 import { searchRoutes } from "@/modules/search/search.routes.js";
 
@@ -19,12 +23,25 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.setValidatorCompiler(TypeBoxValidatorCompiler);
 
   await app.register(helmet);
-  await app.register(cors, { origin: true });
+  await app.register(cors, { origin: env.http.corsOrigin, credentials: true });
   await app.register(sensible);
+
+  // Protege contra abuso e segura custo (cada busca = Voyage; adapt = Claude).
+  await app.register(rateLimit, { max: 120, timeWindow: "1 minute" });
+
+  // Clerk: lê o token (cookie/Bearer) e disponibiliza getAuth(req) nas rotas.
+  // Só registra se configurado — sem chaves, getUserId() devolve null.
+  if (env.clerk.enabled) {
+    await app.register(clerkPlugin, {
+      secretKey: env.clerk.secretKey,
+      publishableKey: env.clerk.publishableKey,
+    });
+  }
 
   app.get("/health", async () => ({ status: "ok" }));
 
   // Cada domínio = um plugin com seu prefixo.
+  await app.register(authRoutes, { prefix: "/api/v1" });
   await app.register(searchRoutes, { prefix: "/api/v1" });
   await app.register(recipeRoutes, { prefix: "/api/v1" });
 

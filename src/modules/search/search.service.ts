@@ -33,11 +33,18 @@ function buildQueryText(req: SearchRequest): string {
 }
 
 export async function searchRecipes(req: SearchRequest): Promise<SearchOutcome> {
+  // Sem nenhum critério não há o que embeddar/buscar — e a Voyage rejeita input
+  // vazio (400). Retorna vazio em vez de estourar; o front trata results=[].
+  const queryText = buildQueryText(req);
+  if (!queryText.trim()) {
+    return { results: [], unresolvedIngredients: [], haveIds: [] };
+  }
+
   // I — canonicaliza os ingredientes do usuário
   const { haveIds, unresolved } = await resolveUserIngredients(req.ingredients);
 
   // query semântica (input_type=query)
-  const queryVector = await embeddings.embedQuery(buildQueryText(req));
+  const queryVector = await embeddings.embedQuery(queryText);
 
   const results = await hybridSearch({
     queryVector,

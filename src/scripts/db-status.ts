@@ -32,7 +32,11 @@ async function main(): Promise<void> {
 
   for (const name of ["recipes", "ingredients"]) {
     const col = database.getCollection(name);
-    const idx = (await col?.listSearchIndexes().toArray()) ?? [];
+    const idx = ((await col?.listSearchIndexes().toArray()) ?? []) as {
+      name: string;
+      status?: string;
+      queryable?: boolean;
+    }[];
     console.log(
       `search indexes [${name}]:`,
       idx.map((i) => ({
