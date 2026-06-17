@@ -22,8 +22,10 @@ export function AdaptButton({
     setError(null);
     startTransition(async () => {
       const res = await adaptRecipeAction(recipeId, haveIds);
-      if (res.ok) router.push(recipeHref(res.id, haveIds));
-      else setError(res.error); // ex.: limite diário atingido
+      if (res.ok) {
+        const href = recipeHref(res.id, haveIds);
+        router.push(href + (href.includes("?") ? "&" : "?") + "adapted=1");
+      } else setError(res.error); // ex.: limite diário atingido
     });
   }
 
@@ -33,11 +35,11 @@ export function AdaptButton({
         type="button"
         onClick={run}
         disabled={pending}
-        className="rounded-xl bg-amber-500 py-3 text-sm font-semibold text-white disabled:opacity-50"
+        className="w-full rounded-2xl bg-terracota py-3.5 text-sm font-semibold text-creme transition disabled:opacity-50"
       >
-        {pending ? "Adaptando…" : "✨ Adaptar pro que eu tenho"}
+        {pending ? "Adaptando…" : "✦ Adaptar pro que eu tenho"}
       </button>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-terracota">{error}</p>}
     </div>
   );
 }

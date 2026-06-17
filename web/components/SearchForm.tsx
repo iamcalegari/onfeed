@@ -8,23 +8,23 @@ import type { Equipment, NutritionGoal } from "@/lib/types";
 const EQUIPMENT_OPTIONS: { value: Equipment; label: string }[] = [
   { value: "stovetop", label: "Fogão" },
   { value: "oven", label: "Forno" },
-  { value: "microwave", label: "Microondas" },
+  { value: "microwave", label: "Micro-ondas" },
   { value: "blender", label: "Liquidificador" },
 ];
 
-const TIME_OPTIONS: { value: number | 0; label: string }[] = [
+const TIME_OPTIONS: { value: number; label: string }[] = [
   { value: 0, label: "Qualquer" },
   { value: 30, label: "Até 30 min" },
   { value: 60, label: "Até 1h" },
 ];
 
 const GOAL_OPTIONS: { value: NutritionGoal | ""; label: string }[] = [
-  { value: "", label: "Tanto faz" },
+  { value: "", label: "Trato fácil" },
   { value: "satiety", label: "Matar a fome" },
-  { value: "macros", label: "Respeitar macros" },
+  { value: "macros", label: "Repetir sabores" },
 ];
 
-const OCCASION_OPTIONS = ["tira-gosto", "entrada", "almoço", "sobremesa"];
+const OCCASION_OPTIONS = ["tira-gosto", "brunch", "almoço", "sobremesa"];
 
 export function SearchForm() {
   const router = useRouter();
@@ -62,17 +62,19 @@ export function SearchForm() {
   }
 
   return (
-    <div className="flex flex-col gap-7">
+    <div className="flex flex-col gap-6">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">O que você tem aí?</h1>
-        <p className="mt-1 text-sm text-stone-500">
+        <h1 className="font-display text-3xl font-semibold text-forest">
+          O que você tem aí?
+        </h1>
+        <p className="mt-1 text-sm text-carvao/60">
           A gente acha a receita que melhor combina.
         </p>
       </header>
 
-      {/* I — Ingredientes */}
-      <section className="flex flex-col gap-2">
-        <Label n="I" title="Ingredientes disponíveis" />
+      {/* Ingredientes */}
+      <section className="flex flex-col gap-2.5">
+        <Label icon={ICONS.leaf} title="Ingredientes disponíveis" />
         <div className="flex gap-2">
           <input
             value={draft}
@@ -83,13 +85,14 @@ export function SearchForm() {
                 addIngredient();
               }
             }}
-            placeholder="ovo, farinha, ..."
-            className="flex-1 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+            placeholder="Ovo, farinha, tomate..."
+            className="flex-1 rounded-xl border border-areia bg-white px-3.5 py-2.5 text-sm outline-none placeholder:text-carvao/40 focus:border-forest"
           />
           <button
             type="button"
             onClick={addIngredient}
-            className="rounded-lg bg-stone-800 px-4 text-sm font-medium text-white"
+            aria-label="Adicionar ingrediente"
+            className="flex w-11 items-center justify-center rounded-xl bg-forest text-lg font-semibold text-creme"
           >
             +
           </button>
@@ -100,10 +103,8 @@ export function SearchForm() {
               <button
                 key={ing}
                 type="button"
-                onClick={() =>
-                  setIngredients((p) => p.filter((x) => x !== ing))
-                }
-                className="rounded-full bg-emerald-100 px-3 py-1 text-xs text-emerald-800"
+                onClick={() => setIngredients((p) => p.filter((x) => x !== ing))}
+                className="rounded-full bg-salvia/20 px-3 py-1 text-xs font-medium text-forest"
               >
                 {ing} ✕
               </button>
@@ -112,9 +113,9 @@ export function SearchForm() {
         )}
       </section>
 
-      {/* E — Equipamentos */}
-      <section className="flex flex-col gap-2">
-        <Label n="E" title="Equipamentos disponíveis" />
+      {/* Equipamentos */}
+      <section className="flex flex-col gap-2.5">
+        <Label icon={ICONS.stove} title="Equipamentos disponíveis" />
         <div className="flex flex-wrap gap-2">
           {EQUIPMENT_OPTIONS.map((opt) => (
             <Chip
@@ -128,9 +129,9 @@ export function SearchForm() {
         </div>
       </section>
 
-      {/* T — Tempo */}
-      <section className="flex flex-col gap-2">
-        <Label n="T" title="Tempo disponível" />
+      {/* Tempo */}
+      <section className="flex flex-col gap-2.5">
+        <Label icon={ICONS.clock} title="Tempo disponível" />
         <div className="flex flex-wrap gap-2">
           {TIME_OPTIONS.map((opt) => (
             <Chip
@@ -144,9 +145,9 @@ export function SearchForm() {
         </div>
       </section>
 
-      {/* N — Objetivo */}
-      <section className="flex flex-col gap-2">
-        <Label n="N" title="Objetivo" />
+      {/* Objetivo */}
+      <section className="flex flex-col gap-2.5">
+        <Label icon={ICONS.target} title="Objetivo" />
         <div className="flex flex-wrap gap-2">
           {GOAL_OPTIONS.map((opt) => (
             <Chip
@@ -161,8 +162,8 @@ export function SearchForm() {
       </section>
 
       {/* Ocasião */}
-      <section className="flex flex-col gap-2">
-        <span className="text-sm font-semibold text-stone-700">Ocasião</span>
+      <section className="flex flex-col gap-2.5">
+        <span className="text-sm font-semibold text-carvao">Ocasião</span>
         <div className="flex flex-wrap gap-2">
           {OCCASION_OPTIONS.map((occ) => (
             <Chip
@@ -180,21 +181,50 @@ export function SearchForm() {
         type="button"
         onClick={submit}
         disabled={ingredients.length === 0}
-        className="mt-2 rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white disabled:opacity-40"
+        className="mt-1 flex items-center justify-center gap-2 rounded-2xl bg-forest py-3.5 text-sm font-semibold text-creme transition disabled:opacity-40"
       >
         Buscar receitas
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+          <circle cx="11" cy="11" r="7" />
+          <path d="m21 21-4.3-4.3" strokeLinecap="round" />
+        </svg>
       </button>
     </div>
   );
 }
 
-function Label({ n, title }: { n: string; title: string }) {
+const ICONS = {
+  leaf: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+      <path d="M11 20A7 7 0 0 1 4 13c0-5 5-9 16-9 0 11-4 16-9 16Z" strokeLinejoin="round" />
+      <path d="M4 20c3-3 6-5 9-6" strokeLinecap="round" />
+    </svg>
+  ),
+  stove: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+      <rect x="3" y="8" width="18" height="12" rx="2" />
+      <path d="M7 8V5h10v3M8 12h.01M12 12h.01" strokeLinecap="round" />
+    </svg>
+  ),
+  clock: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v4l3 2" strokeLinecap="round" />
+    </svg>
+  ),
+  target: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
+} as const;
+
+function Label({ icon, title }: { icon: React.ReactNode; title: string }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-stone-800 text-xs font-bold text-white">
-        {n}
-      </span>
-      <span className="text-sm font-semibold text-stone-700">{title}</span>
+    <div className="flex items-center gap-2 text-forest">
+      {icon}
+      <span className="text-sm font-semibold">{title}</span>
     </div>
   );
 }
@@ -212,10 +242,10 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+      className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition ${
         active
-          ? "border-emerald-600 bg-emerald-600 text-white"
-          : "border-stone-300 bg-white text-stone-700"
+          ? "border-forest bg-forest text-creme"
+          : "border-areia bg-white text-carvao hover:border-salvia"
       }`}
     >
       {children}

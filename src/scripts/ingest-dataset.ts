@@ -8,6 +8,7 @@
  *   --adapter  recipe-nlg | food-com   (default: recipe-nlg)
  *   --limit    máximo de receitas       (default: 100)
  *   --source   curated | user           (default: curated)
+ *   --sample   amostra distribuída pelo arquivo (em vez das primeiras N)
  *
  * Pré-requisitos: npm run setup:db && npm run seed:ingredients
  */
@@ -47,9 +48,13 @@ async function main(): Promise<void> {
   }
   const limit = Number(getFlag("limit") ?? "100");
   const source = (getFlag("source") ?? "curated") as RecipeSource;
+  // --sample: amostra distribuída em vez das primeiras N (mais variedade)
+  const sample = process.argv.includes("--sample");
 
-  console.log(`[ingest] lendo ${file} via '${adapterName}' (limite ${limit})`);
-  const recipes = await loadRecipesFromCsv(file, adapter, { limit });
+  console.log(
+    `[ingest] lendo ${file} via '${adapterName}' (limite ${limit}${sample ? ", amostra distribuída" : ""})`,
+  );
+  const recipes = await loadRecipesFromCsv(file, adapter, { limit, sample });
   console.log(`[ingest] ${recipes.length} receitas mapeadas`);
 
   if (recipes.length === 0) {

@@ -21,7 +21,7 @@ export function ResultsView({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-1 rounded-lg bg-stone-200 p-1 text-sm">
+      <div className="flex gap-1 rounded-full border border-areia bg-white p-1 text-sm">
         <Tab active={view === "list"} onClick={() => setView("list")}>
           Lista
         </Tab>
@@ -67,8 +67,8 @@ function Tab({
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 rounded-md py-1.5 font-medium transition ${
-        active ? "bg-white text-stone-900 shadow-sm" : "text-stone-500"
+      className={`flex-1 rounded-full py-1.5 font-medium transition ${
+        active ? "bg-forest text-creme" : "text-carvao/55"
       }`}
     >
       {children}

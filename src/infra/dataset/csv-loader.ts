@@ -8,18 +8,25 @@ import type { DatasetAdapter, DatasetRow } from "./dataset.adapter.js";
 export interface LoadOptions {
   /** máximo de receitas a coletar (a Batches API aceita até 100k por lote) */
   limit?: number;
+  /**
+   * Amostragem distribuída: em vez das primeiras `limit`, pega `limit` receitas
+   * uniformemente ao longo do arquivo inteiro (reservoir sampling). Dá variedade
+   * real — datasets costumam vir ordenados (alfabético/por id), então as
+   * "primeiras N" são enviesadas. Lê o arquivo todo (streaming), mas só guarda N.
+   */
+  sample?: boolean;
 }
 
 /**
- * Lê um CSV grande em streaming e mapeia cada linha via adapter. Para assim que
- * `limit` é atingido, sem ter carregado o arquivo todo na memória.
+ * Lê um CSV grande em streaming e mapeia cada linha via adapter. Sem `sample`,
+ * para assim que `limit` é atingido (rápido). Com `sample`, varre o arquivo todo
+ * e devolve uma amostra uniforme de `limit` receitas.
  */
 export async function loadRecipesFromCsv(
   filePath: string,
   adapter: DatasetAdapter,
   opts: LoadOptions = {},
 ): Promise<IngestRecipeInput[]> {
-  const out: IngestRecipeInput[] = [];
   const limit = opts.limit ?? Infinity;
 
   const parser = createReadStream(filePath).pipe(
@@ -31,6 +38,26 @@ export async function loadRecipesFromCsv(
     }),
   );
 
+  // amostragem distribuída (algoritmo R de reservoir sampling)
+  if (opts.sample && Number.isFinite(limit)) {
+    const reservoir: IngestRecipeInput[] = [];
+    let seen = 0; // índice (0-based) entre as receitas válidas já vistas
+    for await (const row of parser as AsyncIterable<DatasetRow>) {
+      const mapped = adapter(row);
+      if (!mapped) continue;
+      if (reservoir.length < limit) {
+        reservoir.push(mapped);
+      } else {
+        const j = Math.floor(Math.random() * (seen + 1));
+        if (j < limit) reservoir[j] = mapped;
+      }
+      seen++;
+    }
+    return reservoir;
+  }
+
+  // caminho rápido: as primeiras `limit` receitas válidas
+  const out: IngestRecipeInput[] = [];
   for await (const row of parser as AsyncIterable<DatasetRow>) {
     const mapped = adapter(row);
     if (mapped) out.push(mapped);
@@ -39,6 +66,5 @@ export async function loadRecipesFromCsv(
       break;
     }
   }
-
   return out;
 }

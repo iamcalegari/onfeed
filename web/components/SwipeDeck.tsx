@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { addFavoriteAction } from "@/app/actions";
 import { flagEmoji, formatMinutes, recipeHref } from "@/lib/format";
 import type { SearchHit } from "@/lib/types";
+import { LazyThumbnail } from "./LazyThumbnail";
 import { MatchScore } from "./MatchScore";
 import { ScoreBars } from "./ScoreBars";
 
@@ -75,7 +76,6 @@ export function SwipeDeck({
       setSelected((prev) =>
         prev.some((s) => s._id === current._id) ? prev : [...prev, current],
       );
-      // logado: persiste o YES como favorito (fire-and-forget)
       if (authenticated) void addFavoriteAction(current._id).catch(() => {});
     }
     setTimeout(() => {
@@ -99,17 +99,19 @@ export function SwipeDeck({
     return (
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">Selecionadas ({selected.length})</h2>
+          <h2 className="font-display text-xl font-semibold text-forest">
+            Selecionadas ({selected.length})
+          </h2>
           <button
             type="button"
             onClick={() => setShowSelected(false)}
-            className="text-sm text-emerald-700"
+            className="text-sm font-medium text-terracota"
           >
-            ← voltar ao deck
+            voltar ao deck
           </button>
         </div>
         {selected.length === 0 ? (
-          <p className="text-sm text-stone-500">
+          <p className="text-sm text-carvao/50">
             Nenhuma ainda — arraste pra direita pra selecionar.
           </p>
         ) : (
@@ -117,12 +119,12 @@ export function SwipeDeck({
             {selected.map((h) => (
               <div
                 key={h._id}
-                className="flex items-center gap-3 rounded-lg border border-stone-200 bg-white p-2"
+                className="flex items-center gap-3 rounded-2xl border border-areia bg-white p-2.5"
               >
                 <span className="text-xl">{flagEmoji(h.country)}</span>
                 <Link
                   href={recipeHref(h._id, haveIds)}
-                  className="flex-1 truncate text-sm font-medium"
+                  className="flex-1 truncate text-sm font-medium text-carvao"
                 >
                   {h.title}
                 </Link>
@@ -131,7 +133,7 @@ export function SwipeDeck({
                   onClick={() =>
                     setSelected((p) => p.filter((x) => x._id !== h._id))
                   }
-                  className="text-xs text-stone-400"
+                  className="text-xs text-carvao/40"
                 >
                   remover
                 </button>
@@ -140,7 +142,7 @@ export function SwipeDeck({
             <button
               type="button"
               onClick={() => setSelected([])}
-              className="mt-1 text-xs text-stone-400"
+              className="mt-1 text-xs text-carvao/40"
             >
               limpar tudo
             </button>
@@ -155,14 +157,14 @@ export function SwipeDeck({
     return (
       <div className="flex flex-col items-center gap-4 py-10 text-center">
         <p className="text-4xl">🎉</p>
-        <p className="text-sm text-stone-600">
+        <p className="text-sm text-carvao/70">
           Você passou por todas. {selected.length} selecionada
           {selected.length === 1 ? "" : "s"}.
         </p>
         <button
           type="button"
           onClick={() => setShowSelected(true)}
-          className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white"
+          className="rounded-2xl bg-forest px-5 py-2.5 text-sm font-semibold text-creme"
         >
           Ver selecionadas ({selected.length})
         </button>
@@ -170,8 +172,6 @@ export function SwipeDeck({
     );
   }
 
-  const packNum = Math.floor(index / PACK_SIZE) + 1;
-  const totalPacks = Math.ceil(deck.length / PACK_SIZE);
   const next = deck[index + 1];
   const tilt = drag / 25;
   const hint = Math.min(Math.abs(drag) / THRESHOLD, 1);
@@ -179,24 +179,24 @@ export function SwipeDeck({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-stone-500">
-          Pack {packNum}/{totalPacks}
+        <span className="text-xs font-medium text-carvao/50">
+          {index + 1} de {deck.length}
         </span>
         <button
           type="button"
           onClick={() => setShowSelected(true)}
-          className="text-sm font-medium text-emerald-700"
+          className="text-sm font-medium text-terracota"
         >
           Ver selecionadas ({selected.length})
         </button>
       </div>
 
       {/* área do deck */}
-      <div className="relative h-[420px] select-none">
+      <div className="relative h-[440px] select-none">
         {next && (
           <DeckCard
             hit={next}
-            style={{ transform: "scale(0.96) translateY(8px)" }}
+            style={{ transform: "scale(0.96) translateY(10px)" }}
             className="opacity-80"
           />
         )}
@@ -226,32 +226,39 @@ export function SwipeDeck({
         >
           {drag !== 0 && (
             <div
-              className={`absolute left-4 top-4 rounded-md border-2 px-2 py-0.5 text-lg font-extrabold ${
+              className={`absolute left-4 top-16 rounded-lg border-2 px-3 py-1 text-lg font-extrabold ${
                 drag > 0
-                  ? "border-emerald-500 text-emerald-500"
-                  : "border-red-500 text-red-500"
+                  ? "border-forest text-forest"
+                  : "border-terracota text-terracota"
               }`}
               style={{ opacity: hint }}
             >
-              {drag > 0 ? "YES" : "NO"}
+              {drag > 0 ? "SIM" : "NÃO"}
             </div>
           )}
         </DeckCard>
       </div>
 
-      <div className="flex items-center justify-center gap-6">
+      <div className="flex items-center justify-center gap-5">
         <button
           type="button"
           onClick={() => decide("no")}
-          className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-red-400 text-2xl text-red-500"
+          className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-terracota text-2xl text-terracota"
           aria-label="não"
         >
           ✕
         </button>
+        <Link
+          href={recipeHref(current._id, haveIds)}
+          aria-label="ver receita"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-areia bg-white text-lg text-carvao/60"
+        >
+          i
+        </Link>
         <button
           type="button"
           onClick={() => decide("yes")}
-          className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-emerald-500 text-2xl text-emerald-600"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-forest text-2xl text-creme"
           aria-label="sim"
         >
           ♥
@@ -277,40 +284,35 @@ function DeckCard({
     <div
       {...handlers}
       style={style}
-      className={`absolute inset-0 flex touch-none flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm ${className}`}
+      className={`absolute inset-0 flex touch-none flex-col overflow-hidden rounded-3xl border border-areia bg-white shadow-sm ${className}`}
     >
-      {hit.thumbnailUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={hit.thumbnailUrl}
-          alt=""
-          className="h-40 w-full object-cover"
+      <div className="relative">
+        <LazyThumbnail
+          recipeId={hit._id}
+          initialUrl={hit.thumbnailUrl}
+          className="h-48 w-full"
+          rounded="rounded-none"
+          iconClassName="text-5xl"
         />
-      ) : (
-        <div className="flex h-40 items-center justify-center bg-stone-100 text-5xl">
-          🍽️
-        </div>
-      )}
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="text-base font-bold leading-tight">
-            <span className="mr-1">{flagEmoji(hit.country)}</span>
-            {hit.title}
-          </h3>
+        <span className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-forest">
+          ♥
+        </span>
+        <span className="absolute right-3 top-3">
           <MatchScore score={hit.matchScore} />
-        </div>
-        <p className="line-clamp-3 text-xs text-stone-500">{hit.intro}</p>
+        </span>
+      </div>
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <h3 className="font-display text-xl font-semibold leading-tight text-carvao">
+          <span className="mr-1">{flagEmoji(hit.country)}</span>
+          {hit.title}
+        </h3>
+        <p className="line-clamp-3 text-sm text-carvao/55">{hit.intro}</p>
         <div className="mt-auto flex items-end justify-between">
           <ScoreBars scores={hit.scores} />
-          <span className="text-[11px] text-stone-400">
+          <span className="text-[11px] text-carvao/40">
             {formatMinutes(hit.prepTimeMin)}
           </span>
         </div>
-        {hit.missing.length > 0 && (
-          <p className="text-[11px] text-stone-500">
-            Faltando: {hit.missing.map((m) => m.name).join(", ")}
-          </p>
-        )}
       </div>
       {children}
     </div>

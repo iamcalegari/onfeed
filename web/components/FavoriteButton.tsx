@@ -34,15 +34,13 @@ export function FavoriteButton({
       onClick={toggle}
       disabled={pending}
       aria-pressed={fav}
-      className={`flex items-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition disabled:opacity-60 ${
+      className={`w-full rounded-2xl border py-3.5 text-sm font-semibold transition disabled:opacity-60 ${
         fav
-          ? "border-rose-300 bg-rose-50 text-rose-600"
-          : "border-stone-300 text-stone-700"
+          ? "border-forest bg-white text-forest"
+          : "border-transparent bg-forest text-creme"
       }`}
     >
-      <span className="px-3">
-        {fav ? "♥ Favoritada" : "♡ Favoritar"}
-      </span>
+      {fav ? "♥ Receita salva" : "Salvar receita"}
     </button>
   );
 }

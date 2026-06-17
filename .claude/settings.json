@@ -19,7 +19,10 @@
       "Bash(aws --version)",
       "Bash(aws sts *)",
       "Bash(chmod +x /home/alan/Dev/claude/scripts/deploy.sh)",
-      "Bash(yarn add *)"
+      "Bash(yarn add *)",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(yarn ingest:dataset --file data/sample-foodcom.csv --adapter food-com --limit 3 --sample)"
     ]
   }
 }
