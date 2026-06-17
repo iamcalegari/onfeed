@@ -5,3 +5,5 @@ next-env.d.ts
 *.tsbuildinfo
 *-lock.json
 *.lock
+
+# data/archive/*

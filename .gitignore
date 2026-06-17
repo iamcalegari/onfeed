@@ -4,3 +4,5 @@ dist/
 *.log
 *-lock.json
 *.lock
+
+# data/archive/*
