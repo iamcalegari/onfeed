@@ -1,0 +1,34 @@
+services:
+  # S3 emulado para dev local. MinIO é compatível com a API do S3 e não exige
+  # licença/token (ao contrário da imagem atual do LocalStack).
+  minio:
+    image: minio/minio:latest
+    container_name: recipes-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000" # API S3 (IMAGES_S3_ENDPOINT)
+      - "9001:9001" # console web
+    environment:
+      MINIO_ROOT_USER: localtest
+      MINIO_ROOT_PASSWORD: localtest123
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  # Cria o bucket e libera leitura pública (GET), para a publicUrl abrir no
+  # navegador. Roda uma vez e encerra.
+  createbucket:
+    image: minio/mc:latest
+    container_name: recipes-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 localtest localtest123 &&
+      mc mb --ignore-existing local/recipes-local &&
+      mc anonymous set download local/recipes-local &&
+      echo '[minio-init] bucket recipes-local pronto (leitura pública).'
+      "

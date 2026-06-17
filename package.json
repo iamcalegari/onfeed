@@ -1,0 +1,42 @@
+{
+  "name": "recipes-on-demand",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node --env-file=.env dist/server.js",
+    "setup:db": "tsx --env-file=.env src/infra/database/setup.ts",
+    "seed:ingredients": "tsx --env-file=.env src/infra/database/seed-ingredients.ts",
+    "ingest:dataset": "tsx --env-file=.env src/scripts/ingest-dataset.ts",
+    "db:status": "tsx --env-file=.env src/scripts/db-status.ts",
+    "s3:up": "docker compose up -d",
+    "s3:down": "docker compose down",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.2",
+    "@aws-sdk/client-bedrock-runtime": "^3.1070.0",
+    "@aws-sdk/client-s3": "^3.1070.0",
+    "@aws-sdk/s3-request-presigner": "^3.1070.0",
+    "@fastify/cors": "^10.0.1",
+    "@fastify/helmet": "^12.0.1",
+    "@fastify/sensible": "^6.0.2",
+    "@fastify/type-provider-typebox": "^5.1.0",
+    "@iamcalegari/mongoat": "^1.0.34-alpha",
+    "@sinclair/typebox": "^0.34.9",
+    "csv-parse": "^7.0.0",
+    "fastify": "^5.1.0",
+    "mongodb": "^6.16.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.3"
+  }
+}

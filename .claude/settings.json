@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\('sdk',p.dependencies['@anthropic-ai/sdk']\\);console.log\\('zod',p.dependencies['zod']\\)\")",
+      "Bash(node -e \"console.log\\('csv-parse', require\\('./package.json'\\).dependencies['csv-parse']\\)\")",
+      "Bash(mongosh \"mongodb+srv://iamcalegari:aDhara20.@cluster0.pkghwu1.mongodb.net/?appName=Cluster0\" --eval \"db.runCommand\\({ping:1}\\)\")",
+      "Bash(yarn setup:db)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('scripts.test:', p.scripts.test||'\\(nenhum\\)'\\); console.log\\('devDeps:', Object.keys\\(p.devDependencies||{}\\).join\\(', '\\)\\)\")",
+      "Bash(chmod +x /home/alan/Dev/claude/localstack/init/init-s3.sh)",
+      "Bash(yarn typecheck *)",
+      "Bash(npx tsx --eval ' *)",
+      "Read(//tmp/**)",
+      "Bash(yarn localstack:up)",
+      "Bash(npx tsx *)",
+      "Bash(sudo -n systemctl start docker)",
+      "Bash(docker info *)",
+      "Bash(systemctl is-active *)",
+      "Read(//run/**)",
+      "Bash(getent group *)",
+      "Bash(sg docker *)",
+      "Bash(curl -s http://localhost:4566/_localstack/health)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:9000/minio/health/live)",
+      "Bash(curl -s -o /dev/null -w \"S3 HTTP %{http_code}\\\\n\" http://localhost:9000/minio/health/live)",
+      "Bash(curl -s -m 2 http://localhost:3000/health)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); const all={...p.dependencies,...p.devDependencies}; console.log\\(Object.keys\\(all\\).filter\\(k=>/react|vue|svelte|vite|next|angular|solid/i.test\\(k\\)\\).join\\(', '\\)||'\\(nenhuma\\)'\\)\")"
+    ]
+  }
+}
