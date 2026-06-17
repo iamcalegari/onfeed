@@ -22,7 +22,15 @@
       "Bash(yarn add *)",
       "Skill(claude-api)",
       "Skill(claude-api:*)",
-      "Bash(yarn ingest:dataset --file data/sample-foodcom.csv --adapter food-com --limit 3 --sample)"
+      "Bash(yarn ingest:dataset --file data/sample-foodcom.csv --adapter food-com --limit 3 --sample)",
+      "Bash(yarn ingest:dataset --file data/sample-foodcom.csv --adapter food-com --limit 1 --sample)",
+      "Bash(break)",
+      "Bash(date +%s)",
+      "Bash(yarn ingest:dataset --file data/sample-foodcom.csv --adapter food-com --limit 5 --source curated)",
+      "Bash(git checkout *)",
+      "Bash(git rm *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

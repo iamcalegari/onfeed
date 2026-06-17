@@ -5,4 +5,5 @@ dist/
 *-lock.json
 *.lock
 
-# data/archive/*
+# dataset bruto (grande demais p/ git)
+data/archive/

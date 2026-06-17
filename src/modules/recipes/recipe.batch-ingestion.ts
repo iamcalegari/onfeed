@@ -4,10 +4,11 @@ import {
   ExtractedRecipeSchema,
 } from "./recipe.extraction.js";
 import {
-  persistExtractedRecipe,
+  persistExtractedRecipesBatch,
   type IngestOptions,
   type IngestRecipeInput,
 } from "./recipe.ingestion.js";
+import type { ExtractedRecipe } from "./recipe.extraction.js";
 
 /**
  * Ingestão em lote do seed inicial usando a Batches API da Anthropic — a fase
@@ -62,9 +63,9 @@ export async function runBatchIngestion(
     );
   }
 
-  // 3. processa resultados
+  // 3. coleta os resultados extraídos (parse), separando as falhas de extração
   const failed: { customId: string; reason: string }[] = [];
-  let succeeded = 0;
+  const parsed: { input: IngestRecipeInput; extracted: ExtractedRecipe }[] = [];
 
   for await (const entry of await anthropic.messages.batches.results(batch.id)) {
     const recipe = byCustomId.get(entry.custom_id);
@@ -86,13 +87,26 @@ export async function runBatchIngestion(
         throw new Error("resposta sem bloco de texto");
       }
       const extracted = ExtractedRecipeSchema.parse(JSON.parse(textBlock.text));
-      await persistExtractedRecipe(recipe, extracted, opts);
-      succeeded++;
+      parsed.push({ input: recipe, extracted });
     } catch (err) {
       failed.push({
         customId: entry.custom_id,
         reason: err instanceof Error ? err.message : String(err),
       });
+    }
+  }
+
+  // 4. persiste em lote: canonicalização deduplicada + embeddings em chunks
+  // (1 request Voyage por chunk em vez de 1 por receita — o gargalo no free tier).
+  let succeeded = 0;
+  if (parsed.length > 0) {
+    const { saved, failed: persistFailed } = await persistExtractedRecipesBatch(
+      parsed,
+      opts,
+    );
+    succeeded = saved.length;
+    for (const f of persistFailed) {
+      failed.push({ customId: f.title, reason: f.reason });
     }
   }
 
