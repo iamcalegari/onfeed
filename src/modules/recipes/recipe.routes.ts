@@ -176,9 +176,45 @@ export const recipeRoutes: FastifyPluginAsync = async (fastify) => {
     },
   );
 
-  // Thumbnail lazy: gera no primeiro acesso (Bedrock→S3) e persiste.
-  // Retorna { thumbnailUrl: null } quando imagens estão desabilitadas.
+  // IDs em geração no momento — evita disparar Bedrock duas vezes para a mesma
+  // receita se o usuário recarregar antes de terminar.
+  const generating = new Set<string>();
+
+  // POST: dispara geração em background e retorna 202 imediatamente.
+  // O front faz polling no GET abaixo até a URL aparecer no DB.
   app.post(
+    "/recipes/:id/thumbnail",
+    {
+      schema: {
+        tags: ["recipes"],
+        params: Type.Object({ id: Type.String() }),
+        response: { 202: Type.Object({ status: Type.String() }) },
+      },
+    },
+    async (request, reply) => {
+      const id = request.params.id;
+      const recipe = await getRecipeById(id);
+      if (!recipe) return reply.notFound("Receita não encontrada");
+      if (recipe.thumbnailUrl) return reply.status(202).send({ status: "ready" });
+      if (generating.has(id)) return reply.status(202).send({ status: "generating" });
+
+      generating.add(id);
+      // fire-and-forget: não bloqueia a resposta
+      ensureThumbnail(recipe)
+        .then(async (url) => {
+          if (url && url !== recipe.thumbnailUrl) await setThumbnail(id, url);
+        })
+        .catch((err) => {
+          app.log.error({ err, recipeId: id }, "thumbnail generation failed");
+        })
+        .finally(() => generating.delete(id));
+
+      return reply.status(202).send({ status: "generating" });
+    },
+  );
+
+  // GET: retorna a URL atual do DB (null = ainda gerando ou imagens desabilitadas).
+  app.get(
     "/recipes/:id/thumbnail",
     {
       schema: {
@@ -187,18 +223,19 @@ export const recipeRoutes: FastifyPluginAsync = async (fastify) => {
         response: {
           200: Type.Object({
             thumbnailUrl: Type.Union([Type.String(), Type.Null()]),
+            generating: Type.Boolean(),
           }),
         },
       },
     },
     async (request, reply) => {
-      const recipe = await getRecipeById(request.params.id);
+      const id = request.params.id;
+      const recipe = await getRecipeById(id);
       if (!recipe) return reply.notFound("Receita não encontrada");
-      const url = await ensureThumbnail(recipe);
-      if (url && url !== recipe.thumbnailUrl) {
-        await setThumbnail(request.params.id, url);
-      }
-      return { thumbnailUrl: url };
+      return {
+        thumbnailUrl: recipe.thumbnailUrl || null,
+        generating: generating.has(id),
+      };
     },
   );
 

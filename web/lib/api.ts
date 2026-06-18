@@ -65,16 +65,25 @@ export interface AdaptBody {
   lang?: "pt" | "en";
 }
 
-export async function generateThumbnail(id: string): Promise<string | null> {
+/** Dispara geração em background (retorna imediatamente com 202). */
+export async function triggerThumbnail(id: string): Promise<void> {
+  await fetch(`${API_BASE}/api/v1/recipes/${encodeURIComponent(id)}/thumbnail`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { ...(await authHeaders()) },
+  });
+}
+
+/** Lê a URL atual do DB — null se ainda gerando. */
+export async function getThumbnailUrl(
+  id: string,
+): Promise<{ thumbnailUrl: string | null; generating: boolean }> {
   const res = await fetch(
     `${API_BASE}/api/v1/recipes/${encodeURIComponent(id)}/thumbnail`,
-    { method: "POST", cache: "no-store", headers: { ...(await authHeaders()) } },
+    { cache: "no-store", headers: { ...(await authHeaders()) } },
   );
-  if (!res.ok) {
-    throw new Error(`Thumbnail falhou: ${res.status} ${await res.text()}`);
-  }
-  const json = (await res.json()) as { thumbnailUrl: string | null };
-  return json.thumbnailUrl;
+  if (!res.ok) return { thumbnailUrl: null, generating: false };
+  return res.json() as Promise<{ thumbnailUrl: string | null; generating: boolean }>;
 }
 
 // --- favoritos (exigem login; sem sessão o backend responde 401) ---

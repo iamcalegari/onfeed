@@ -198,7 +198,7 @@ export function SwipeDeck({
       </div>
 
       {/* ── Área do deck ─────────────────────────────────────── */}
-      <div className="relative h-110 select-none">
+      <div className="relative select-none" style={{ height: "clamp(300px, calc(100svh - 22rem), 440px)" }}>
 
         {/* Carta de fundo (próxima) */}
         {next && (

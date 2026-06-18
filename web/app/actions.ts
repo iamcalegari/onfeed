@@ -5,8 +5,9 @@ import { cookies } from "next/headers";
 import {
   adaptRecipe,
   addFavorite,
-  generateThumbnail,
+  getThumbnailUrl,
   removeFavorite,
+  triggerThumbnail,
 } from "@/lib/api";
 
 /**
@@ -27,11 +28,16 @@ export async function adaptRecipeAction(
   }
 }
 
-/** Geração lazy da thumbnail; null se imagens estão desabilitadas no backend. */
-export async function generateThumbnailAction(
+/** Dispara geração em background (retorna imediatamente). */
+export async function triggerThumbnailAction(id: string): Promise<void> {
+  await triggerThumbnail(id);
+}
+
+/** Lê a URL atual — null se ainda gerando. */
+export async function getThumbnailUrlAction(
   id: string,
-): Promise<string | null> {
-  return generateThumbnail(id);
+): Promise<{ thumbnailUrl: string | null; generating: boolean }> {
+  return getThumbnailUrl(id);
 }
 
 export async function addFavoriteAction(recipeId: string): Promise<void> {
