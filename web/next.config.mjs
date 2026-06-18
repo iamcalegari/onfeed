@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version ?? "0.1.0",
+  },
   // build standalone (server.js minimalista) p/ container no App Runner/Lightsail
   output: "standalone",
   // o backend vive na raiz do repo; fixa a raiz de tracing neste app

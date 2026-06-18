@@ -66,14 +66,21 @@ export function LogoLoader({ label = "Carregando..." }: { label?: string }) {
         />
       </div>
 
-      {/* Wordmark */}
-      <span
-        className="font-display text-xl tracking-tight text-forest"
+      {/* Wordmark + versão */}
+      <div
+        className="flex flex-col items-center gap-1"
         style={{ animation: "fade-up 0.45s ease 0.2s both" }}
       >
-        <span className="font-medium">on</span>
-        <span className="font-bold">feed</span>
-      </span>
+        <span className="font-display text-xl tracking-tight text-forest">
+          <span className="font-medium">on</span>
+          <span className="font-bold">feed</span>
+        </span>
+        {process.env.NEXT_PUBLIC_APP_VERSION && (
+          <span className="text-xs text-forest/40 tabular-nums">
+            v{process.env.NEXT_PUBLIC_APP_VERSION}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
