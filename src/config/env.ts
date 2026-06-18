@@ -48,7 +48,7 @@ export const env = {
     apiKey: required("ANTHROPIC_API_KEY"),
     // Extração e adaptação. Default Haiku 4.5 (5-10x mais barato que Opus e
     // suficiente p/ essas tarefas). Troque p/ opus/sonnet se quiser mais qualidade.
-    model: optional("ANTHROPIC_MODEL", "claude-haiku-4-5"),
+    model: optional("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
     // teto diário de adaptações (LLM) por usuário — segura o custo variável
     adaptDailyLimit: Number(optional("ADAPT_DAILY_LIMIT", "10")),
   },

@@ -30,14 +30,6 @@ Parameters:
     Type: String
     Default: "claude-haiku-4-5"
 
-  # Limita execuções simultâneas para respeitar os rate limits do Voyage.
-  # Com Tier 1 (2000 RPM) pode subir para 10+; no free tier mantenha em 2.
-  MaxConcurrency:
-    Type: Number
-    Default: 3
-    MinValue: 1
-    MaxValue: 50
-
   # Segredos (NoEcho = nunca aparecem nos logs/console do CloudFormation)
   MongodbUri:
     Type: String

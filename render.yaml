@@ -21,7 +21,7 @@ services:
       - key: VOYAGE_DIMENSIONS
         value: "1024"
       - key: ANTHROPIC_MODEL
-        value: claude-haiku-4-5
+        value: claude-haiku-4-5-20251001
       - key: IMAGES_S3_BUCKET
         value: on-feed-recipes-dev
       - key: BEDROCK_REGION
