@@ -5,11 +5,11 @@ import { useState } from "react";
 
 import type { Equipment, NutritionGoal } from "@/lib/types";
 
-const EQUIPMENT_OPTIONS: { value: Equipment; label: string }[] = [
-  { value: "stovetop", label: "Fogão" },
-  { value: "oven", label: "Forno" },
-  { value: "microwave", label: "Micro-ondas" },
-  { value: "blender", label: "Liquidificador" },
+const EQUIPMENT_OPTIONS: { value: Equipment; label: string; emoji: string }[] = [
+  { value: "stovetop", label: "Fogão", emoji: "🔥" },
+  { value: "oven", label: "Forno", emoji: "📦" },
+  { value: "microwave", label: "Micro-ondas", emoji: "📡" },
+  { value: "blender", label: "Liquidificador", emoji: "🌀" },
 ];
 
 const TIME_OPTIONS: { value: number; label: string }[] = [
@@ -62,19 +62,21 @@ export function SearchForm() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <header>
-        <h1 className="font-display text-3xl font-semibold text-forest">
+    <div className="flex flex-col gap-7">
+      {/* Header */}
+      <header className="pt-2">
+        <h1 className="font-display text-[2rem] font-bold leading-tight text-forest">
           O que você tem aí?
         </h1>
-        <p className="mt-1 text-sm text-carvao/60">
-          A gente acha a receita que melhor combina.
+        <p className="mt-1.5 text-sm text-carvao/55 leading-relaxed">
+          Diga o que tem na geladeira — a gente acha a receita certa.
         </p>
       </header>
 
       {/* Ingredientes */}
-      <section className="flex flex-col gap-2.5">
-        <Label icon={ICONS.leaf} title="Ingredientes disponíveis" />
+      <section className="flex flex-col gap-3">
+        <SectionLabel icon={<LeafIcon />} title="Ingredientes disponíveis" />
+
         <div className="flex gap-2">
           <input
             value={draft}
@@ -85,18 +87,19 @@ export function SearchForm() {
                 addIngredient();
               }
             }}
-            placeholder="Ovo, farinha, tomate..."
-            className="flex-1 rounded-xl border border-areia bg-white px-3.5 py-2.5 text-sm outline-none placeholder:text-carvao/40 focus:border-forest"
+            placeholder="ovo, farinha, tomate..."
+            className="flex-1 rounded-xl border border-areia bg-surface px-4 py-3 text-sm shadow-sm outline-none placeholder:text-carvao/35 focus:border-salvia focus:ring-2 focus:ring-salvia/20 transition-all"
           />
           <button
             type="button"
             onClick={addIngredient}
             aria-label="Adicionar ingrediente"
-            className="flex w-11 items-center justify-center rounded-xl bg-forest text-lg font-semibold text-creme"
+            className="flex h-11.5 w-11.5 shrink-0 items-center justify-center rounded-xl bg-forest text-xl font-bold text-creme shadow-sm transition-all active:scale-95 hover:bg-forest/90"
           >
             +
           </button>
         </div>
+
         {ingredients.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {ingredients.map((ing) => (
@@ -104,9 +107,12 @@ export function SearchForm() {
                 key={ing}
                 type="button"
                 onClick={() => setIngredients((p) => p.filter((x) => x !== ing))}
-                className="rounded-full bg-salvia/20 px-3 py-1 text-xs font-medium text-forest"
+                className="flex items-center gap-1.5 rounded-full bg-salvia/15 px-3 py-1.5 text-xs font-medium text-forest ring-1 ring-salvia/30 transition-all hover:bg-salvia/25"
               >
-                {ing} ✕
+                {ing}
+                <span className="opacity-50">
+                  <XIcon />
+                </span>
               </button>
             ))}
           </div>
@@ -114,8 +120,8 @@ export function SearchForm() {
       </section>
 
       {/* Equipamentos */}
-      <section className="flex flex-col gap-2.5">
-        <Label icon={ICONS.stove} title="Equipamentos disponíveis" />
+      <section className="flex flex-col gap-3">
+        <SectionLabel icon={<StoveIcon />} title="Equipamentos disponíveis" />
         <div className="flex flex-wrap gap-2">
           {EQUIPMENT_OPTIONS.map((opt) => (
             <Chip
@@ -123,6 +129,7 @@ export function SearchForm() {
               active={equipment.includes(opt.value)}
               onClick={() => toggleEquip(opt.value)}
             >
+              <span>{opt.emoji}</span>
               {opt.label}
             </Chip>
           ))}
@@ -130,8 +137,8 @@ export function SearchForm() {
       </section>
 
       {/* Tempo */}
-      <section className="flex flex-col gap-2.5">
-        <Label icon={ICONS.clock} title="Tempo disponível" />
+      <section className="flex flex-col gap-3">
+        <SectionLabel icon={<ClockIcon />} title="Tempo disponível" />
         <div className="flex flex-wrap gap-2">
           {TIME_OPTIONS.map((opt) => (
             <Chip
@@ -146,8 +153,8 @@ export function SearchForm() {
       </section>
 
       {/* Objetivo */}
-      <section className="flex flex-col gap-2.5">
-        <Label icon={ICONS.target} title="Objetivo" />
+      <section className="flex flex-col gap-3">
+        <SectionLabel icon={<TargetIcon />} title="Objetivo" />
         <div className="flex flex-wrap gap-2">
           {GOAL_OPTIONS.map((opt) => (
             <Chip
@@ -162,8 +169,8 @@ export function SearchForm() {
       </section>
 
       {/* Ocasião */}
-      <section className="flex flex-col gap-2.5">
-        <span className="text-sm font-semibold text-carvao">Ocasião</span>
+      <section className="flex flex-col gap-3">
+        <SectionLabel icon={<OccasionIcon />} title="Ocasião" />
         <div className="flex flex-wrap gap-2">
           {OCCASION_OPTIONS.map((occ) => (
             <Chip
@@ -177,14 +184,21 @@ export function SearchForm() {
         </div>
       </section>
 
+      {/* CTA */}
       <button
         type="button"
         onClick={submit}
         disabled={ingredients.length === 0}
-        className="mt-1 flex items-center justify-center gap-2 rounded-2xl bg-forest py-3.5 text-sm font-semibold text-creme transition disabled:opacity-40"
+        className="mt-1 flex items-center justify-center gap-2.5 rounded-2xl bg-forest py-4 text-sm font-semibold text-creme shadow-card transition-all hover:shadow-lift hover:-translate-y-px active:translate-y-0 active:shadow-card disabled:opacity-40 disabled:pointer-events-none"
       >
         Buscar receitas
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="h-4 w-4"
+        >
           <circle cx="11" cy="11" r="7" />
           <path d="m21 21-4.3-4.3" strokeLinecap="round" />
         </svg>
@@ -193,34 +207,9 @@ export function SearchForm() {
   );
 }
 
-const ICONS = {
-  leaf: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-      <path d="M11 20A7 7 0 0 1 4 13c0-5 5-9 16-9 0 11-4 16-9 16Z" strokeLinejoin="round" />
-      <path d="M4 20c3-3 6-5 9-6" strokeLinecap="round" />
-    </svg>
-  ),
-  stove: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-      <rect x="3" y="8" width="18" height="12" rx="2" />
-      <path d="M7 8V5h10v3M8 12h.01M12 12h.01" strokeLinecap="round" />
-    </svg>
-  ),
-  clock: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-      <circle cx="12" cy="12" r="8" />
-      <path d="M12 8v4l3 2" strokeLinecap="round" />
-    </svg>
-  ),
-  target: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-      <circle cx="12" cy="12" r="8" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  ),
-} as const;
+/* ── Sub-components ───────────────────────────────────────────── */
 
-function Label({ icon, title }: { icon: React.ReactNode; title: string }) {
+function SectionLabel({ icon, title }: { icon: React.ReactNode; title: string }) {
   return (
     <div className="flex items-center gap-2 text-forest">
       {icon}
@@ -242,13 +231,67 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition ${
+      className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all ${
         active
-          ? "border-forest bg-forest text-creme"
-          : "border-areia bg-white text-carvao hover:border-salvia"
+          ? "border-forest bg-forest text-creme shadow-sm"
+          : "border-areia bg-surface text-carvao/70 hover:border-salvia hover:text-forest"
       }`}
     >
       {children}
     </button>
+  );
+}
+
+/* ── Ícones inline ────────────────────────────────────────────── */
+
+function LeafIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 shrink-0">
+      <path d="M11 20A7 7 0 0 1 4 13c0-5 5-9 16-9 0 11-4 16-9 16Z" strokeLinejoin="round" />
+      <path d="M4 20c3-3 6-5 9-6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function StoveIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 shrink-0">
+      <rect x="3" y="8" width="18" height="12" rx="2" />
+      <path d="M7 8V5h10v3M8 12h.01M12 12h.01" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 shrink-0">
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v4l3 2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function TargetIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 shrink-0">
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function OccasionIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 shrink-0">
+      <path d="M8 3v4M16 3v4M3 9h18M5 21h14a2 2 0 0 0 2-2V9H3v10a2 2 0 0 0 2 2Z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function XIcon() {
+  return (
+    <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <path d="M2 2l8 8M10 2l-8 8" />
+    </svg>
   );
 }

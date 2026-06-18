@@ -1,9 +1,10 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
+import { cookies } from "next/headers";
 
-import { BottomNav } from "@/components/BottomNav";
-import { Header } from "@/components/Header";
+import { THEME_SCRIPT } from "@/lib/settings";
+import type { Theme } from "@/lib/settings";
 import "./globals.css";
 
 const inter = Inter({
@@ -12,8 +13,6 @@ const inter = Inter({
   display: "swap",
 });
 
-// Fraunces = substituta livre da Recoleta (serif suave). Trocável pela
-// Recoleta licenciada depois, só ajustando --font-display no globals.css.
 const fraunces = Fraunces({
   subsets: ["latin"],
   variable: "--font-fraunces",
@@ -25,27 +24,37 @@ export const metadata: Metadata = {
   title: "onFeed — receitas que combinam com você",
   description:
     "Diga o que você tem; a gente acha a receita que melhor combina (I/E/T/N).",
+  icons: {
+    icon: "/app-icon.png",
+    apple: "/app-icon.png",
+  },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
-  const inner = (
-    <>
-      <Header clerkEnabled={clerkEnabled} />
-      <main className="mx-auto w-full max-w-md px-4 pb-28 pt-4">{children}</main>
-      <BottomNav />
-    </>
-  );
+  const cookieStore = await cookies();
+  const theme = (cookieStore.get("theme")?.value ?? "system") as Theme;
+  const isDark = theme === "dark";
 
   return (
-    <html lang="pt-BR" className={`${inter.variable} ${fraunces.variable}`}>
+    <html
+      lang="pt-BR"
+      className={`${inter.variable} ${fraunces.variable}${isDark ? " dark" : ""}`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="min-h-screen">
-        {clerkEnabled ? <ClerkProvider>{inner}</ClerkProvider> : inner}
+        {clerkEnabled ? (
+          <ClerkProvider>{children}</ClerkProvider>
+        ) : (
+          children
+        )}
       </body>
     </html>
   );

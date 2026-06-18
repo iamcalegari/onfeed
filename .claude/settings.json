@@ -30,7 +30,42 @@
       "Bash(git checkout *)",
       "Bash(git rm *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git rev-list *)",
+      "Bash(git cat-file *)",
+      "Bash(awk '$1==\"blob\"{print $2, $3}')",
+      "Bash(git stash *)",
+      "Bash(git ls-tree *)",
+      "Bash(git count-objects *)",
+      "Bash(git push *)",
+      "Bash(tsx --env-file=.env -e ' *)",
+      "Bash(mongosh mongodb+srv://my-recipes-app-dev:wIEz7FWWtemeJWqE@cluster0.pkghwu1.mongodb.net/ --quiet --eval ' *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(mongosh mongodb+srv://my-recipes-app-dev:wIEz7FWWtemeJWqE@cluster0.pkghwu1.mongodb.net/recipes_on_demand --quiet --eval ' *)",
+      "WebSearch",
+      "Bash(mkdir -p /home/alan/Dev/claude/src/infra/queue /home/alan/Dev/claude/src/lambda /home/alan/Dev/claude/infra/cloudformation /home/alan/Dev/claude/infra/scripts)",
+      "Bash(chmod +x /home/alan/Dev/claude/infra/scripts/setup-ssm.sh /home/alan/Dev/claude/infra/scripts/deploy-lambda.sh)",
+      "Bash(npx tsc *)",
+      "Bash(zip -q ingest-handler.zip handler.js)",
+      "Bash(node -e ' *)",
+      "Bash(chmod +x /home/alan/Dev/claude/infra/scripts/bootstrap.sh)",
+      "Bash(aws cloudformation *)",
+      "Bash(aws s3api *)",
+      "Bash(aws iam *)",
+      "Bash(aws ecr *)",
+      "Bash(aws apprunner *)",
+      "Bash(bash infra/scripts/bootstrap.sh)",
+      "Bash(openssl x509 *)",
+      "Bash(python3 -c ' *)",
+      "Bash(grep -E \"^  [A-Z][a-zA-Z]+:$\" infra/cloudformation/ingest-pipeline.yaml)",
+      "Bash(wait)",
+      "Bash(node -e \"require\\('sharp'\\)\")",
+      "Bash(identify /home/alan/Dev/claude/docs/onfeed-icon.png)",
+      "Bash(aws lambda *)",
+      "Bash(aws ssm *)"
+    ],
+    "additionalDirectories": [
+      "/home/alan/Dev/claude/src/infra"
     ]
   }
 }

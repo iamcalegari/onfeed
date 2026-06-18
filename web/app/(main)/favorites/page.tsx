@@ -48,7 +48,7 @@ export default async function FavoritesPage() {
             <Link
               key={r._id}
               href={`/recipe/${r._id}`}
-              className="flex gap-3 rounded-2xl border border-areia bg-white p-3"
+              className="flex gap-3 rounded-2xl border border-areia bg-surface p-3"
             >
               {r.thumbnailUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element

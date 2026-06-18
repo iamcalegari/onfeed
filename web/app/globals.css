@@ -1,29 +1,83 @@
 @import "tailwindcss";
 
-/* Design system onFeed (docs/concept_02.png) */
+/* ── Design system onFeed ─────────────────────────────────── */
 @theme {
-  --color-forest: #0f2f2a; /* Verde Floresta — primário */
-  --color-terracota: #e4643a; /* Terracota — acento/CTA secundário */
-  --color-salvia: #7ea89e; /* Sálvia */
-  --color-creme: #fffaf1; /* Creme — fundo */
-  --color-carvao: #2b2b2b; /* Carvão — texto */
-  --color-areia: #e9d6bc; /* Areia */
+  --color-forest:    #0f2f2a;
+  --color-terracota: #e4643a;
+  --color-salvia:    #7ea89e;
+  --color-creme:     #fffaf1;
+  --color-carvao:    #2b2b2b;
+  --color-areia:     #e9d6bc;
+  --color-surface:   #ffffff;   /* superfície de card/input */
 
-  /* Recoleta (licenciada) nos títulos; Fraunces como substituta livre.
-     Inter no corpo. As vars vêm do next/font no layout. */
+  --shadow-card: 0 1px 3px -1px rgb(15 47 42 / 0.06), 0 4px 12px -2px rgb(15 47 42 / 0.07);
+  --shadow-lift: 0 4px 16px -2px rgb(15 47 42 / 0.11), 0 8px 24px -4px rgb(15 47 42 / 0.08);
+  --shadow-top:  0 -1px 0 0 rgb(233 214 188 / 0.5), 0 -4px 16px -4px rgb(15 47 42 / 0.06);
+
   --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans:    var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
-html {
-  color-scheme: light;
+/* ── Dark mode ─────────────────────────────────────────────── */
+/*
+  Estratégia: sobrescreve as variáveis de cor — todos os utilitários
+  Tailwind adaptam automaticamente. Forest vira sage-verde muted (não neon).
+*/
+.dark {
+  --color-forest:    #5a9e8e;   /* sage-verde muted: legível, não saturado  */
+  --color-terracota: #c8583a;   /* terracota muted, menos agressivo          */
+  --color-salvia:    #547d75;   /* salvia mais escura para contraste         */
+  --color-creme:     #111009;   /* fundo muito escuro quente                 */
+  --color-carvao:    #ddd8cf;   /* texto quente, não branco puro             */
+  --color-areia:     #242018;   /* bordas escuras                            */
+  --color-surface:   #1a1714;   /* superfície de card/input                  */
+
+  --shadow-card: 0 1px 4px -1px rgb(0 0 0 / 0.35), 0 4px 14px -2px rgb(0 0 0 / 0.3);
+  --shadow-lift: 0 4px 18px -2px rgb(0 0 0 / 0.4), 0 8px 28px -4px rgb(0 0 0 / 0.28);
+  --shadow-top:  0 -1px 0 0 rgb(0 0 0 / 0.4);
+
+  color-scheme: dark;
 }
+
+/* ── Base ──────────────────────────────────────────────────── */
+html { color-scheme: light; }
 
 body {
-  background: var(--color-creme);
-  color: var(--color-carvao);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
+  background:              var(--color-creme);
+  color:                   var(--color-carvao);
+  font-family:             var(--font-sans);
+  -webkit-font-smoothing:  antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Títulos usam a serif por padrão quando a classe .font-display é aplicada. */
+::selection {
+  background: rgb(126 168 158 / 0.3);
+  color:      var(--color-forest);
+}
+
+:focus-visible {
+  outline:        2px solid var(--color-forest);
+  outline-offset: 2px;
+  border-radius:  6px;
+}
+
+/* ── Animações ─────────────────────────────────────────────── */
+@keyframes logo-breathe {
+  0%, 100% { transform: scale(1);    opacity: 1;    }
+  50%       { transform: scale(1.06); opacity: 0.88; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+@keyframes spin-ring {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Scrollbar discreta ────────────────────────────────────── */
+::-webkit-scrollbar        { width: 4px; height: 4px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: var(--color-areia); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-salvia); }

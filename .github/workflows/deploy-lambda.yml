@@ -1,0 +1,54 @@
+name: Deploy Lambda (ingestão)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/lambda/**"
+      - "src/modules/**"
+      - "src/infra/**"
+      - "src/config/**"
+      - "infra/cloudformation/ingest-pipeline.yaml"
+
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build → S3 → CloudFormation
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Configurar credenciais AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Deploy da Lambda
+        env:
+          IMAGES_S3_BUCKET: on-feed-recipes-dev
+          AWS_REGION: us-east-1
+        run: npm run deploy:lambda
+
+      - name: Resumo
+        if: always()
+        run: |
+          echo "### Deploy Lambda" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY

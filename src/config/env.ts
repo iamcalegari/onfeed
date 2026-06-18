@@ -61,6 +61,15 @@ export const env = {
     publishableKey: optional("CLERK_PUBLISHABLE_KEY", ""),
   },
 
+  aws: {
+    region: optional("AWS_REGION", "us-east-1"),
+  },
+
+  sqs: {
+    queueUrl: optional("SQS_INGEST_QUEUE_URL", ""),
+    enabled: Boolean(process.env.SQS_INGEST_QUEUE_URL),
+  },
+
   // Thumbnails (Bedrock + S3 + CloudFront). Tudo opcional: sem bucket/região,
   // `images.enabled` fica false e o app usa o placeholder.
   images: {

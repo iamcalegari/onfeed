@@ -8,6 +8,7 @@ import {
   createUploadUrl,
   ensureThumbnail,
 } from "@/infra/images/image.service.js";
+import { enqueueIngestJob } from "@/infra/queue/ingest-queue.js";
 import { getUserId, requireAuth } from "@/modules/auth/auth.guard.js";
 import { consumeDailyAdaptQuota } from "@/modules/usage/usage.repository.js";
 import { adaptRecipe } from "./recipe.generation.js";
@@ -34,9 +35,73 @@ const AdaptRequestSchema = Type.Object(
   { additionalProperties: false },
 );
 
+const SubmitRecipeSchema = Type.Object(
+  {
+    title: Type.String({ minLength: 1, maxLength: 200 }),
+    rawIngredients: Type.Array(Type.String({ minLength: 1 }), {
+      minItems: 1,
+      maxItems: 50,
+    }),
+    steps: Type.Array(Type.String({ minLength: 1 }), {
+      minItems: 1,
+      maxItems: 30,
+    }),
+    servings: Type.Integer({ minimum: 1, maximum: 100 }),
+    prepTimeMin: Type.Optional(Type.Integer({ minimum: 1 })),
+  },
+  { additionalProperties: false },
+);
+
 /** Rotas de receita: detalhe + geração híbrida (adaptação). */
 export const recipeRoutes: FastifyPluginAsync = async (fastify) => {
   const app = fastify.withTypeProvider<TypeBoxTypeProvider>();
+
+  // Submissão de receita pelo usuário ou integração externa: enfileira no SQS
+  // para processamento assíncrono (extração → canonicalização → embed → save).
+  // Retorna 202 imediatamente; a receita aparece no catálogo em ~1-2 minutos.
+  app.post(
+    "/recipes",
+    {
+      preHandler: requireAuth,
+      schema: {
+        tags: ["recipes"],
+        body: SubmitRecipeSchema,
+        response: {
+          202: Type.Object({
+            jobId: Type.String(),
+            message: Type.String(),
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
+      if (!env.sqs.enabled) {
+        return reply.serviceUnavailable(
+          "Submissão de receitas não está habilitada no momento.",
+        );
+      }
+
+      const { title, rawIngredients, steps, servings, prepTimeMin } =
+        request.body;
+
+      const jobId = await enqueueIngestJob(
+        {
+          title,
+          rawIngredients,
+          steps,
+          thumbnailUrl: "",
+          servings,
+          ...(prepTimeMin !== undefined && { prepTimeMin }),
+        },
+        { source: "user" },
+      );
+
+      return reply.status(202).send({
+        jobId,
+        message: "Receita recebida e será processada em instantes.",
+      });
+    },
+  );
 
   app.get(
     "/recipes/:id",

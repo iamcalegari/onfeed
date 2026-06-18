@@ -14,9 +14,9 @@ export function Header({ clerkEnabled }: { clerkEnabled: boolean }) {
           <Link
             href="/favorites"
             aria-label="Favoritos"
-            className="text-terracota"
+            className="text-carvao/50 transition-colors hover:text-terracota"
           >
-            <svg viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" className="h-5 w-5">
               <path d="M12 21s-7-4.6-9.3-9C1.2 9 2.5 5.5 6 5.5c2 0 3.2 1.2 4 2.4.8-1.2 2-2.4 4-2.4 3.5 0 4.8 3.5 3.3 6.5C19 16.4 12 21 12 21z" />
             </svg>
           </Link>

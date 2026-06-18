@@ -16,14 +16,19 @@
     "seed:recipes": "tsx --env-file=.env src/scripts/seed-recipes.ts",
     "db:status": "tsx --env-file=.env src/scripts/db-status.ts",
     "reconcile:ingredients": "tsx --env-file=.env src/scripts/reconcile-ingredients.ts",
+    "migrate:quantities": "tsx --env-file=.env src/scripts/migrate-ingredient-quantities.ts",
     "s3:up": "docker compose up -d",
     "s3:down": "docker compose down",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:lambda": "esbuild src/lambda/ingest-handler.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/lambda/handler.js --external:@aws-sdk/* --tsconfig=tsconfig.json",
+    "deploy:lambda": "bash infra/scripts/deploy-lambda.sh",
+    "setup:ssm": "bash infra/scripts/setup-ssm.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.2",
     "@aws-sdk/client-bedrock-runtime": "^3.1070.0",
     "@aws-sdk/client-s3": "^3.1070.0",
+    "@aws-sdk/client-sqs": "^3.1071.0",
     "@aws-sdk/s3-request-presigner": "^3.1070.0",
     "@clerk/fastify": "^3.1.37",
     "@fastify/cors": "^10.0.1",
@@ -41,6 +46,7 @@
   },
   "devDependencies": {
     "@aws-sdk/client-bedrock": "^3.1070.0",
+    "@types/aws-lambda": "^8.10.162",
     "@types/node": "^22.10.2",
     "tsc-alias": "^1.8.17",
     "tsx": "^4.19.2",

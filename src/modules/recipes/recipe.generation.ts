@@ -35,7 +35,14 @@ Regras:
 - Respeite os equipamentos, o tempo e o objetivo informados, quando houver.
 - Reescreva os passos em pt-BR com tempo estimado por passo.
 - O título deve deixar claro que é uma variação.
-- NÃO use ingredientes além dos que a pessoa tem, salvo itens básicos de despensa.`;
+- NÃO use ingredientes além dos que a pessoa tem, salvo itens básicos de despensa.
+- Para quantity e unit de cada ingrediente:
+  * Converta frações para decimal (1/2 → 0.5; 1 1/4 → 1.25; 3/4 → 0.75).
+  * Use sempre unidades em pt-BR: "xícara", "colher de sopa", "colher de chá",
+    "copo", "g", "kg", "ml", "l", "pitada", "dente", "fatia", "ramo", "folha",
+    "unidade", "lata", "sachê".
+  * Para "a gosto": unit="a gosto", quantity=null.
+  * Para contagem sem unidade (ex: "2 ovos"): quantity=N, unit=null.`;
 
 const GOAL_LABEL: Record<NutritionGoal, string> = {
   satiety: "matar a fome (priorizar saciedade)",

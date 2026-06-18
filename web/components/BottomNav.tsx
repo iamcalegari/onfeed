@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 type Item = {
   label: string;
-  href?: string; // sem href = aba futura (placeholder, igual ao conceito)
+  href?: string;
   match?: (path: string) => boolean;
   icon: React.ReactNode;
 };
@@ -42,11 +42,16 @@ const ITEMS: Item[] = [
     ),
   },
   {
-    label: "Perfil",
+    label: "Ajustes",
+    href: "/settings",
+    match: (p) => p.startsWith("/settings"),
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 20c0-3.3 3.6-5 8-5s8 1.7 8 5" strokeLinecap="round" />
+        <circle cx="12" cy="12" r="3" />
+        <path
+          d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"
+          strokeLinecap="round"
+        />
       </svg>
     ),
   },
@@ -56,17 +61,30 @@ export function BottomNav() {
   const pathname = usePathname() || "/";
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-areia/60 bg-creme/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-md items-stretch justify-around px-2 py-2">
+    <nav className="fixed inset-x-0 bottom-0 z-40 bg-creme/95 backdrop-blur shadow-top">
+      <div className="mx-auto flex w-full max-w-md items-stretch justify-around px-2 pb-safe pt-1">
         {ITEMS.map((item) => {
           const active = item.match?.(pathname) ?? false;
-          const tone = active ? "text-forest" : "text-carvao/45";
+
           const content = (
-            <span className={`flex flex-col items-center gap-1 ${tone}`}>
-              {item.icon}
-              <span className="text-[10px] font-medium">{item.label}</span>
+            <span className="flex flex-col items-center gap-0.5">
+              <span
+                className={`flex items-center justify-center rounded-full px-4 py-1.5 transition-all duration-200 ${
+                  active ? "bg-forest/10 text-forest" : "text-carvao/40"
+                }`}
+              >
+                {item.icon}
+              </span>
+              <span
+                className={`text-[10px] font-medium transition-colors duration-200 ${
+                  active ? "text-forest" : "text-carvao/40"
+                }`}
+              >
+                {item.label}
+              </span>
             </span>
           );
+
           return item.href ? (
             <Link key={item.label} href={item.href} className="flex-1 py-1">
               {content}
@@ -74,7 +92,7 @@ export function BottomNav() {
           ) : (
             <span
               key={item.label}
-              className="flex-1 cursor-default py-1"
+              className="flex-1 cursor-default py-1 opacity-40"
               title="Em breve"
             >
               {content}

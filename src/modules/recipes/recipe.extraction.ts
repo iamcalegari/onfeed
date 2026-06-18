@@ -71,7 +71,15 @@ Regras:
 - Infira equipment a partir do modo de preparo (ex: "leve ao forno" -> oven;
   "refogue na panela" -> stovetop). Use "none" se for montagem/preparo cru.
 - Reescreva cada passo de forma clara em pt-BR e estime o tempo de cada um.
-- A introdução deve ser apetitosa, curta e em pt-BR.`;
+- A introdução deve ser apetitosa, curta e em pt-BR.
+- Para quantity e unit de cada ingrediente:
+  * Converta frações para decimal (1/2 → 0.5; 1 1/4 → 1.25; 3/4 → 0.75).
+  * Use sempre unidades em pt-BR. Unidades aceitas: "xícara", "colher de sopa",
+    "colher de chá", "copo", "g", "kg", "mg", "ml", "l", "pitada", "dente",
+    "fatia", "ramo", "folha", "unidade", "lata", "sachê", "dose".
+  * Para "a gosto" / "to taste" / "as needed": unit="a gosto", quantity=null.
+  * Para contagem sem unidade (ex: "2 eggs", "3 dentes de alho"): quantity=N, unit=null.
+  * Quando não há informação de quantidade: quantity=null, unit=null.`;
 
 /** Formato de saída compartilhado entre a chamada única e o batch. */
 export const EXTRACTION_FORMAT = zodOutputFormat(ExtractedRecipeSchema);

@@ -1,0 +1,253 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "onfeed — recipe ingest pipeline (SQS + Lambda + CloudWatch)"
+
+# Segredos passados como parâmetros NoEcho — o deploy script os lê do SSM via
+# CLI e os injeta aqui. Lambda não suporta {{resolve:ssm-secure:...}} em env vars.
+# A Lambda os recebe como variáveis de ambiente criptografadas em repouso (AES-256).
+
+Parameters:
+  LambdaS3Bucket:
+    Type: String
+    Description: "Bucket S3 onde o bundle da Lambda está armazenado"
+
+  LambdaS3Key:
+    Type: String
+    Default: "lambda/ingest-handler.zip"
+
+  MongoDbName:
+    Type: String
+    Default: "recipes_on_demand"
+
+  VoyageModel:
+    Type: String
+    Default: "voyage-3.5"
+
+  VoyageDimensions:
+    Type: String
+    Default: "1024"
+
+  AnthropicModel:
+    Type: String
+    Default: "claude-haiku-4-5"
+
+  # Limita execuções simultâneas para respeitar os rate limits do Voyage.
+  # Com Tier 1 (2000 RPM) pode subir para 10+; no free tier mantenha em 2.
+  MaxConcurrency:
+    Type: Number
+    Default: 3
+    MinValue: 1
+    MaxValue: 50
+
+  # Segredos (NoEcho = nunca aparecem nos logs/console do CloudFormation)
+  MongodbUri:
+    Type: String
+    NoEcho: true
+  MongodbUsername:
+    Type: String
+    NoEcho: true
+  MongodbPassword:
+    Type: String
+    NoEcho: true
+  VoyageApiKey:
+    Type: String
+    NoEcho: true
+  AnthropicApiKey:
+    Type: String
+    NoEcho: true
+
+Resources:
+
+  # ─── Filas ────────────────────────────────────────────────────────────────
+
+  RecipeIngestDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${AWS::StackName}-dlq"
+      MessageRetentionPeriod: 1209600  # 14 dias — tempo para investigar falhas
+      Tags:
+        - Key: app
+          Value: onfeed
+
+  RecipeIngestQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${AWS::StackName}-queue"
+      # VisibilityTimeout deve ser maior que o timeout da Lambda (300s).
+      # Garante que a mensagem não seja reprocessada enquanto a Lambda ainda roda.
+      VisibilityTimeout: 360
+      MessageRetentionPeriod: 345600  # 4 dias
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt RecipeIngestDLQ.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: app
+          Value: onfeed
+
+  # ─── IAM ──────────────────────────────────────────────────────────────────
+
+  IngestLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        # Permissão básica: escrever logs no CloudWatch
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: sqs-consume
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt RecipeIngestQueue.Arn
+        - PolicyName: sqs-dlq-send
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource: !GetAtt RecipeIngestDLQ.Arn
+
+  # ─── Lambda ───────────────────────────────────────────────────────────────
+
+  IngestLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-handler"
+      Runtime: nodejs22.x
+      Handler: handler.handler
+      Role: !GetAtt IngestLambdaRole.Arn
+      Timeout: 300
+      MemorySize: 512
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref LambdaS3Key
+      Environment:
+        Variables:
+          NODE_ENV: production
+          MONGODB_URI: !Ref MongodbUri
+          MONGODB_USERNAME: !Ref MongodbUsername
+          MONGODB_PASSWORD: !Ref MongodbPassword
+          VOYAGE_API_KEY: !Ref VoyageApiKey
+          ANTHROPIC_API_KEY: !Ref AnthropicApiKey
+          MONGODB_DB_NAME: !Ref MongoDbName
+          VOYAGE_MODEL: !Ref VoyageModel
+          VOYAGE_DIMENSIONS: !Ref VoyageDimensions
+          ANTHROPIC_MODEL: !Ref AnthropicModel
+      Tags:
+        - Key: app
+          Value: onfeed
+
+  # Trigger: SQS → Lambda (1 receita por invocação)
+  IngestLambdaSQSTrigger:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt RecipeIngestQueue.Arn
+      FunctionName: !GetAtt IngestLambdaFunction.Arn
+      BatchSize: 1
+      # ReportBatchItemFailures: se a Lambda falhar numa mensagem específica,
+      # só ela volta à fila (não a invocação inteira). Com BatchSize=1 é equivalente,
+      # mas boa prática para quando BatchSize aumentar no futuro.
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+
+  # ─── Observabilidade ──────────────────────────────────────────────────────
+
+  # Alarme: qualquer mensagem na DLQ = falha permanente (esgotou 3 tentativas).
+  DLQMessageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-dlq-mensagens"
+      AlarmDescription: >
+        Mensagens na DLQ indicam falhas permanentes de ingestão.
+        Verifique os logs da Lambda no CloudWatch para diagnóstico.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt RecipeIngestDLQ.QueueName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  # Dashboard básico de saúde do pipeline
+  IngestDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "${AWS::StackName}-pipeline"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "properties": {
+                "title": "Receitas na fila",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  ["AWS/SQS", "ApproximateNumberOfMessagesVisible",
+                   "QueueName", "${RecipeIngestQueue.QueueName}"],
+                  ["AWS/SQS", "ApproximateNumberOfMessagesVisible",
+                   "QueueName", "${RecipeIngestDLQ.QueueName}", {"color": "#d62728", "label": "DLQ"}]
+                ],
+                "period": 60,
+                "stat": "Sum",
+                "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric",
+              "properties": {
+                "title": "Lambda — invocações e erros",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  ["AWS/Lambda", "Invocations",
+                   "FunctionName", "${IngestLambdaFunction}"],
+                  ["AWS/Lambda", "Errors",
+                   "FunctionName", "${IngestLambdaFunction}", {"color": "#d62728"}],
+                  ["AWS/Lambda", "Duration",
+                   "FunctionName", "${IngestLambdaFunction}", {"stat": "p90", "yAxis": "right"}]
+                ],
+                "period": 60,
+                "stat": "Sum",
+                "view": "timeSeries"
+              }
+            }
+          ]
+        }
+
+# ─── Outputs ────────────────────────────────────────────────────────────────
+
+Outputs:
+  QueueUrl:
+    Value: !Ref RecipeIngestQueue
+    Description: "Adicione como SQS_INGEST_QUEUE_URL no .env da API"
+    Export:
+      Name: !Sub "${AWS::StackName}-queue-url"
+
+  QueueArn:
+    Value: !GetAtt RecipeIngestQueue.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-queue-arn"
+
+  DLQUrl:
+    Value: !Ref RecipeIngestDLQ
+
+  LambdaFunctionName:
+    Value: !Ref IngestLambdaFunction
+
+  DashboardUrl:
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home#dashboards:name=${IngestDashboard}"

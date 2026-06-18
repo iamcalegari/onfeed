@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { addFavoriteAction } from "@/app/actions";
 import { flagEmoji, formatMinutes, recipeHref } from "@/lib/format";
@@ -11,7 +11,7 @@ import { MatchScore } from "./MatchScore";
 import { ScoreBars } from "./ScoreBars";
 
 const PACK_SIZE = 25;
-const THRESHOLD = 110; // px de arraste p/ decidir
+const THRESHOLD = 110; // px de arraste para decidir
 const SELECTED_KEY = "rod:selected";
 
 function shuffle<T>(arr: T[]): T[] {
@@ -23,7 +23,6 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-/** Packs de 25 em ordem de match; embaralhados DENTRO de cada pack. */
 function buildDeck(results: SearchHit[]): SearchHit[] {
   const deck: SearchHit[] = [];
   for (let i = 0; i < results.length; i += PACK_SIZE) {
@@ -42,33 +41,32 @@ export function SwipeDeck({
   authenticated: boolean;
 }) {
   const [deck] = useState(() => buildDeck(results));
-  const [index, setIndex] = useState(0);
-  const [selected, setSelected] = useState<SearchHit[]>([]);
+  const [index, setIndex]           = useState(0);
+  const [selected, setSelected]     = useState<SearchHit[]>([]);
   const [showSelected, setShowSelected] = useState(false);
-  const [drag, setDrag] = useState(0);
-  const dragging = useRef(false);
-  const startX = useRef(0);
-  const animating = useRef(false);
+  const [drag, setDrag]             = useState(0);
 
+  // refs para controle de gesto sem re-renders
+  const dragging  = useRef(false);
+  const animating = useRef(false);
+  const startX    = useRef(0);
+
+  /* Persistência local das selecionadas */
   useEffect(() => {
     try {
       const raw = localStorage.getItem(SELECTED_KEY);
       if (raw) setSelected(JSON.parse(raw) as SearchHit[]);
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   }, []);
+
   useEffect(() => {
-    try {
-      localStorage.setItem(SELECTED_KEY, JSON.stringify(selected));
-    } catch {
-      /* ignore */
-    }
+    try { localStorage.setItem(SELECTED_KEY, JSON.stringify(selected)); }
+    catch { /* ignore */ }
   }, [selected]);
 
   const current = deck[index];
 
-  function decide(dir: "yes" | "no") {
+  const decide = useCallback((dir: "yes" | "no") => {
     if (!current || animating.current) return;
     animating.current = true;
     setDrag(dir === "yes" ? 700 : -700);
@@ -82,19 +80,26 @@ export function SwipeDeck({
       setIndex((i) => i + 1);
       setDrag(0);
       animating.current = false;
-    }, 180);
-  }
+    }, 200);
+  }, [current, authenticated]);
 
+  /* Teclado */
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") decide("yes");
-      if (e.key === "ArrowLeft") decide("no");
+      if (e.key === "ArrowLeft")  decide("no");
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  });
+  }, [decide]);
 
-  // --- painel de selecionadas ---
+  /* Reset drag — centralizado para reutilizar em cancel e pointerup sem swipe */
+  function cancelDrag() {
+    dragging.current = false;
+    setDrag(0);
+  }
+
+  /* ── Painel: selecionadas ───────────────────────────────── */
   if (showSelected) {
     return (
       <div className="flex flex-col gap-3">
@@ -110,16 +115,17 @@ export function SwipeDeck({
             voltar ao deck
           </button>
         </div>
+
         {selected.length === 0 ? (
           <p className="text-sm text-carvao/50">
-            Nenhuma ainda — arraste pra direita pra selecionar.
+            Nenhuma ainda — arraste para a direita para selecionar.
           </p>
         ) : (
           <>
             {selected.map((h) => (
               <div
                 key={h._id}
-                className="flex items-center gap-3 rounded-2xl border border-areia bg-white p-2.5"
+                className="flex items-center gap-3 rounded-2xl border border-areia bg-surface p-2.5"
               >
                 <span className="text-xl">{flagEmoji(h.country)}</span>
                 <Link
@@ -130,10 +136,8 @@ export function SwipeDeck({
                 </Link>
                 <button
                   type="button"
-                  onClick={() =>
-                    setSelected((p) => p.filter((x) => x._id !== h._id))
-                  }
-                  className="text-xs text-carvao/40"
+                  onClick={() => setSelected((p) => p.filter((x) => x._id !== h._id))}
+                  className="text-xs text-carvao/40 hover:text-terracota transition-colors"
                 >
                   remover
                 </button>
@@ -142,7 +146,7 @@ export function SwipeDeck({
             <button
               type="button"
               onClick={() => setSelected([])}
-              className="mt-1 text-xs text-carvao/40"
+              className="mt-1 text-xs text-carvao/40 hover:text-terracota transition-colors"
             >
               limpar tudo
             </button>
@@ -152,7 +156,7 @@ export function SwipeDeck({
     );
   }
 
-  // --- fim do deck ---
+  /* ── Fim do deck ────────────────────────────────────────── */
   if (!current) {
     return (
       <div className="flex flex-col items-center gap-4 py-10 text-center">
@@ -178,6 +182,8 @@ export function SwipeDeck({
 
   return (
     <div className="flex flex-col gap-4">
+
+      {/* Contador + atalho para selecionadas */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-carvao/50">
           {index + 1} de {deck.length}
@@ -187,19 +193,23 @@ export function SwipeDeck({
           onClick={() => setShowSelected(true)}
           className="text-sm font-medium text-terracota"
         >
-          Ver selecionadas ({selected.length})
+          Selecionadas ({selected.length})
         </button>
       </div>
 
-      {/* área do deck */}
-      <div className="relative h-[440px] select-none">
+      {/* ── Área do deck ─────────────────────────────────────── */}
+      <div className="relative h-110 select-none">
+
+        {/* Carta de fundo (próxima) */}
         {next && (
           <DeckCard
             hit={next}
             style={{ transform: "scale(0.96) translateY(10px)" }}
-            className="opacity-80"
+            className="opacity-70"
           />
         )}
+
+        {/* Carta ativa (com gestos) */}
         <DeckCard
           hit={current}
           onPointerDown={(e) => {
@@ -215,15 +225,22 @@ export function SwipeDeck({
           onPointerUp={() => {
             if (!dragging.current) return;
             dragging.current = false;
-            if (Math.abs(drag) > THRESHOLD) decide(drag > 0 ? "yes" : "no");
-            else setDrag(0);
+            // Bug fix: se animating.current === true, decide() retorna sem fazer
+            // nada e setDrag(0) nunca seria chamado → carta ficava travada.
+            if (Math.abs(drag) > THRESHOLD && !animating.current) {
+              decide(drag > 0 ? "yes" : "no");
+            } else {
+              setDrag(0);
+            }
           }}
+          onPointerCancel={cancelDrag}
           style={{
             transform: `translateX(${drag}px) rotate(${tilt}deg)`,
-            transition: dragging.current ? "none" : "transform 0.18s ease-out",
-            cursor: "grab",
+            transition: dragging.current ? "none" : "transform 0.2s ease-out",
+            cursor: dragging.current ? "grabbing" : "grab",
           }}
         >
+          {/* Overlay SIM / NÃO */}
           {drag !== 0 && (
             <div
               className={`absolute left-4 top-16 rounded-lg border-2 px-3 py-1 text-lg font-extrabold ${
@@ -239,11 +256,12 @@ export function SwipeDeck({
         </DeckCard>
       </div>
 
+      {/* ── Botões de ação ───────────────────────────────────── */}
       <div className="flex items-center justify-center gap-5">
         <button
           type="button"
           onClick={() => decide("no")}
-          className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-terracota text-2xl text-terracota"
+          className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-terracota text-2xl text-terracota transition-transform active:scale-90"
           aria-label="não"
         >
           ✕
@@ -251,14 +269,14 @@ export function SwipeDeck({
         <Link
           href={recipeHref(current._id, haveIds)}
           aria-label="ver receita"
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-areia bg-white text-lg text-carvao/60"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-areia bg-surface text-lg text-carvao/60 transition-transform active:scale-90"
         >
           i
         </Link>
         <button
           type="button"
           onClick={() => decide("yes")}
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-forest text-2xl text-creme"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-forest text-2xl text-creme transition-transform active:scale-90"
           aria-label="sim"
         >
           ♥
@@ -268,6 +286,7 @@ export function SwipeDeck({
   );
 }
 
+/* ── DeckCard ────────────────────────────────────────────── */
 function DeckCard({
   hit,
   children,
@@ -284,7 +303,7 @@ function DeckCard({
     <div
       {...handlers}
       style={style}
-      className={`absolute inset-0 flex touch-none flex-col overflow-hidden rounded-3xl border border-areia bg-white shadow-sm ${className}`}
+      className={`absolute inset-0 flex touch-none flex-col overflow-hidden rounded-3xl border border-areia bg-surface shadow-card ${className}`}
     >
       <div className="relative">
         <LazyThumbnail
@@ -294,9 +313,6 @@ function DeckCard({
           rounded="rounded-none"
           iconClassName="text-5xl"
         />
-        <span className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-forest">
-          ♥
-        </span>
         <span className="absolute right-3 top-3">
           <MatchScore score={hit.matchScore} />
         </span>

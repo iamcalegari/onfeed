@@ -1,0 +1,61 @@
+services:
+  - type: web
+    name: onfeed-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter        # $7/mês — sempre ligado, 512MB RAM, 0.5 CPU
+    region: oregon       # us-west-2
+    healthCheckPath: /health
+    autoDeploy: true     # deploy automático a cada push na branch abaixo
+    branch: main
+
+    envVars:
+      # ── Não-sensíveis ────────────────────────────────────────────────────
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_DB_NAME
+        value: recipes_on_demand
+      - key: VOYAGE_MODEL
+        value: voyage-3.5
+      - key: VOYAGE_DIMENSIONS
+        value: "1024"
+      - key: ANTHROPIC_MODEL
+        value: claude-haiku-4-5
+      - key: IMAGES_S3_BUCKET
+        value: on-feed-recipes-dev
+      - key: BEDROCK_REGION
+        value: us-west-2
+      - key: BEDROCK_IMAGE_MODEL
+        value: stability.stable-image-core-v1:1
+      - key: AWS_REGION
+        value: us-east-1
+      - key: FRONTEND_ORIGIN
+        value: https://onfeed.vercel.app
+
+      # ── Sensíveis: defina no dashboard do Render (sync: false = não versionado)
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_USERNAME
+        sync: false
+      - key: MONGODB_PASSWORD
+        sync: false
+      - key: VOYAGE_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      # Credenciais IAM para acessar S3, Bedrock e SQS (sem instance role no Render)
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      # Definido após deploy do stack de ingestão
+      - key: SQS_INGEST_QUEUE_URL
+        sync: false
+      # Definido após deploy do CloudFront (infra/scripts/bootstrap.sh imprime)
+      - key: IMAGES_CDN_DOMAIN
+        sync: false

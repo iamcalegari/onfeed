@@ -58,7 +58,7 @@ export default async function ResultsPage({
       </header>
 
       {query && (
-        <div className="flex items-center gap-2 rounded-xl border border-areia bg-white px-3.5 py-2.5">
+        <div className="flex items-center gap-2 rounded-xl border border-areia bg-surface px-3.5 py-2.5">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-carvao/40">
             <circle cx="11" cy="11" r="7" />
             <path d="m21 21-4.3-4.3" strokeLinecap="round" />
