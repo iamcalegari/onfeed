@@ -24,6 +24,7 @@ const CDN_PREFIX = `https://${CDN_DOMAIN}/`;
 async function run() {
   await connectDatabase();
   const col = database.getCollection("recipes");
+  if (!col) throw new Error("Collection 'recipes' não encontrada — verifique se os models foram importados.");
 
   // Contar quantas receitas têm URL S3 direta
   const total = await col.countDocuments({
