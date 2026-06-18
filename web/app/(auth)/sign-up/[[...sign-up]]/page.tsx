@@ -59,7 +59,7 @@ export default function SignUpPage() {
             width={64}
             height={64}
             sizes="64px"
-            className="rounded-[16px]"
+            className=""
             priority
           />
           <span className="font-display text-2xl tracking-tight text-forest">

@@ -69,7 +69,7 @@ export default function SignInPage() {
               width={72}
               height={72}
               sizes="72px"
-              className="rounded-[18px]"
+              className=""
               priority
             />
           </div>

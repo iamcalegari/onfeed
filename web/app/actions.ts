@@ -1,5 +1,7 @@
 "use server";
 
+import { cookies } from "next/headers";
+
 import {
   adaptRecipe,
   addFavorite,
@@ -16,7 +18,9 @@ export async function adaptRecipeAction(
   haveIds: string[],
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   try {
-    const recipe = await adaptRecipe(id, { haveIds });
+    const cookieStore = await cookies();
+    const lang = (cookieStore.get("lang")?.value ?? "pt") as "pt" | "en";
+    const recipe = await adaptRecipe(id, { haveIds, lang });
     return { ok: true, id: recipe._id };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Falha na adaptação" };

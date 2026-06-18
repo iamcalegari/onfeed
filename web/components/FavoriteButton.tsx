@@ -36,7 +36,7 @@ export function FavoriteButton({
       aria-pressed={fav}
       className={`w-full rounded-2xl border py-3.5 text-sm font-semibold transition disabled:opacity-60 ${
         fav
-          ? "border-forest bg-white text-forest"
+          ? "border-forest bg-surface text-forest"
           : "border-transparent bg-forest text-creme"
       }`}
     >

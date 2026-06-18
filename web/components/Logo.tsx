@@ -19,7 +19,7 @@ export function Logo({ href = "/" }: { href?: string }) {
         width={36}
         height={36}
         sizes="36px"
-        className="shrink-0 rounded-[9px]"
+        className="shrink-0"
         priority
       />
       <span className="font-display text-[1.2rem] leading-none tracking-tight text-forest select-none">

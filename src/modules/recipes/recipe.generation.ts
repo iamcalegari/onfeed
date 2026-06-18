@@ -26,9 +26,28 @@ export interface AdaptConstraints {
   maxPrepTimeMin?: number;
   goal?: NutritionGoal;
   note?: string;
+  lang?: "pt" | "en";
 }
 
-const SYSTEM_PROMPT = `Você adapta uma receita EXISTENTE para o que a pessoa tem em casa.
+function buildSystemPrompt(lang: "pt" | "en"): string {
+  if (lang === "en") {
+    return `You adapt an EXISTING recipe to what the person has at home.
+Rules:
+- Keep a coherent, real dish — do not invent strange combinations.
+- Sensibly substitute or omit missing ingredients.
+- Respect the available equipment, time limit, and nutritional goal when provided.
+- Rewrite the steps in English with estimated time per step.
+- The title must make clear it is a variation.
+- Do NOT use ingredients beyond what the person has, except basic pantry staples.
+- For quantity and unit of each ingredient:
+  * Convert fractions to decimal (1/2 → 0.5; 1 1/4 → 1.25; 3/4 → 0.75).
+  * Use English units: "cup", "tablespoon", "teaspoon", "g", "kg", "ml", "l",
+    "pinch", "clove", "slice", "sprig", "leaf", "unit", "can", "packet".
+  * For "to taste": unit="to taste", quantity=null.
+  * For plain counts (e.g. "2 eggs"): quantity=N, unit=null.`;
+  }
+
+  return `Você adapta uma receita EXISTENTE para o que a pessoa tem em casa.
 Regras:
 - Mantenha um prato coerente e de verdade — não invente combinações estranhas.
 - Substitua ou omita de forma sensata os ingredientes que faltam.
@@ -43,6 +62,7 @@ Regras:
     "unidade", "lata", "sachê".
   * Para "a gosto": unit="a gosto", quantity=null.
   * Para contagem sem unidade (ex: "2 ovos"): quantity=N, unit=null.`;
+}
 
 const GOAL_LABEL: Record<NutritionGoal, string> = {
   satiety: "matar a fome (priorizar saciedade)",
@@ -104,7 +124,7 @@ export async function adaptRecipe(
       format: zodOutputFormat(AdaptedRecipeSchema),
       ...effortOption("medium"),
     },
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(constraints.lang ?? "pt"),
     messages: [{ role: "user", content: buildUserPrompt(anchor, constraints) }],
   });
 

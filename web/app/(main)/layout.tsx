@@ -11,7 +11,7 @@ export default function MainLayout({
   return (
     <>
       <Header clerkEnabled={clerkEnabled} />
-      <main className="mx-auto w-full max-w-md px-4 pb-28 pt-4">
+      <main className="mx-auto w-full max-w-md px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4">
         {children}
       </main>
       <BottomNav />

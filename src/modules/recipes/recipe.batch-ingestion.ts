@@ -1,3 +1,5 @@
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+
 import { anthropic } from "@/infra/llm/anthropic.client.js";
 import {
   buildExtractionParams,
@@ -11,16 +13,16 @@ import {
 import type { ExtractedRecipe } from "./recipe.extraction.js";
 
 /**
- * Ingestão em lote do seed inicial usando a Batches API da Anthropic — a fase
- * de extração roda assíncrona a 50% do custo. O pós-processamento (canonicalizar
- * → embeddar com Voyage → persistir) é feito localmente sobre cada resultado.
+ * Ingestão em lote usando a Batches API da Anthropic — 50% mais barato,
+ * tolerante a falhas via checkpoint em disco.
  *
- * Fluxo:
- *   1. divide as receitas em chunks de BATCH_CHUNK_SIZE (evita 502 por payload
- *      grande no Cloudflare que fica na frente da Anthropic)
- *   2. submete um batch por chunk (com retry em 5xx)
- *   3. faz polling de todos os batches em paralelo até todos encerrarem
- *   4. para cada resultado bem-sucedido: parseia → persistExtractedRecipe
+ * Checkpoint: salvo após cada batches.create. Se o processo cair (crédito
+ * esgotado, rede, Ctrl-C), repassar --resume <arquivo> retoma exatamente
+ * de onde parou sem re-submeter batches já criados nem re-persistir receitas
+ * que já foram salvas no DB.
+ *
+ * No estouro de crédito: tenta imediatamente persistir os batches já prontos
+ * antes de encerrar — minimiza perda de trabalho já processado pela Anthropic.
  */
 
 export interface BatchIngestionReport {
@@ -29,7 +31,25 @@ export interface BatchIngestionReport {
   failed: { customId: string; reason: string }[];
 }
 
-/** Máximo de requests por chamada a batches.create (limite de payload). */
+export interface IngestOptionsWithCheckpoint extends IngestOptions {
+  checkpointPath?: string;
+}
+
+interface BatchMeta {
+  id: string;
+  start: number;
+  end: number;
+}
+
+interface CheckpointData {
+  createdAt: string;
+  source: string;
+  recipes: IngestRecipeInput[];
+  batches: BatchMeta[];
+  /** IDs de batches cujos resultados já foram persistidos no DB. */
+  persistedBatches: string[];
+}
+
 const BATCH_CHUNK_SIZE = 100;
 const POLL_INTERVAL_MS = 30_000;
 const MAX_RETRIES = 3;
@@ -49,10 +69,42 @@ function isRetryable(err: unknown): boolean {
   return status !== undefined && status >= 500;
 }
 
-type BatchRequest = { custom_id: string; params: ReturnType<typeof buildExtractionParams> };
-type BatchStatus = Awaited<ReturnType<typeof anthropic.messages.batches.retrieve>>;
+function isCreditExhausted(err: unknown): boolean {
+  const msg = (
+    (err as { error?: { message?: string } })?.error?.message ?? ""
+  ).toLowerCase();
+  return msg.includes("credit balance") || msg.includes("credits");
+}
 
-/** Cria um batch com retry exponencial em erros 5xx. */
+// ---------------------------------------------------------------------------
+// Checkpoint I/O
+// ---------------------------------------------------------------------------
+
+function loadCheckpoint(path: string): CheckpointData | null {
+  if (!path || !existsSync(path)) return null;
+  try {
+    return JSON.parse(readFileSync(path, "utf-8")) as CheckpointData;
+  } catch {
+    return null;
+  }
+}
+
+function saveCheckpoint(path: string, data: CheckpointData): void {
+  writeFileSync(path, JSON.stringify(data, null, 2), "utf-8");
+}
+
+// ---------------------------------------------------------------------------
+// Batch creation com retry
+// ---------------------------------------------------------------------------
+
+type BatchRequest = {
+  custom_id: string;
+  params: ReturnType<typeof buildExtractionParams>;
+};
+type BatchStatus = Awaited<
+  ReturnType<typeof anthropic.messages.batches.retrieve>
+>;
+
 async function createBatchWithRetry(
   requests: BatchRequest[],
 ): Promise<BatchStatus> {
@@ -60,8 +112,9 @@ async function createBatchWithRetry(
     try {
       return await anthropic.messages.batches.create({ requests });
     } catch (err) {
+      if (isCreditExhausted(err)) throw err; // não retria crédito
       if (attempt < MAX_RETRIES - 1 && isRetryable(err)) {
-        const delay = 2_000 * 2 ** attempt; // 2s, 4s, 8s
+        const delay = 2_000 * 2 ** attempt;
         console.warn(
           `[batch] tentativa ${attempt + 1} falhou (${(err as { status?: number }).status}),` +
             ` aguardando ${delay / 1000}s...`,
@@ -75,12 +128,69 @@ async function createBatchWithRetry(
   throw new Error("unreachable");
 }
 
-/** Aguarda todos os batches encerrarem, exibindo progresso agregado. */
+// ---------------------------------------------------------------------------
+// Coleta + persistência de um único batch
+// ---------------------------------------------------------------------------
+
+async function collectAndPersistBatch(
+  batchId: string,
+  byCustomId: Map<string, IngestRecipeInput>,
+  opts: IngestOptions,
+): Promise<{ saved: number; failed: { customId: string; reason: string }[] }> {
+  const failed: { customId: string; reason: string }[] = [];
+  const parsed: { input: IngestRecipeInput; extracted: ExtractedRecipe }[] = [];
+
+  for await (const entry of await anthropic.messages.batches.results(batchId)) {
+    const recipe = byCustomId.get(entry.custom_id);
+    if (!recipe) {
+      failed.push({ customId: entry.custom_id, reason: "custom_id sem receita" });
+      continue;
+    }
+    if (entry.result.type !== "succeeded") {
+      failed.push({ customId: entry.custom_id, reason: entry.result.type });
+      continue;
+    }
+    try {
+      const textBlock = entry.result.message.content.find(
+        (b) => b.type === "text",
+      );
+      if (!textBlock || textBlock.type !== "text") {
+        throw new Error("resposta sem bloco de texto");
+      }
+      const extracted = ExtractedRecipeSchema.parse(JSON.parse(textBlock.text));
+      parsed.push({ input: recipe, extracted });
+    } catch (err) {
+      failed.push({
+        customId: entry.custom_id,
+        reason: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  let saved = 0;
+  if (parsed.length > 0) {
+    const result = await persistExtractedRecipesBatch(parsed, opts);
+    saved = result.saved.length;
+    for (const f of result.failed) {
+      failed.push({ customId: f.title, reason: f.reason });
+    }
+  }
+
+  return { saved, failed };
+}
+
+// ---------------------------------------------------------------------------
+// Polling paralelo
+// ---------------------------------------------------------------------------
+
 async function pollUntilAllEnded(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
   const pending = new Set(ids);
   while (pending.size > 0) {
     await sleep(POLL_INTERVAL_MS);
-    let succeeded = 0, errored = 0, processing = 0;
+    let succeeded = 0,
+      errored = 0,
+      processing = 0;
     for (const id of [...pending]) {
       const s = await anthropic.messages.batches.retrieve(id);
       succeeded += s.request_counts.succeeded;
@@ -95,89 +205,184 @@ async function pollUntilAllEnded(ids: string[]): Promise<void> {
   }
 }
 
-export async function runBatchIngestion(
-  recipes: IngestRecipeInput[],
+// ---------------------------------------------------------------------------
+// Persistência de tudo que já está pronto (usado no estouro de crédito)
+// ---------------------------------------------------------------------------
+
+async function persistReadyBatches(
+  checkpoint: CheckpointData,
+  byCustomId: Map<string, IngestRecipeInput>,
   opts: IngestOptions,
-): Promise<BatchIngestionReport> {
-  if (recipes.length === 0) {
-    throw new Error("Nenhuma receita para ingerir");
+  checkpointPath: string | undefined,
+): Promise<number> {
+  let totalSaved = 0;
+
+  for (const bm of checkpoint.batches) {
+    if (checkpoint.persistedBatches.includes(bm.id)) continue;
+
+    let status: BatchStatus;
+    try {
+      status = await anthropic.messages.batches.retrieve(bm.id);
+    } catch {
+      continue; // falha ao verificar status — pula
+    }
+
+    if (status.processing_status !== "ended") continue;
+
+    try {
+      const { saved, failed } = await collectAndPersistBatch(
+        bm.id,
+        byCustomId,
+        opts,
+      );
+      totalSaved += saved;
+      checkpoint.persistedBatches.push(bm.id);
+      if (checkpointPath) saveCheckpoint(checkpointPath, checkpoint);
+      if (failed.length > 0) {
+        console.warn(`[batch] ${bm.id}: ${failed.length} falhas de parse/persistência`);
+      }
+    } catch (err) {
+      console.warn(
+        `[batch] falha ao persistir ${bm.id}: ${err instanceof Error ? err.message : err}`,
+      );
+    }
   }
 
-  // custom_id determinístico → índice na lista original
+  return totalSaved;
+}
+
+// ---------------------------------------------------------------------------
+// Erro público para crédito esgotado
+// ---------------------------------------------------------------------------
+
+export class CreditExhaustedError extends Error {
+  constructor(public readonly checkpointPath: string | undefined) {
+    super("CREDIT_EXHAUSTED");
+    this.name = "CreditExhaustedError";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Entry point
+// ---------------------------------------------------------------------------
+
+export async function runBatchIngestion(
+  recipes: IngestRecipeInput[],
+  opts: IngestOptionsWithCheckpoint,
+): Promise<BatchIngestionReport> {
+  if (recipes.length === 0) throw new Error("Nenhuma receita para ingerir");
+
+  const { checkpointPath } = opts;
+
+  const checkpoint: CheckpointData = loadCheckpoint(checkpointPath ?? "") ?? {
+    createdAt: new Date().toISOString(),
+    source: opts.source,
+    recipes,
+    batches: [],
+    persistedBatches: [],
+  };
+
+  const resuming = checkpoint.batches.length > 0;
+  if (resuming) {
+    console.log(
+      `[batch] retomando checkpoint: ${checkpoint.batches.length} batches submetidos,` +
+        ` ${checkpoint.persistedBatches.length} já persistidos`,
+    );
+  }
+
+  // Garante que persistedBatches existe em checkpoints antigos
+  checkpoint.persistedBatches ??= [];
+
+  const recipesToProcess = checkpoint.recipes;
+
+  // Mapeamento custom_id → receita (necessário para coleta de resultados)
   const byCustomId = new Map<string, IngestRecipeInput>();
-  const allRequests: BatchRequest[] = recipes.map((recipe, i) => {
+  const allRequests: BatchRequest[] = recipesToProcess.map((recipe, i) => {
     const customId = `recipe-${i}`;
     byCustomId.set(customId, recipe);
     return { custom_id: customId, params: buildExtractionParams(recipe) };
   });
 
-  // 1. divide em chunks e cria um batch por chunk
   const chunks = chunkArray(allRequests, BATCH_CHUNK_SIZE);
   console.log(
-    `[batch] ${recipes.length} receitas → ${chunks.length} batch(es) de até ${BATCH_CHUNK_SIZE}`,
+    `[batch] ${recipesToProcess.length} receitas → ${chunks.length} batch(es) de até ${BATCH_CHUNK_SIZE}` +
+      (resuming ? ` (retomando)` : ""),
   );
-  const batches: BatchStatus[] = [];
+
+  // Cria apenas os chunks ainda não submetidos
   for (let i = 0; i < chunks.length; i++) {
-    const b = await createBatchWithRetry(chunks[i]!);
-    batches.push(b);
-    console.log(
-      `[batch] ${i + 1}/${chunks.length} criado: ${b.id} (${chunks[i]!.length} requests)`,
+    const chunkStart = i * BATCH_CHUNK_SIZE;
+    const alreadySubmitted = checkpoint.batches.some(
+      (b) => b.start === chunkStart,
     );
-  }
+    if (alreadySubmitted) {
+      console.log(`[batch] ${i + 1}/${chunks.length} já submetido — pulando`);
+      continue;
+    }
 
-  // 2. polling de todos os batches em paralelo
-  await pollUntilAllEnded(batches.map((b) => b.id));
+    try {
+      const b = await createBatchWithRetry(chunks[i]!);
+      checkpoint.batches.push({
+        id: b.id,
+        start: chunkStart,
+        end: chunkStart + chunks[i]!.length - 1,
+      });
+      if (checkpointPath) saveCheckpoint(checkpointPath, checkpoint);
+      console.log(
+        `[batch] ${i + 1}/${chunks.length} criado: ${b.id} (${chunks[i]!.length} requests)`,
+      );
+    } catch (err) {
+      if (isCreditExhausted(err)) {
+        if (checkpointPath) saveCheckpoint(checkpointPath, checkpoint);
 
-  // 3. coleta resultados de todos os batches
-  const failed: { customId: string; reason: string }[] = [];
-  const parsed: { input: IngestRecipeInput; extracted: ExtractedRecipe }[] = [];
-
-  for (const batch of batches) {
-    for await (const entry of await anthropic.messages.batches.results(batch.id)) {
-      const recipe = byCustomId.get(entry.custom_id);
-      if (!recipe) {
-        failed.push({ customId: entry.custom_id, reason: "custom_id sem receita" });
-        continue;
-      }
-
-      if (entry.result.type !== "succeeded") {
-        failed.push({ customId: entry.custom_id, reason: entry.result.type });
-        continue;
-      }
-
-      try {
-        const textBlock = entry.result.message.content.find(
-          (b) => b.type === "text",
+        // Aproveita e persiste os batches já prontos antes de sair
+        console.log(
+          "[batch] Crédito esgotado — verificando batches prontos para salvar no DB...",
         );
-        if (!textBlock || textBlock.type !== "text") {
-          throw new Error("resposta sem bloco de texto");
+        const saved = await persistReadyBatches(
+          checkpoint,
+          byCustomId,
+          opts,
+          checkpointPath,
+        );
+        if (saved > 0) {
+          console.log(`[batch] ${saved} receitas salvas antes do encerramento`);
+        } else {
+          console.log("[batch] Nenhum batch finalizado ainda — tente o --resume em alguns minutos");
         }
-        const extracted = ExtractedRecipeSchema.parse(JSON.parse(textBlock.text));
-        parsed.push({ input: recipe, extracted });
-      } catch (err) {
-        failed.push({
-          customId: entry.custom_id,
-          reason: err instanceof Error ? err.message : String(err),
-        });
+
+        throw new CreditExhaustedError(checkpointPath);
       }
+      throw err;
     }
   }
 
-  // 4. persiste em lote: canonicalização deduplicada + embeddings em chunks
-  let succeeded = 0;
-  if (parsed.length > 0) {
-    const { saved, failed: persistFailed } = await persistExtractedRecipesBatch(
-      parsed,
+  // Polling dos batches ainda não persistidos
+  const pending = checkpoint.batches
+    .filter((b) => !checkpoint.persistedBatches.includes(b.id))
+    .map((b) => b.id);
+
+  await pollUntilAllEnded(pending);
+
+  // Coleta e persiste os resultados restantes
+  const allFailed: { customId: string; reason: string }[] = [];
+  let totalSaved = 0;
+
+  for (const bm of checkpoint.batches) {
+    if (checkpoint.persistedBatches.includes(bm.id)) continue;
+
+    const { saved, failed } = await collectAndPersistBatch(
+      bm.id,
+      byCustomId,
       opts,
     );
-    succeeded = saved.length;
-    for (const f of persistFailed) {
-      failed.push({ customId: f.title, reason: f.reason });
-    }
+    totalSaved += saved;
+    allFailed.push(...failed);
+    checkpoint.persistedBatches.push(bm.id);
+    if (checkpointPath) saveCheckpoint(checkpointPath, checkpoint);
   }
 
-  // ID representativo: o primeiro batch (ou todos separados por vírgula)
-  const batchId = batches.map((b) => b.id).join(",");
-  console.log(`[batch] concluído: ${succeeded} ok, ${failed.length} falhas`);
-  return { batchId, succeeded, failed };
+  const batchId = checkpoint.batches.map((b) => b.id).join(",");
+  console.log(`[batch] concluído: ${totalSaved} ok, ${allFailed.length} falhas`);
+  return { batchId, succeeded: totalSaved, failed: allFailed };
 }

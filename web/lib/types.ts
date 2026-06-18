@@ -12,6 +12,7 @@ export interface SearchRequest {
   occasions?: string[];
   note?: string;
   limit?: number;
+  lang?: "pt" | "en";
 }
 
 export interface DimensionScores {

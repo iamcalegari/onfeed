@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 
 import {
   applyTheme,
+  COOKIE_LANG,
   COOKIE_THEME,
   COOKIE_UNIT,
   readCookie,
   setCookie,
 } from "@/lib/settings";
-import type { Theme, UnitSystem } from "@/lib/settings";
+import type { Language, Theme, UnitSystem } from "@/lib/settings";
 
 /* ── Opções ─────────────────────────────────────────────────── */
 
@@ -24,24 +25,28 @@ const THEME_OPTIONS: { value: Theme; label: string; icon: React.ReactNode }[] = 
   { value: "system", label: "Auto",   icon: <SystemIcon /> },
 ];
 
+const LANG_OPTIONS: { value: Language; label: string; flag: string }[] = [
+  { value: "pt", label: "Português", flag: "🇧🇷" },
+  { value: "en", label: "English",   flag: "🇺🇸" },
+];
+
 /* ── Page ───────────────────────────────────────────────────── */
 
 export default function SettingsPage() {
   const [unitSystem, setUnitSystem] = useState<UnitSystem>("metric");
-  const [theme, setTheme] = useState<Theme>("system");
-  const [mounted, setMounted] = useState(false);
+  const [theme, setTheme]           = useState<Theme>("system");
+  const [lang, setLang]             = useState<Language>("pt");
+  const [mounted, setMounted]       = useState(false);
 
   useEffect(() => {
-    setUnitSystem((readCookie(COOKIE_UNIT) ?? "metric") as UnitSystem);
-    setTheme((readCookie(COOKIE_THEME) ?? "system") as Theme);
+    setUnitSystem((readCookie(COOKIE_UNIT)  ?? "metric") as UnitSystem);
+    setTheme(     (readCookie(COOKIE_THEME) ?? "system") as Theme);
+    setLang(      (readCookie(COOKIE_LANG)  ?? "pt")     as Language);
     setMounted(true);
   }, []);
 
-  function handleUnit(v: UnitSystem) {
-    setUnitSystem(v);
-    setCookie(COOKIE_UNIT, v);
-  }
-
+  function handleUnit(v: UnitSystem) { setUnitSystem(v); setCookie(COOKIE_UNIT, v); }
+  function handleLang(v: Language)   { setLang(v);       setCookie(COOKIE_LANG, v); }
   function handleTheme(v: Theme) {
     setTheme(v);
     setCookie(COOKIE_THEME, v);
@@ -58,6 +63,32 @@ export default function SettingsPage() {
           Preferências salvas neste dispositivo.
         </p>
       </header>
+
+      {/* ── Idioma ───────────────────────────────────────────── */}
+      <SettingCard
+        icon={<GlobeIcon />}
+        title="Idioma das receitas"
+        description={
+          mounted
+            ? lang === "pt"
+              ? "Receitas geradas em Português."
+              : "Recipes generated in English."
+            : null
+        }
+      >
+        <SegGroup>
+          {LANG_OPTIONS.map((opt) => (
+            <SegButton
+              key={opt.value}
+              active={mounted && lang === opt.value}
+              onClick={() => handleLang(opt.value)}
+            >
+              <span className="text-base">{opt.flag}</span>
+              <span className="font-semibold">{opt.label}</span>
+            </SegButton>
+          ))}
+        </SegGroup>
+      </SettingCard>
 
       {/* ── Unidades ─────────────────────────────────────────── */}
       <SettingCard
@@ -111,10 +142,7 @@ export default function SettingsPage() {
 /* ── Sub-components ──────────────────────────────────────────── */
 
 function SettingCard({
-  icon,
-  title,
-  description,
-  children,
+  icon, title, description, children,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -136,17 +164,11 @@ function SettingCard({
 }
 
 function SegGroup({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex gap-1 rounded-full bg-areia/40 p-1">
-      {children}
-    </div>
-  );
+  return <div className="flex gap-1 rounded-full bg-areia/40 p-1">{children}</div>;
 }
 
 function SegButton({
-  active,
-  onClick,
-  children,
+  active, onClick, children,
 }: {
   active: boolean;
   onClick: () => void;
@@ -168,6 +190,15 @@ function SegButton({
 }
 
 /* ── Ícones ──────────────────────────────────────────────────── */
+
+function GlobeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5 shrink-0">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3c-3 4-3 14 0 18M12 3c3 4 3 14 0 18M3 12h18" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 function ScaleIcon() {
   return (

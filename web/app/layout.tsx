@@ -1,6 +1,6 @@
 import { ClerkProvider } from "@clerk/nextjs";
-import type { Metadata } from "next";
-import { Fraunces, Inter } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Inter, Playfair_Display } from "next/font/google";
 import { cookies } from "next/headers";
 
 import { THEME_SCRIPT } from "@/lib/settings";
@@ -13,20 +13,37 @@ const inter = Inter({
   display: "swap",
 });
 
-const fraunces = Fraunces({
+const playfair = Playfair_Display({
   subsets: ["latin"],
-  variable: "--font-fraunces",
-  weight: ["500", "600", "700"],
+  variable: "--font-playfair",
+  weight: ["400", "500", "600", "700", "800"],
+  style: ["normal", "italic"],
   display: "swap",
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#162f25",
+};
 
 export const metadata: Metadata = {
   title: "onFeed — receitas que combinam com você",
   description:
     "Diga o que você tem; a gente acha a receita que melhor combina (I/E/T/N).",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "onFeed",
+  },
   icons: {
     icon: "/app-icon.png",
-    apple: "/app-icon.png",
+    apple: [
+      { url: "/app-icon.png", sizes: "192x192" },
+      { url: "/app-icon.png", sizes: "512x512" },
+    ],
   },
 };
 
@@ -44,7 +61,7 @@ export default async function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${inter.variable} ${fraunces.variable}${isDark ? " dark" : ""}`}
+      className={`${inter.variable} ${playfair.variable}${isDark ? " dark" : ""}`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />

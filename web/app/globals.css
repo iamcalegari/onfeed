@@ -1,20 +1,30 @@
 @import "tailwindcss";
 
 /* ── Design system onFeed ─────────────────────────────────── */
+/*
+  Paleta fiel ao conceito_03/04/05:
+  Forest  → verde-floresta profundo
+  Terracota → laranja-terra queimada
+  Salvia  → verde-cinza (salvia), cor de acento
+  Areia   → bege-dourado quente (bordas e fundos neutros)
+  Creme   → creme amarelado (fundo de página)
+  Carvao  → quase-preto quente (texto)
+  Surface → branco puro (cards e inputs)
+*/
 @theme {
-  --color-forest:    #0f2f2a;
-  --color-terracota: #e4643a;
-  --color-salvia:    #7ea89e;
-  --color-creme:     #fffaf1;
-  --color-carvao:    #2b2b2b;
-  --color-areia:     #e9d6bc;
-  --color-surface:   #ffffff;   /* superfície de card/input */
+  --color-forest:    #162f25;   /* verde-floresta profundo e quente        */
+  --color-terracota: #d4644a;   /* terracota saturada, vibrante            */
+  --color-salvia:    #7a9e94;   /* verde-cinza salvia                      */
+  --color-creme:     #faf4e8;   /* creme dourado — fundo de página         */
+  --color-carvao:    #232320;   /* quase-preto quente                      */
+  --color-areia:     #e0c9a6;   /* bege-dourado — bordas e divisores       */
+  --color-surface:   #ffffff;   /* branco puro — cards e inputs            */
 
-  --shadow-card: 0 1px 3px -1px rgb(15 47 42 / 0.06), 0 4px 12px -2px rgb(15 47 42 / 0.07);
-  --shadow-lift: 0 4px 16px -2px rgb(15 47 42 / 0.11), 0 8px 24px -4px rgb(15 47 42 / 0.08);
-  --shadow-top:  0 -1px 0 0 rgb(233 214 188 / 0.5), 0 -4px 16px -4px rgb(15 47 42 / 0.06);
+  --shadow-card: 0 1px 3px -1px rgb(22 47 37 / 0.07), 0 4px 12px -2px rgb(22 47 37 / 0.08);
+  --shadow-lift: 0 4px 16px -2px rgb(22 47 37 / 0.12), 0 8px 24px -4px rgb(22 47 37 / 0.09);
+  --shadow-top:  0 -1px 0 0 rgb(224 201 166 / 0.6), 0 -4px 16px -4px rgb(22 47 37 / 0.06);
 
-  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-display: var(--font-playfair), "Playfair Display", Georgia, serif;
   --font-sans:    var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -24,13 +34,13 @@
   Tailwind adaptam automaticamente. Forest vira sage-verde muted (não neon).
 */
 .dark {
-  --color-forest:    #5a9e8e;   /* sage-verde muted: legível, não saturado  */
-  --color-terracota: #c8583a;   /* terracota muted, menos agressivo          */
-  --color-salvia:    #547d75;   /* salvia mais escura para contraste         */
-  --color-creme:     #111009;   /* fundo muito escuro quente                 */
-  --color-carvao:    #ddd8cf;   /* texto quente, não branco puro             */
-  --color-areia:     #242018;   /* bordas escuras                            */
-  --color-surface:   #1a1714;   /* superfície de card/input                  */
+  --color-forest:    #5a9d8c;   /* verde-salvia legível no escuro            */
+  --color-terracota: #c4573e;   /* terracota muted                           */
+  --color-salvia:    #507870;   /* salvia escura                             */
+  --color-creme:     #100f0c;   /* fundo escuro quente                       */
+  --color-carvao:    #dbd4c8;   /* texto creme quente                        */
+  --color-areia:     #26211a;   /* bordas escuras douradas                   */
+  --color-surface:   #1c1812;   /* cards e inputs escuros                    */
 
   --shadow-card: 0 1px 4px -1px rgb(0 0 0 / 0.35), 0 4px 14px -2px rgb(0 0 0 / 0.3);
   --shadow-lift: 0 4px 18px -2px rgb(0 0 0 / 0.4), 0 8px 28px -4px rgb(0 0 0 / 0.28);
@@ -75,6 +85,16 @@ body {
 @keyframes spin-ring {
   to { transform: rotate(360deg); }
 }
+
+/* ── Safe-area utilities (iOS notch / Dynamic Island) ──────── */
+@utility pt-safe   { padding-top:    env(safe-area-inset-top);    }
+@utility pb-safe   { padding-bottom: env(safe-area-inset-bottom); }
+@utility pl-safe   { padding-left:   env(safe-area-inset-left);   }
+@utility pr-safe   { padding-right:  env(safe-area-inset-right);  }
+@utility mb-safe   { margin-bottom:  env(safe-area-inset-bottom); }
+
+/* ── Tap highlight removal (mobile) ────────────────────────── */
+* { -webkit-tap-highlight-color: transparent; }
 
 /* ── Scrollbar discreta ────────────────────────────────────── */
 ::-webkit-scrollbar        { width: 4px; height: 4px; }

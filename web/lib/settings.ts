@@ -1,10 +1,12 @@
 export type UnitSystem = "metric" | "imperial";
-export type Theme = "light" | "dark" | "system";
+export type Theme     = "light" | "dark" | "system";
+export type Language  = "pt" | "en";
 
 /* ── Cookies ───────────────────────────────────────────────── */
 
-export const COOKIE_UNIT = "unit-system";
+export const COOKIE_UNIT  = "unit-system";
 export const COOKIE_THEME = "theme";
+export const COOKIE_LANG  = "lang";
 const MAX_AGE = 60 * 60 * 24 * 365; // 1 ano
 
 export function setCookie(name: string, value: string) {

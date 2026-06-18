@@ -60,7 +60,7 @@ export function LogoLoader({ label = "Carregando..." }: { label?: string }) {
           width={64}
           height={64}
           sizes="64px"
-          className="rounded-[16px] relative z-10"
+          className="relative z-10"
           priority
           style={{ animation: "logo-breathe 2.4s ease-in-out infinite" }}
         />

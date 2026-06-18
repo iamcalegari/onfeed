@@ -31,6 +31,7 @@ const AdaptRequestSchema = Type.Object(
       Type.Union([Type.Literal("satiety"), Type.Literal("macros")]),
     ),
     note: Type.Optional(Type.String()),
+    lang: Type.Optional(Type.Union([Type.Literal("pt"), Type.Literal("en")])),
   },
   { additionalProperties: false },
 );
@@ -154,6 +155,7 @@ export const recipeRoutes: FastifyPluginAsync = async (fastify) => {
           }),
           ...(body.goal !== undefined && { goal: body.goal }),
           ...(body.note !== undefined && { note: body.note }),
+          ...(body.lang !== undefined && { lang: body.lang }),
         });
         if (!recipe) return reply.notFound("Receita base não encontrada");
         return recipe;

@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
+import { cookies } from "next/headers";
 
 import { ResultsView } from "@/components/ResultsView";
 import { searchRecipes } from "@/lib/api";
@@ -35,7 +36,9 @@ export default async function ResultsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const req = parseParams(await searchParams);
-  const { results, unresolvedIngredients, haveIds } = await searchRecipes(req);
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("lang")?.value ?? "pt") as "pt" | "en";
+  const { results, unresolvedIngredients, haveIds } = await searchRecipes({ ...req, lang });
 
   let authenticated = false;
   try {

@@ -29,6 +29,8 @@ export const SearchRequestSchema = Type.Object(
     note: Type.Optional(Type.String()),
     // nº de resultados (Card View pede mais, p/ formar packs de 25)
     limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
+    // idioma preferido para geração (não afeta resultados já armazenados)
+    lang: Type.Optional(Type.Union([Type.Literal("pt"), Type.Literal("en")])),
   },
   { additionalProperties: false },
 );

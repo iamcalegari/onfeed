@@ -62,6 +62,7 @@ export interface AdaptBody {
   maxPrepTimeMin?: number;
   goal?: NutritionGoal;
   note?: string;
+  lang?: "pt" | "en";
 }
 
 export async function generateThumbnail(id: string): Promise<string | null> {

@@ -107,7 +107,7 @@ export function SearchForm() {
                 key={ing}
                 type="button"
                 onClick={() => setIngredients((p) => p.filter((x) => x !== ing))}
-                className="flex items-center gap-1.5 rounded-full bg-salvia/15 px-3 py-1.5 text-xs font-medium text-forest ring-1 ring-salvia/30 transition-all hover:bg-salvia/25"
+                className="flex items-center gap-1.5 rounded-full bg-forest px-3 py-1.5 text-xs font-medium text-creme transition-all hover:bg-forest/85"
               >
                 {ing}
                 <span className="opacity-50">
@@ -189,7 +189,7 @@ export function SearchForm() {
         type="button"
         onClick={submit}
         disabled={ingredients.length === 0}
-        className="mt-1 flex items-center justify-center gap-2.5 rounded-2xl bg-forest py-4 text-sm font-semibold text-creme shadow-card transition-all hover:shadow-lift hover:-translate-y-px active:translate-y-0 active:shadow-card disabled:opacity-40 disabled:pointer-events-none"
+        className="mt-1 flex items-center justify-center gap-2.5 rounded-2xl bg-terracota py-4 text-sm font-semibold text-creme shadow-card transition-all hover:bg-terracota/90 hover:shadow-lift hover:-translate-y-px active:translate-y-0 active:shadow-card disabled:opacity-40 disabled:pointer-events-none"
       >
         Buscar receitas
         <svg
