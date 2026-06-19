@@ -100,6 +100,54 @@ body {
   animation: chef-float 2s ease-in-out infinite;
 }
 
+/* ── Medalhas ──────────────────────────────────────────────── */
+@keyframes medal-shimmer {
+  0%   { transform: translateX(-130%) skewX(-15deg); opacity: 0; }
+  8%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { transform: translateX(260%) skewX(-15deg); opacity: 0; }
+}
+
+@keyframes medal-glow-gold {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px #c9973b,
+      0 0 10px rgba(201,151,59,0.28),
+      0 6px 20px rgba(201,151,59,0.14);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2.5px #e8c66a,
+      0 0 30px rgba(201,151,59,0.60),
+      0 8px 32px rgba(201,151,59,0.26);
+  }
+}
+
+.medal-gold {
+  animation: medal-glow-gold 2.4s ease-in-out infinite;
+}
+
+/* ── Popup premiação ───────────────────────────────────────── */
+@keyframes trophy-bounce {
+  0%, 100% { transform: translateY(0) rotate(-2deg) scale(1);    }
+  25%       { transform: translateY(-12px) rotate(3deg) scale(1.08); }
+  50%       { transform: translateY(-5px) rotate(-1deg) scale(1.03); }
+  75%       { transform: translateY(-9px) rotate(2deg) scale(1.06); }
+}
+
+.trophy-bounce { animation: trophy-bounce 2s ease-in-out infinite; display: inline-block; }
+
+@keyframes star-spin {
+  from { transform: rotate(0deg) scale(1); }
+  50%  { transform: rotate(180deg) scale(1.3); }
+  to   { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes confetti-fall {
+  0%   { transform: translateY(-20px) rotate(0deg);   opacity: 1; }
+  100% { transform: translateY(80px)  rotate(720deg); opacity: 0; }
+}
+
 /* ── Safe-area utilities (iOS notch / Dynamic Island) ──────── */
 @utility pt-safe   { padding-top:    env(safe-area-inset-top);    }
 @utility pb-safe   { padding-bottom: env(safe-area-inset-bottom); }

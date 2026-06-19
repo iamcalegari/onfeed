@@ -1,12 +1,12 @@
-type Rank = 1 | 2 | 3;
+import type { Rank } from "./ResultCard";
 
 const RANK_RING: Record<Rank, string> = {
-  1: "#c9973b",
-  2: "#9aa0a6",
-  3: "#a0663a",
+  1: "0 0 0 2.5px #c9973b, 0 0 8px rgba(201,151,59,0.50)",
+  2: "0 0 0 2px #9aa0a6,   0 0 6px rgba(154,160,166,0.35)",
+  3: "0 0 0 2px #a0663a,   0 0 5px rgba(160,102,58,0.30)",
 };
 
-/** Percentual de match — círculo sólido com número, paleta do conceito. */
+/** Percentual de match — círculo com número e paleta progressiva. */
 export function MatchScore({
   score,
   rank,
@@ -22,12 +22,12 @@ export function MatchScore({
     pct >= 45 ? "bg-salvia/20 text-forest" :
                 "bg-areia/60 text-carvao/60";
 
-  const ringColor = rank ? RANK_RING[rank] : undefined;
+  const size = rank === 1 ? "h-11 w-11 text-sm" : "h-10 w-10 text-xs";
 
   return (
     <div
-      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-shadow ${colorClass}`}
-      style={ringColor ? { boxShadow: `0 0 0 2.5px ${ringColor}` } : undefined}
+      className={`flex shrink-0 items-center justify-center rounded-full font-bold tabular-nums ${colorClass} ${size}`}
+      style={rank ? { boxShadow: RANK_RING[rank] } : undefined}
       title={`Match: ${pct}%`}
     >
       {pct}

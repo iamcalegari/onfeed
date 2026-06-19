@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { SearchHit } from "@/lib/types";
 import { InfiniteList } from "./InfiniteList";
@@ -23,12 +23,33 @@ export function ResultsView({
   unresolvedIngredients?: string[];
 }) {
   const [view, setView] = useState<"list" | "packs">("list");
+  const [showPopup, setShowPopup] = useState(false);
   const isPacks = view === "packs";
+
+  const perfectMatches  = results.filter((r) => r.matchScore >= 85);
+  const cookableNow     = perfectMatches.filter((r) => r.cookableNow);
+
+  // Mostra popup uma vez se houver receitas com match perfeito
+  const shownRef = useRef(false);
+  useEffect(() => {
+    if (shownRef.current || perfectMatches.length === 0) return;
+    shownRef.current = true;
+    const t = setTimeout(() => setShowPopup(true), 420);
+    return () => clearTimeout(t);
+  }, [perfectMatches.length]);
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Popup de match perfeito */}
+      {showPopup && (
+        <PerfectMatchPopup
+          perfectCount={perfectMatches.length}
+          cookableCount={cookableNow.length}
+          onDismiss={() => setShowPopup(false)}
+        />
+      )}
 
-      {/* Header — escondido no modo packs para economizar espaço vertical */}
+      {/* Header — escondido no modo packs */}
       {!isPacks && (
         <>
           <header className="flex items-center justify-between">
@@ -112,6 +133,154 @@ export function ResultsView({
     </div>
   );
 }
+
+/* ── Popup de premiação ─────────────────────────────────────── */
+
+function PerfectMatchPopup({
+  perfectCount,
+  cookableCount,
+  onDismiss,
+}: {
+  perfectCount: number;
+  cookableCount: number;
+  onDismiss: () => void;
+}) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  function dismiss() {
+    setVisible(false);
+    setTimeout(onDismiss, 350);
+  }
+
+  const pStr = perfectCount === 1 ? "receita" : "receitas";
+  const cStr = cookableCount === 1 ? "ela" : "elas";
+
+  return (
+    <div
+      className={`fixed inset-0 z-50 flex items-end justify-center p-4 transition-all duration-350 ${
+        visible ? "opacity-100" : "opacity-0 pointer-events-none"
+      }`}
+    >
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-carvao/55 backdrop-blur-sm"
+        onClick={dismiss}
+      />
+
+      {/* Card */}
+      <div
+        className={`relative w-full max-w-sm overflow-hidden rounded-3xl bg-surface shadow-2xl transition-transform duration-350 ease-out ${
+          visible ? "translate-y-0" : "translate-y-full"
+        }`}
+      >
+        {/* Faixa dourada superior */}
+        <div
+          className="h-1.5"
+          style={{ background: "linear-gradient(90deg, rgba(201,151,59,0.6) 0%, #e8c66a 50%, rgba(201,151,59,0.6) 100%)" }}
+        />
+
+        {/* Decoração de fundo */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden select-none">
+          <span className="absolute -right-3 -top-2 text-[80px] leading-none text-[#c9973b]/7">✦</span>
+          <span className="absolute -left-1 bottom-10 text-[60px] leading-none text-[#c9973b]/5">★</span>
+          <span className="absolute right-8 bottom-14 text-[30px] leading-none text-[#c9973b]/8">✧</span>
+        </div>
+
+        <div className="relative flex flex-col items-center gap-5 px-6 pb-7 pt-6 text-center">
+          {/* Troféu animado */}
+          <div className="trophy-bounce text-6xl" aria-hidden>
+            🏆
+          </div>
+
+          {/* Título */}
+          <div className="flex flex-col items-center gap-1">
+            <p className="font-display text-[1.65rem] font-bold leading-tight text-forest">
+              Match Perfeito!
+            </p>
+            <p
+              className="text-xs font-semibold uppercase tracking-[0.2em]"
+              style={{ color: "#c9973b" }}
+            >
+              você foi premiado
+            </p>
+          </div>
+
+          {/* Descrição */}
+          <p className="max-w-[17rem] text-sm leading-relaxed text-carvao/65">
+            Encontramos{" "}
+            <span className="font-bold text-carvao">{perfectCount}</span>{" "}
+            {pStr} com mais de{" "}
+            <span className="font-bold text-carvao">85%</span> de match
+            {cookableCount > 0 && (
+              <>
+                {" — "}e{" "}
+                <span className="font-bold text-forest">
+                  {cookableCount === perfectCount
+                    ? `tod${perfectCount === 1 ? "a" : "as"}`
+                    : cookableCount === 1
+                    ? "1 delas"
+                    : `${cookableCount} delas`}
+                </span>{" "}
+                dá pra fazer agora com o que você tem.
+              </>
+            )}
+            {cookableCount === 0 && "."}
+          </p>
+
+          {/* Estrelinhas decorativas */}
+          <div className="flex items-center gap-1.5">
+            {["✦", "✧", "✦", "✧", "✦"].map((s, i) => (
+              <span
+                key={i}
+                className="text-sm"
+                style={{
+                  color: "#c9973b",
+                  opacity: i % 2 === 0 ? 1 : 0.35,
+                  animation: i % 2 === 0 ? `star-spin ${3 + i * 0.5}s linear infinite` : undefined,
+                  display: "inline-block",
+                }}
+              >
+                {s}
+              </span>
+            ))}
+          </div>
+
+          {/* CTA principal */}
+          <button
+            type="button"
+            onClick={dismiss}
+            className="w-full rounded-2xl py-3.5 text-sm font-bold text-white shadow-md transition-transform active:scale-[0.97]"
+            style={{ background: "linear-gradient(135deg, #c9973b 0%, #e8c66a 60%, #c9973b 100%)" }}
+          >
+            ✦ Ver {perfectCount === 1 ? "a receita premiada" : "as receitas premiadas"}
+          </button>
+
+          {/* Ação secundária */}
+          <button
+            type="button"
+            onClick={dismiss}
+            className="text-xs text-carvao/35 transition-colors hover:text-carvao/60"
+          >
+            mostrar todas as receitas
+          </button>
+        </div>
+
+        {/* Faixa dourada inferior */}
+        <div
+          className="h-1"
+          style={{ background: "linear-gradient(90deg, rgba(201,151,59,0.4) 0%, #c9973b 50%, rgba(201,151,59,0.4) 100%)" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ── ViewTab ─────────────────────────────────────────────────── */
 
 function ViewTab({
   active,
