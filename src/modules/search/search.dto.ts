@@ -31,6 +31,8 @@ export const SearchRequestSchema = Type.Object(
     limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
     // idioma preferido para geração (não afeta resultados já armazenados)
     lang: Type.Optional(Type.Union([Type.Literal("pt"), Type.Literal("en")])),
+    // ingredientes marcados como base — recebem boost forte no score (dimensão B)
+    baseIngredients: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { maxItems: 5 })),
   },
   { additionalProperties: false },
 );

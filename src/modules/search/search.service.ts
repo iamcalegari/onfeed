@@ -43,6 +43,11 @@ export async function searchRecipes(req: SearchRequest): Promise<SearchOutcome> 
   // I — canonicaliza os ingredientes do usuário
   const { haveIds, unresolved } = await resolveUserIngredients(req.ingredients);
 
+  // B — canonicaliza os ingredientes base (subset de ingredientes)
+  const { haveIds: baseIds } = req.baseIngredients?.length
+    ? await resolveUserIngredients(req.baseIngredients)
+    : { haveIds: [] };
+
   // query semântica (input_type=query)
   const queryVector = await embeddings.embedQuery(queryText);
 
@@ -55,6 +60,7 @@ export async function searchRecipes(req: SearchRequest): Promise<SearchOutcome> 
     }),
     ...(req.goal !== undefined && { goal: req.goal }),
     ...(req.limit !== undefined && { limit: req.limit }),
+    ...(baseIds.length > 0 && { baseIds }),
   });
 
   return { results, unresolvedIngredients: unresolved, haveIds };

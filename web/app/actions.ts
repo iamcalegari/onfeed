@@ -5,10 +5,14 @@ import { cookies } from "next/headers";
 import {
   adaptRecipe,
   addFavorite,
+  addToPantry,
   getThumbnailUrl,
+  getPantry,
   removeFavorite,
+  removeFromPantry,
   triggerThumbnail,
 } from "@/lib/api";
+import type { PantryIngredient } from "@/lib/types";
 
 /**
  * Server action da geração híbrida — roda no servidor do Next, chama o backend
@@ -46,4 +50,16 @@ export async function addFavoriteAction(recipeId: string): Promise<void> {
 
 export async function removeFavoriteAction(recipeId: string): Promise<void> {
   await removeFavorite(recipeId);
+}
+
+export async function getPantryAction(): Promise<PantryIngredient[]> {
+  return getPantry();
+}
+
+export async function addToPantryAction(ingredientId: string): Promise<void> {
+  await addToPantry(ingredientId);
+}
+
+export async function removeFromPantryAction(ingredientId: string): Promise<void> {
+  await removeFromPantry(ingredientId);
 }

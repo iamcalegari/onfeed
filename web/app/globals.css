@@ -72,6 +72,16 @@ body {
 }
 
 /* ── Animações ─────────────────────────────────────────────── */
+@keyframes jiggle {
+  0%   { transform: rotate(-1.5deg) scale(1.01); }
+  50%  { transform: rotate(1.5deg)  scale(1.01); }
+  100% { transform: rotate(-1.5deg) scale(1.01); }
+}
+.jiggle {
+  animation: jiggle 0.22s ease-in-out infinite;
+  transform-origin: center;
+}
+
 @keyframes logo-breathe {
   0%, 100% { transform: scale(1);    opacity: 1;    }
   50%       { transform: scale(1.06); opacity: 0.88; }

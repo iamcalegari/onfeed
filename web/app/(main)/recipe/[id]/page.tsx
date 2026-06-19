@@ -6,6 +6,7 @@ import { AdaptButton } from "@/components/AdaptButton";
 import { BackButton } from "@/components/BackButton";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { RecipeThumbnail } from "@/components/RecipeThumbnail";
+import { ShareButton } from "@/components/ShareButton";
 import { StepTimer } from "@/components/StepTimer";
 import { getFavoriteIds, getRecipe } from "@/lib/api";
 import { flagEmoji, formatMinutes } from "@/lib/format";
@@ -85,10 +86,17 @@ export default async function RecipePage({
 
       {/* Cabeçalho */}
       <header className="flex flex-col gap-3">
-        <h1 className="font-display text-[1.75rem] font-bold leading-tight text-carvao">
-          <span className="mr-1.5">{flagEmoji(recipe.country)}</span>
-          {recipe.title}
-        </h1>
+        <div className="flex items-start gap-2">
+          <h1 className="flex-1 font-display text-[1.75rem] font-bold leading-tight text-carvao">
+            <span className="mr-1.5">{flagEmoji(recipe.country)}</span>
+            {recipe.title}
+          </h1>
+          <ShareButton
+            title={recipe.title}
+            text={`Receita de ${recipe.title} no onFeed`}
+            className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-areia bg-surface text-carvao/50 hover:text-carvao transition-colors"
+          />
+        </div>
 
         {/* Meta */}
         <div className="flex flex-wrap items-center gap-3 text-sm text-carvao/60">

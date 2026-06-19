@@ -6,6 +6,7 @@ import type {
   Equipment,
   FavoriteRecipe,
   NutritionGoal,
+  PantryIngredient,
   Recipe,
   SearchRequest,
   SearchResponse,
@@ -124,6 +125,45 @@ export async function removeFavorite(recipeId: string): Promise<void> {
     { method: "DELETE", cache: "no-store", headers: { ...(await authHeaders()) } },
   );
   if (!res.ok) throw new Error(`Desfavoritar falhou: ${res.status}`);
+}
+
+// --- despensa (exige login) ---
+
+export async function getPantry(): Promise<PantryIngredient[]> {
+  const res = await fetch(`${API_BASE}/api/v1/pantry`, {
+    cache: "no-store",
+    headers: { ...(await authHeaders()) },
+  });
+  if (res.status === 401) return [];
+  if (!res.ok) throw new Error(`Despensa falhou: ${res.status}`);
+  return ((await res.json()) as { items: PantryIngredient[] }).items;
+}
+
+export async function addToPantry(ingredientId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/pantry/items`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ ingredientId }),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Adicionar à despensa falhou: ${res.status}`);
+}
+
+export async function removeFromPantry(ingredientId: string): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/pantry/items/${encodeURIComponent(ingredientId)}`,
+    { method: "DELETE", cache: "no-store", headers: { ...(await authHeaders()) } },
+  );
+  if (!res.ok) throw new Error(`Remover da despensa falhou: ${res.status}`);
+}
+
+export async function searchIngredients(q: string): Promise<PantryIngredient[]> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/ingredients/search?q=${encodeURIComponent(q)}`,
+    { cache: "no-store", headers: { ...(await authHeaders()) } },
+  );
+  if (!res.ok) return [];
+  return ((await res.json()) as { results: PantryIngredient[] }).results;
 }
 
 export async function adaptRecipe(id: string, body: AdaptBody): Promise<Recipe> {

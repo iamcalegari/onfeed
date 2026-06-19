@@ -13,6 +13,7 @@ export interface SearchRequest {
   note?: string;
   limit?: number;
   lang?: "pt" | "en";
+  baseIngredients?: string[];
 }
 
 export interface DimensionScores {
@@ -69,6 +70,12 @@ export interface Nutrition {
   protein: number;
   carbs: number;
   fat: number;
+}
+
+export interface PantryIngredient {
+  ingredientId: string;
+  displayName: string;
+  category: string;
 }
 
 export interface FavoriteRecipe {

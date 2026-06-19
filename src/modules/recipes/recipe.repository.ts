@@ -24,6 +24,7 @@ export interface HybridSearchParams {
   availableEquipment?: Equipment[]; // dimensão E
   maxPrepTimeMin?: number; // dimensão T
   goal?: NutritionGoal; // dimensão N
+  baseIds?: string[]; // canonicalIds marcados como base (dimensão B)
   sources?: RecipeSource[];
   weights?: Partial<DimensionWeights>;
   numCandidates?: number;
@@ -79,6 +80,13 @@ export async function hybridSearch(
   const equip = params.availableEquipment;
   const goal = params.goal;
   const maxPrep = params.maxPrepTimeMin;
+  const baseIds = params.baseIds ?? [];
+  const hasBase = baseIds.length > 0;
+
+  // Com ingrediente base presente, redistribui pesos: -0.10 de semantic, -0.10 de i, +0.30 de b
+  const wSemantic = hasBase ? 0.15 : w.semantic;
+  const wI        = hasBase ? 0.35 : w.i;
+  const wB        = hasBase ? 0.30 : 0;
 
   // --- expressões dos sub-scores (construídas conforme os inputs presentes) ---
 
@@ -241,6 +249,28 @@ export async function hybridSearch(
         scoreE,
         scoreT,
         scoreN,
+        // B: 1 se TODOS os ingredientes base estão na receita, 0 caso contrário
+        ...(hasBase && {
+          scoreB: {
+            $cond: [
+              {
+                $eq: [
+                  {
+                    $size: {
+                      $setIntersection: [
+                        { $map: { input: "$ingredients", as: "ing", in: "$$ing.canonicalId" } },
+                        baseIds,
+                      ],
+                    },
+                  },
+                  baseIds.length,
+                ],
+              },
+              1,
+              0,
+            ],
+          },
+        }),
         missingCoreCount: {
           $size: { $filter: { input: "$missing", as: "m", cond: "$$m.core" } },
         },
@@ -252,11 +282,12 @@ export async function hybridSearch(
       $addFields: {
         finalScore: {
           $add: [
-            { $multiply: [w.semantic, "$vectorScore"] },
-            { $multiply: [w.i, "$scoreI"] },
+            { $multiply: [wSemantic, "$vectorScore"] },
+            { $multiply: [wI, "$scoreI"] },
             { $multiply: [w.e, "$scoreE"] },
             { $multiply: [w.t, "$scoreT"] },
             { $multiply: [w.n, "$scoreN"] },
+            ...(hasBase ? [{ $multiply: [wB, "$scoreB"] }] : []),
           ],
         },
         cookableNow: { $eq: ["$missingCoreCount", 0] },

@@ -16,6 +16,8 @@ function parseParams(
   const maxTime = str("maxPrepTimeMin");
   const goal = str("goal");
 
+  const base = list("base");
+
   return {
     ingredients: list("ingredients"),
     equipment: list("equipment") as Equipment[],
@@ -23,6 +25,7 @@ function parseParams(
     ...(goal && { goal: goal as NutritionGoal }),
     occasions: list("occasions"),
     limit: 75,
+    ...(base.length > 0 && { baseIngredients: base }),
   };
 }
 

@@ -23,11 +23,14 @@ const ITEMS: Item[] = [
     ),
   },
   {
-    label: "Descobrir",
+    label: "Despensa",
+    href: "/pantry",
+    match: (p) => p.startsWith("/pantry"),
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-        <circle cx="12" cy="12" r="9" />
-        <path d="m15 9-2 4-4 2 2-4z" strokeLinejoin="round" />
+        <path d="M3 6h18M3 12h18M3 18h18" strokeLinecap="round" />
+        <path d="M8 6V4M16 6V4M8 18v2M16 18v2" strokeLinecap="round" />
+        <rect x="5" y="6" width="14" height="12" rx="1" />
       </svg>
     ),
   },
