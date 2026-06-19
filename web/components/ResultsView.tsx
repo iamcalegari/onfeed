@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { SearchHit } from "@/lib/types";
 import { InfiniteList } from "./InfiniteList";
 import { ResultCard } from "./ResultCard";
+import { ShareButton } from "./ShareButton";
 import { SwipeDeck } from "./SwipeDeck";
 
 export function ResultsView({
@@ -34,9 +35,16 @@ export function ResultsView({
             <h1 className="font-display text-2xl font-semibold text-forest">
               Resultados
             </h1>
-            <Link href="/" className="text-sm font-medium text-terracota">
-              nova busca
-            </Link>
+            <div className="flex items-center gap-3">
+              <ShareButton
+                title="Receitas encontradas no onFeed"
+                text={query ? `Receitas para: ${query}` : "Resultados no onFeed"}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-areia bg-surface text-carvao/50 hover:text-carvao transition-colors"
+              />
+              <Link href="/" className="text-sm font-medium text-terracota">
+                nova busca
+              </Link>
+            </div>
           </header>
 
           {query && (
@@ -96,6 +104,7 @@ export function ResultsView({
               hit={hit}
               haveIds={haveIds}
               highlight={i === 0}
+              rank={i < 3 ? ((i + 1) as 1 | 2 | 3) : undefined}
             />
           )}
         />
