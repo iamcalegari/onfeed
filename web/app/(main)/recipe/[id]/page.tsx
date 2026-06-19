@@ -9,8 +9,8 @@ import { RecipeThumbnail } from "@/components/RecipeThumbnail";
 import { StepTimer } from "@/components/StepTimer";
 import { getFavoriteIds, getRecipe } from "@/lib/api";
 import { flagEmoji, formatMinutes } from "@/lib/format";
-import { COOKIE_UNIT, formatQtyForSystem } from "@/lib/settings";
-import type { UnitSystem } from "@/lib/settings";
+import { COOKIE_LANG, COOKIE_UNIT, formatQtyForSystem, translateUnit } from "@/lib/settings";
+import type { Language, UnitSystem } from "@/lib/settings";
 
 const EQUIPMENT_LABELS: Record<string, string> = {
   stovetop: "Fogão",
@@ -34,6 +34,7 @@ export default async function RecipePage({
 
   const cookieStore = await cookies();
   const unitSystem = (cookieStore.get(COOKIE_UNIT)?.value ?? "metric") as UnitSystem;
+  const lang = (cookieStore.get(COOKIE_LANG)?.value ?? "pt") as Language;
 
   let userId: string | null = null;
   try {
@@ -144,7 +145,7 @@ export default async function RecipePage({
         <ul className="flex flex-col divide-y divide-areia/40">
           {recipe.ingredients.map((ing, i) => {
             const got = hasIt(ing.canonicalId, ing.isStaple);
-            const qty = formatQtyForSystem(ing.quantity, ing.unit, unitSystem);
+            const qty = formatQtyForSystem(ing.quantity, translateUnit(ing.unit, lang), unitSystem);
             return (
               <li key={i} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
                 <span

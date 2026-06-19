@@ -36,10 +36,39 @@ export function applyTheme(theme: Theme) {
  * Inserido como dangerouslySetInnerHTML no <head>.
  */
 export const THEME_SCRIPT = `(function(){try{
-  var t=document.cookie.match(/(?:^|;\\s*)theme=([^;]*)/)?.[1]??'system';
+  var t=document.cookie.match(/(?:^|;\\s*)theme=([^;]*)/)?.[1]??'light';
   var d=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);
   if(d)document.documentElement.classList.add('dark');
 }catch(e){}})();`;
+
+/* ── Tradução de unidades inglês → pt-BR ──────────────────── */
+
+const PT_UNIT_MAP: Record<string, string> = {
+  "cup":          "xícara",       "cups":          "xícaras",
+  "tablespoon":   "col. de sopa", "tablespoons":   "col. de sopa",
+  "tbsp":         "col. de sopa",
+  "teaspoon":     "col. de chá",  "teaspoons":     "col. de chá",
+  "tsp":          "col. de chá",
+  "clove":        "dente",        "cloves":        "dentes",
+  "slice":        "fatia",        "slices":        "fatias",
+  "sprig":        "ramo",         "sprigs":        "ramos",
+  "can":          "lata",         "cans":          "latas",
+  "package":      "pacote",       "packages":      "pacotes",
+  "pinch":        "pitada",       "pinches":       "pitadas",
+  "leaf":         "folha",        "leaves":        "folhas",
+  "bunch":        "maço",         "head":          "cabeça",
+  "piece":        "pedaço",       "pieces":        "pedaços",
+  "stalk":        "talo",         "stalks":        "talos",
+  "strip":        "tira",         "strips":        "tiras",
+  "pound":        "libra",        "pounds":        "libras",
+  "lb":           "libra",        "lbs":           "libras",
+  "ounce":        "onça",         "ounces":        "onças",
+};
+
+export function translateUnit(unit: string | undefined, lang: Language): string | undefined {
+  if (!unit || lang !== "pt") return unit;
+  return PT_UNIT_MAP[unit.toLowerCase()] ?? unit;
+}
 
 /* ── Conversão de unidades ────────────────────────────────── */
 

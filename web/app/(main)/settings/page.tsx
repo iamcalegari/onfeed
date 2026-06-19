@@ -34,7 +34,7 @@ const LANG_OPTIONS: { value: Language; label: string; flag: string }[] = [
 
 export default function SettingsPage() {
   const [unitSystem, setUnitSystem] = useState<UnitSystem>("metric");
-  const [theme, setTheme]           = useState<Theme>("system");
+  const [theme, setTheme]           = useState<Theme>("light");
   const [lang, setLang]             = useState<Language>("pt");
   const [mounted, setMounted]       = useState(false);
 
@@ -71,8 +71,8 @@ export default function SettingsPage() {
         description={
           mounted
             ? lang === "pt"
-              ? "Receitas geradas em Português."
-              : "Recipes generated in English."
+              ? "Adaptações geradas em Português. Receitas do catálogo podem estar em inglês."
+              : "New adaptations generated in English. Catalog recipes may be in other languages."
             : null
         }
       >

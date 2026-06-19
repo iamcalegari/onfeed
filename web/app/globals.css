@@ -86,6 +86,20 @@ body {
   to { transform: rotate(360deg); }
 }
 
+@keyframes chef-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-10px); }
+}
+
+@keyframes chef-dot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.35; }
+  40%           { transform: scale(1.1); opacity: 1; }
+}
+
+.chef-float {
+  animation: chef-float 2s ease-in-out infinite;
+}
+
 /* ── Safe-area utilities (iOS notch / Dynamic Island) ──────── */
 @utility pt-safe   { padding-top:    env(safe-area-inset-top);    }
 @utility pb-safe   { padding-bottom: env(safe-area-inset-bottom); }

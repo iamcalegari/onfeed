@@ -55,7 +55,7 @@ export default async function RootLayout({
   const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
   const cookieStore = await cookies();
-  const theme = (cookieStore.get("theme")?.value ?? "system") as Theme;
+  const theme = (cookieStore.get("theme")?.value ?? "light") as Theme;
   const isDark = theme === "dark";
 
   return (
