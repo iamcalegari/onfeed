@@ -26,8 +26,9 @@ export function ResultsView({
   const [showPopup, setShowPopup] = useState(false);
   const isPacks = view === "packs";
 
-  const perfectMatches  = results.filter((r) => r.matchScore >= 85);
-  const cookableNow     = perfectMatches.filter((r) => r.cookableNow);
+  // Popup: 75+ já é "verde escuro" = match muito bom. 85+ é para o banner por card.
+  const perfectMatches  = results.filter((r) => r.matchScore >= 75);
+  const cookableNow     = results.filter((r) => r.cookableNow && r.matchScore >= 75);
 
   // Mostra popup uma vez se houver receitas com match perfeito
   const shownRef = useRef(false);
@@ -162,7 +163,7 @@ function PerfectMatchPopup({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-end justify-center p-4 transition-all duration-350 ${
+      className={`fixed inset-0 z-50 flex items-end justify-center p-4 transition-all duration-300 ${
         visible ? "opacity-100" : "opacity-0 pointer-events-none"
       }`}
     >
@@ -215,7 +216,7 @@ function PerfectMatchPopup({
             Encontramos{" "}
             <span className="font-bold text-carvao">{perfectCount}</span>{" "}
             {pStr} com mais de{" "}
-            <span className="font-bold text-carvao">85%</span> de match
+            <span className="font-bold text-carvao">75%</span> de match
             {cookableCount > 0 && (
               <>
                 {" — "}e{" "}
