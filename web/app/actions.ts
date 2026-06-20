@@ -8,8 +8,10 @@ import {
   addToPantry,
   getThumbnailUrl,
   getPantry,
+  getRecipeLikes,
   removeFavorite,
   removeFromPantry,
+  toggleLike,
   triggerThumbnail,
 } from "@/lib/api";
 import type { PantryIngredient } from "@/lib/types";
@@ -62,4 +64,16 @@ export async function addToPantryAction(ingredientId: string): Promise<void> {
 
 export async function removeFromPantryAction(ingredientId: string): Promise<void> {
   await removeFromPantry(ingredientId);
+}
+
+export async function getRecipeLikesAction(
+  recipeId: string,
+): Promise<{ count: number; liked: boolean }> {
+  return getRecipeLikes(recipeId);
+}
+
+export async function toggleLikeAction(
+  recipeId: string,
+): Promise<{ liked: boolean; count: number }> {
+  return toggleLike(recipeId);
 }

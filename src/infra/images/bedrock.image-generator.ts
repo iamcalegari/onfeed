@@ -20,12 +20,13 @@ function isStability(modelId: string): boolean {
 }
 
 /** Monta o corpo do InvokeModel conforme a família do modelo. */
-function buildBody(modelId: string, prompt: string): string {
+function buildBody(modelId: string, prompt: string, negativePrompt?: string): string {
   if (isStability(modelId)) {
     // Stable Image Core/Ultra/SD3: text-to-image via prompt + aspect_ratio
     // (não aceita width/height arbitrários como o Titan).
     return JSON.stringify({
       prompt: prompt.slice(0, 9000),
+      ...(negativePrompt && { negative_prompt: negativePrompt }),
       mode: "text-to-image",
       aspect_ratio: "1:1",
       output_format: "png",
@@ -34,7 +35,10 @@ function buildBody(modelId: string, prompt: string): string {
   // Amazon Titan Image / Nova Canvas
   return JSON.stringify({
     taskType: "TEXT_IMAGE",
-    textToImageParams: { text: prompt.slice(0, 500) },
+    textToImageParams: {
+      text: prompt.slice(0, 500),
+      ...(negativePrompt && { negativeText: negativePrompt.slice(0, 500) }),
+    },
     imageGenerationConfig: {
       numberOfImages: 1,
       width: 512,
@@ -71,14 +75,14 @@ function parseImage(modelId: string, raw: Uint8Array): Buffer {
  * Amazon (Titan/Nova Canvas) e da Stability AI (Stable Image), conforme o
  * BEDROCK_IMAGE_MODEL. Retorna os bytes; o armazenamento é do store.
  */
-export async function generateImage(prompt: string): Promise<Buffer> {
+export async function generateImage(prompt: string, negativePrompt?: string): Promise<Buffer> {
   const modelId = env.images.bedrockModel;
   const res = await getClient().send(
     new InvokeModelCommand({
       modelId,
       contentType: "application/json",
       accept: "application/json",
-      body: buildBody(modelId, prompt),
+      body: buildBody(modelId, prompt, negativePrompt),
     }),
   );
   return parseImage(modelId, res.body);

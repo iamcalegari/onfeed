@@ -39,7 +39,7 @@ function colorFor(prompt: string): [number, number, number] {
   return [128 + (h & 0x7f), 128 + ((h >> 8) & 0x7f), 128 + ((h >> 16) & 0x7f)];
 }
 
-export async function generateImage(prompt: string): Promise<Buffer> {
+export async function generateImage(prompt: string, _negativePrompt?: string): Promise<Buffer> {
   const [r, g, b] = colorFor(prompt);
 
   // scanlines: cada linha começa com o byte de filtro (0 = none) seguido de RGB.

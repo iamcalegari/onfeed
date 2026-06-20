@@ -73,12 +73,12 @@ body {
 
 /* ── Animações ─────────────────────────────────────────────── */
 @keyframes jiggle {
-  0%   { transform: rotate(-1.5deg) scale(1.01); }
-  50%  { transform: rotate(1.5deg)  scale(1.01); }
-  100% { transform: rotate(-1.5deg) scale(1.01); }
+  0%   { transform: rotate(-0.5deg); }
+  50%  { transform: rotate(0.5deg);  }
+  100% { transform: rotate(-0.5deg); }
 }
 .jiggle {
-  animation: jiggle 0.22s ease-in-out infinite;
+  animation: jiggle 0.15s ease-in-out infinite;
   transform-origin: center;
 }
 

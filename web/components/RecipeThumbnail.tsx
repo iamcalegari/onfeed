@@ -15,7 +15,7 @@ export function RecipeThumbnail({
     <LazyThumbnail
       recipeId={recipeId}
       initialUrl={initialUrl}
-      className="h-44 w-full"
+      className="h-full w-full"
       rounded="rounded-2xl"
       iconClassName="text-5xl"
     />

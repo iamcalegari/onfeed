@@ -9,11 +9,14 @@ export function flagEmoji(countryCode: string): string {
   );
 }
 
-/** Link para o detalhe carregando o que o usuário tem (p/ marcar ✓). */
-export function recipeHref(id: string, haveIds: string[]): string {
-  const base = `/recipe/${id}`;
-  if (haveIds.length === 0) return base;
-  return `${base}?have=${encodeURIComponent(haveIds.join(","))}`;
+/** Link para o detalhe carregando o que o usuário tem (p/ marcar ✓) e ingredientes base. */
+export function recipeHref(id: string, haveIds: string[], baseNames?: string[]): string {
+  const path = `/recipe/${id}`;
+  const params = new URLSearchParams();
+  if (haveIds.length) params.set("have", haveIds.join(","));
+  if (baseNames?.length) params.set("base", baseNames.join(","));
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
 }
 
 export function formatMinutes(min: number): string {

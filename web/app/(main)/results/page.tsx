@@ -53,6 +53,7 @@ export default async function ResultsPage({
       authenticated={authenticated}
       query={query}
       unresolvedIngredients={unresolvedIngredients}
+      baseIngredients={req.baseIngredients ?? []}
     />
   );
 }

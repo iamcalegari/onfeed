@@ -28,16 +28,29 @@ async function toThumbnail(input: Buffer): Promise<Buffer> {
 /** true se Bedrock+S3 estão configurados; senão tudo vira no-op (placeholder). */
 export const imagesEnabled = env.images.enabled;
 
-/** Prompt de foto a partir do título + principais ingredientes. */
-function buildPrompt(recipe: Pick<Recipe, "title" | "ingredients">): string {
-  const main = recipe.ingredients
-    .filter((i) => !i.isStaple)
-    .slice(0, 4)
-    .map((i) => i.name)
-    .join(", ");
-  return `appetizing realistic food photography of "${recipe.title}"${
-    main ? `, with ${main}` : ""
-  }, plated dish, natural light, top-down view, neutral background`;
+/** Prompt de foto a partir dos ingredientes core da receita (sem usar o título). */
+function buildPrompt(recipe: Pick<Recipe, "title" | "ingredients">): { prompt: string; negativePrompt: string } {
+  // Prefere ingredientes marcados como core (os essenciais da receita).
+  // Fallback: qualquer não-staple, caso não haja cores.
+  const candidates = recipe.ingredients.filter((i) => i.core && !i.isStaple);
+  const ings = (candidates.length > 0
+    ? candidates
+    : recipe.ingredients.filter((i) => !i.isStaple)
+  ).slice(0, 5).map((i) => i.name);
+
+  // Não inclui recipe.title no prompt: títulos traduzidos literalmente
+  // (ex: "souris d'agneau" → "mice") causam hallucinations no modelo.
+  const ingList = ings.join(", ");
+  const subject = ingList
+    ? `a plated dish made with ${ingList}`
+    : "a plated homemade dish";
+
+  const prompt = `appetizing realistic food photography, ${subject}, natural light, top-down view, neutral linen background, editorial food styling`;
+
+  const negativePrompt =
+    "animals, mice, rats, insects, people, faces, cartoon, illustration, text, watermark, logo, blurry, raw uncooked meat, unrelated ingredients, random garnish";
+
+  return { prompt, negativePrompt };
 }
 
 /**
@@ -55,7 +68,8 @@ export async function ensureThumbnail(
   if (recipe.thumbnailUrl) return recipe.thumbnailUrl;
   if (!imagesEnabled || !recipe._id) return null;
 
-  const raw = await generateImage(buildPrompt(recipe));
+  const { prompt, negativePrompt } = buildPrompt(recipe);
+  const raw = await generateImage(prompt, negativePrompt);
   const thumb = await toThumbnail(raw);
   return putImage(`recipes/${recipe._id}.jpg`, thumb, "image/jpeg");
 }

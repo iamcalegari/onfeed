@@ -15,12 +15,14 @@ export function ResultsView({
   authenticated,
   query,
   unresolvedIngredients,
+  baseIngredients = [],
 }: {
   results: SearchHit[];
   haveIds: string[];
   authenticated: boolean;
   query?: string;
   unresolvedIngredients?: string[];
+  baseIngredients?: string[];
 }) {
   const [view, setView] = useState<"list" | "packs">("list");
   const [showPopup, setShowPopup] = useState(false);
@@ -115,7 +117,7 @@ export function ResultsView({
           Nada encontrado. Tente menos restrições.
         </p>
       ) : isPacks ? (
-        <SwipeDeck results={results} haveIds={haveIds} authenticated={authenticated} />
+        <SwipeDeck results={results} haveIds={haveIds} authenticated={authenticated} baseIngredients={baseIngredients} />
       ) : (
         <InfiniteList
           items={results}
@@ -127,6 +129,7 @@ export function ResultsView({
               haveIds={haveIds}
               highlight={i === 0}
               rank={i < 3 ? ((i + 1) as 1 | 2 | 3) : undefined}
+              baseIngredients={baseIngredients}
             />
           )}
         />

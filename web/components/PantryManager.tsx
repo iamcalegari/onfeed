@@ -47,15 +47,10 @@ function saveShortcuts(shortcuts: Shortcut[]) {
 
 /* ── Ingredient autocomplete ───────────────────────────────── */
 
-const API_BASE =
-  typeof window !== "undefined"
-    ? (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000")
-    : "";
-
 async function fetchSuggestions(q: string): Promise<PantryIngredient[]> {
   if (!q.trim()) return [];
   try {
-    const res = await fetch(`${API_BASE}/api/v1/ingredients/search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
+    const res = await fetch(`/api/v1/ingredients/search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
     if (!res.ok) return [];
     return ((await res.json()) as { results: PantryIngredient[] }).results;
   } catch { return []; }
@@ -217,26 +212,39 @@ function ShortcutEditor({
 
 /* ── Componente principal ───────────────────────────────────── */
 
+const DRAG_THRESHOLD = 6; // px antes de ativar o drag
+
 export function PantryManager({ initial }: { initial: PantryIngredient[] }) {
   const router = useRouter();
   const [items,       setItems]       = useState<PantryIngredient[]>(initial);
   const [shortcuts,   setShortcuts]   = useState<Shortcut[]>(DEFAULTS);
   const [editMode,    setEditMode]    = useState(false);
-  const [editingIdx,  setEditingIdx]  = useState<number | null>(null);   // null = novo
+  const [editingIdx,  setEditingIdx]  = useState<number | null>(null);
   const [showEditor,  setShowEditor]  = useState(false);
   const [query,       setQuery]       = useState("");
   const [suggestions, setSuggestions] = useState<PantryIngredient[]>([]);
   const [showSug,     setShowSug]     = useState(false);
+  // estado visual do drag
+  const [liftedIdx,   setLiftedIdx]   = useState<number | null>(null);
+  const [dragOffset,  setDragOffset]  = useState({ dx: 0, dy: 0 });
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [, startTransition] = useTransition();
 
-  const debounceRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const inputRef      = useRef<HTMLInputElement>(null);
-  const dragIdxRef    = useRef<number>(-1);
+  const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef         = useRef<HTMLInputElement>(null);
+  // refs para cálculo de slot durante o drag
+  const cardRefs         = useRef<(HTMLDivElement | null)[]>([]);
+  const dragStartRef     = useRef<{ x: number; y: number } | null>(null);
+  const dragOrigIdxRef   = useRef<number>(-1);
+  const dragOverIdxRef   = useRef<number>(-1);
+  const didDragRef       = useRef(false);
+  const origPositionsRef = useRef<{ left: number; top: number }[]>([]);
+  // ref para shortcuts atual (evita stale closure no pointermove)
+  const shortcutsRef   = useRef(shortcuts);
+  useEffect(() => { shortcutsRef.current = shortcuts; }, [shortcuts]);
 
-  // Carrega atalhos do localStorage no cliente
   useEffect(() => { setShortcuts(loadShortcuts()); }, []);
 
-  // Autocomplete debounced
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!query.trim()) { setSuggestions([]); return; }
@@ -251,9 +259,7 @@ export function PantryManager({ initial }: { initial: PantryIngredient[] }) {
 
   function handleAdd(ingredient: PantryIngredient) {
     setItems((p) => [...p, ingredient]);
-    setQuery("");
-    setSuggestions([]);
-    setShowSug(false);
+    setQuery(""); setSuggestions([]); setShowSug(false);
     startTransition(() => addToPantryAction(ingredient.ingredientId));
     inputRef.current?.focus();
   }
@@ -269,9 +275,7 @@ export function PantryManager({ initial }: { initial: PantryIngredient[] }) {
     if (items.length === 0) return;
     const qs = new URLSearchParams();
     qs.set("ingredients", items.map((i) => i.displayName).join(","));
-    for (const [k, v] of Object.entries(s.params)) {
-      if (v) qs.set(k, v);
-    }
+    for (const [k, v] of Object.entries(s.params)) { if (v) qs.set(k, v); }
     router.push(`/results?${qs.toString()}`);
   }
 
@@ -283,11 +287,8 @@ export function PantryManager({ initial }: { initial: PantryIngredient[] }) {
   function handleEditorSave(updated: Shortcut) {
     setShortcuts((prev) => {
       const next = [...prev];
-      if (editingIdx === null) {
-        next.push(updated);            // novo
-      } else {
-        next[editingIdx] = updated;    // editar existente
-      }
+      if (editingIdx === null) next.push(updated);
+      else next[editingIdx] = updated;
       saveShortcuts(next);
       return next;
     });
@@ -306,37 +307,104 @@ export function PantryManager({ initial }: { initial: PantryIngredient[] }) {
     });
   }
 
-  /* ── Drag-and-drop (HTML5) ───────────────────────────────── */
-
-  function onDragStart(index: number) {
-    dragIdxRef.current = index;
+  function handleRestoreDefaults() {
+    saveShortcuts(DEFAULTS);
+    setShortcuts(DEFAULTS);
   }
 
-  function onDragEnter(targetIndex: number) {
-    const from = dragIdxRef.current;
-    if (from === -1 || from === targetIndex) return;
-    setShortcuts((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(targetIndex, 0, moved);
-      dragIdxRef.current = targetIndex;
-      return next;
-    });
+  /* ── Drag por pointer events (funciona em touch e mouse) ──── */
+
+  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>, index: number) {
+    if (!editMode) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragStartRef.current   = { x: e.clientX, y: e.clientY };
+    dragOrigIdxRef.current = index;
+    dragOverIdxRef.current = index;
+    didDragRef.current     = false;
   }
 
-  function onDragEnd() {
-    dragIdxRef.current = -1;
-    saveShortcuts(shortcuts);
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!editMode || !dragStartRef.current) return;
+
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+
+    if (!didDragRef.current && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    if (!didDragRef.current) {
+      didDragRef.current = true;
+      const oIdx = dragOrigIdxRef.current;
+      setLiftedIdx(oIdx);
+      setDragOverIdx(oIdx);
+      dragOverIdxRef.current = oIdx;
+      // Captura centros originais de todos os cards uma única vez
+      origPositionsRef.current = cardRefs.current.map((el) => {
+        if (!el) return { left: 0, top: 0 };
+        const r = el.getBoundingClientRect();
+        return { left: r.left, top: r.top };
+      });
+    }
+
+    setDragOffset({ dx, dy });
+
+    // Encontra o slot cujo centro original está mais próximo do ponteiro
+    const origIdx = dragOrigIdxRef.current;
+    const n       = shortcutsRef.current.length;
+    const sampleEl = cardRefs.current.find(Boolean);
+    const cardW   = sampleEl ? sampleEl.offsetWidth  : 150;
+    const cardH   = sampleEl ? sampleEl.offsetHeight : 60;
+
+    let bestIdx  = origIdx;
+    let bestDist = Infinity;
+
+    for (let idx = 0; idx < n; idx++) {
+      const op = origPositionsRef.current[idx];
+      if (!op) continue;
+      const cx   = op.left + cardW / 2;
+      const cy   = op.top  + cardH / 2;
+      const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+      if (dist < bestDist) { bestDist = dist; bestIdx = idx; }
+    }
+
+    if (bestIdx !== dragOverIdxRef.current) {
+      dragOverIdxRef.current = bestIdx;
+      setDragOverIdx(bestIdx);
+    }
+  }
+
+  function handlePointerUp() {
+    if (!editMode || !dragStartRef.current) return;
+
+    if (didDragRef.current) {
+      const origIdx = dragOrigIdxRef.current;
+      const overIdx = dragOverIdxRef.current;
+      if (origIdx !== overIdx && origIdx >= 0 && overIdx >= 0) {
+        setShortcuts((prev) => {
+          const next = [...prev];
+          const [moved] = next.splice(origIdx, 1);
+          next.splice(overIdx, 0, moved);
+          saveShortcuts(next);
+          return next;
+        });
+      } else {
+        saveShortcuts(shortcutsRef.current);
+      }
+    }
+
+    dragStartRef.current     = null;
+    dragOrigIdxRef.current   = -1;
+    dragOverIdxRef.current   = -1;
+    origPositionsRef.current = [];
+    setLiftedIdx(null);
+    setDragOffset({ dx: 0, dy: 0 });
+    setDragOverIdx(null);
   }
 
   /* ── Render ──────────────────────────────────────────────── */
 
   const pantryDisabled = items.length === 0;
-
-  const editorShortcut =
-    showEditor
-      ? (editingIdx !== null ? shortcuts[editingIdx] : { emoji: "✨", label: "", sublabel: "", params: {} })
-      : null;
+  const editorShortcut = showEditor
+    ? (editingIdx !== null ? shortcuts[editingIdx] : { emoji: "✨", label: "", sublabel: "", params: {} })
+    : null;
 
   return (
     <>
@@ -357,53 +425,107 @@ export function PantryManager({ initial }: { initial: PantryIngredient[] }) {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            {shortcuts.map((s, i) => (
-              <div
-                key={`${s.label}-${i}`}
-                className={[
-                  "relative",
-                  editMode ? "jiggle cursor-grab active:cursor-grabbing" : "",
-                  i === shortcuts.length - 1 && shortcuts.length % 2 !== 0 ? "col-span-2" : "",
-                ].join(" ")}
-                style={editMode ? { animationDelay: `${(i % 3) * 0.07}s` } : undefined}
-                draggable={editMode}
-                onDragStart={() => onDragStart(i)}
-                onDragEnter={() => onDragEnter(i)}
-                onDragOver={(e) => e.preventDefault()}
-                onDragEnd={onDragEnd}
-              >
-                {/* Botão do atalho */}
-                <button
-                  type="button"
-                  onClick={() => editMode ? openEditor(i) : searchWith(s)}
-                  disabled={!editMode && pantryDisabled}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-areia bg-surface px-4 py-3 text-left transition-all hover:border-forest/30 hover:bg-forest/5 hover:-translate-y-px active:translate-y-0 disabled:opacity-30 disabled:pointer-events-none"
-                >
-                  <span className="text-xl leading-none">{s.emoji}</span>
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate text-sm font-semibold text-carvao">{s.label}</span>
-                    <span className="truncate text-[10px] text-carvao/45">{s.sublabel}</span>
-                  </span>
-                </button>
+          <div
+            className="grid grid-cols-2 gap-2"
+            style={editMode ? { touchAction: "none" } : undefined}
+          >
+            {shortcuts.map((s, i) => {
+              const isLifted = liftedIdx === i;
+              const isOdd    = shortcuts.length % 2 !== 0;
+              const isLast   = i === shortcuts.length - 1;
 
-                {/* Badge de delete (edit mode) */}
-                {editMode && (
+              return (
+                <div
+                  key={`${s.label}-${i}`}
+                  ref={(el) => { cardRefs.current[i] = el; }}
+                  className={[
+                    "relative select-none",
+                    editMode && !isLifted ? "jiggle" : "",
+                    isLast && isOdd ? "col-span-2" : "",
+                  ].join(" ")}
+                  style={(() => {
+                    const base: React.CSSProperties = {
+                      animationDelay: editMode ? `${(i % 3) * 0.05}s` : undefined,
+                    };
+                    if (isLifted) {
+                      return {
+                        ...base,
+                        transform: `translate(${dragOffset.dx}px, ${dragOffset.dy}px) scale(1.07) rotate(1.5deg)`,
+                        boxShadow: "var(--shadow-lift)",
+                        opacity: 0.92,
+                        zIndex: 50,
+                        transition: "none",
+                      };
+                    }
+                    // Outros cards deslizam para abrir espaço (estilo iPhone)
+                    if (liftedIdx !== null && dragOverIdx !== null && origPositionsRef.current.length > 0) {
+                      const oIdx = liftedIdx;
+                      let visIdx = i;
+                      if (oIdx < dragOverIdx) {
+                        if (i > oIdx && i <= dragOverIdx) visIdx = i - 1;
+                      } else if (oIdx > dragOverIdx) {
+                        if (i >= dragOverIdx && i < oIdx) visIdx = i + 1;
+                      }
+                      if (visIdx !== i) {
+                        const from = origPositionsRef.current[i];
+                        const to   = origPositionsRef.current[visIdx];
+                        if (from && to) {
+                          return {
+                            ...base,
+                            transform: `translate(${to.left - from.left}px, ${to.top - from.top}px)`,
+                            transition: "transform 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+                          };
+                        }
+                      }
+                      return { ...base };
+                    }
+                    return { ...base, transition: "transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease" };
+                  })()}
+                  onPointerDown={(e) => handlePointerDown(e, i)}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerUp}
+                >
+                  {/* Botão do atalho */}
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); handleDelete(i); }}
-                    className="absolute -left-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-carvao text-creme shadow-sm transition-transform hover:scale-110"
-                    aria-label={`Remover ${s.label}`}
+                    onClick={() => {
+                      if (didDragRef.current) { didDragRef.current = false; return; }
+                      editMode ? openEditor(i) : searchWith(s);
+                    }}
+                    disabled={!editMode && pantryDisabled}
+                    className={[
+                      "flex w-full items-center gap-3 rounded-2xl border border-areia bg-surface px-4 py-3 text-left",
+                      "transition-all disabled:opacity-30 disabled:pointer-events-none",
+                      editMode ? "cursor-grab active:cursor-grabbing" : "hover:border-forest/30 hover:bg-forest/5 hover:-translate-y-px active:translate-y-0",
+                    ].join(" ")}
                   >
-                    <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                      <path d="M2 2l8 8M10 2l-8 8" />
-                    </svg>
+                    <span className="text-xl leading-none">{s.emoji}</span>
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-semibold text-carvao">{s.label}</span>
+                      <span className="truncate text-[10px] text-carvao/45">{s.sublabel}</span>
+                    </span>
                   </button>
-                )}
-              </div>
-            ))}
 
-            {/* Botão de adicionar novo atalho (edit mode, máx 6) */}
+                  {/* Badge de delete */}
+                  {editMode && (
+                    <button
+                      type="button"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); handleDelete(i); }}
+                      className="absolute -left-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-carvao text-creme shadow-sm transition-transform hover:scale-110"
+                      aria-label={`Remover ${s.label}`}
+                    >
+                      <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                        <path d="M2 2l8 8M10 2l-8 8" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Adicionar novo (edit mode, máx 6) */}
             {editMode && shortcuts.length < 6 && (
               <button
                 type="button"
@@ -418,6 +540,17 @@ export function PantryManager({ initial }: { initial: PantryIngredient[] }) {
               </button>
             )}
           </div>
+
+          {/* Restaurar padrões (edit mode) */}
+          {editMode && (
+            <button
+              type="button"
+              onClick={handleRestoreDefaults}
+              className="mt-1 self-center text-xs text-carvao/35 underline underline-offset-2 transition-colors hover:text-terracota"
+            >
+              Restaurar padrões
+            </button>
+          )}
         </div>
 
         {/* ── Campo de busca para adicionar ingrediente ─────── */}
@@ -432,6 +565,12 @@ export function PantryManager({ initial }: { initial: PantryIngredient[] }) {
             onChange={(e) => { setQuery(e.target.value); setShowSug(true); }}
             onFocus={() => setShowSug(true)}
             onBlur={() => setTimeout(() => setShowSug(false), 150)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && suggestions.length > 0) {
+                e.preventDefault();
+                handleAdd(suggestions[0]!);
+              }
+            }}
             placeholder="Digite um ingrediente..."
             className="w-full rounded-xl border border-areia bg-surface px-4 py-3 text-sm shadow-sm outline-none placeholder:text-carvao/35 focus:border-salvia focus:ring-2 focus:ring-salvia/20 transition-all"
           />

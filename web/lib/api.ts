@@ -166,6 +166,30 @@ export async function searchIngredients(q: string): Promise<PantryIngredient[]> 
   return ((await res.json()) as { results: PantryIngredient[] }).results;
 }
 
+// --- likes (count público; toggle exige login) ---
+
+export async function getRecipeLikes(
+  recipeId: string,
+): Promise<{ count: number; liked: boolean }> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/recipes/${encodeURIComponent(recipeId)}/likes`,
+    { cache: "no-store", headers: { ...(await authHeaders()) } },
+  );
+  if (!res.ok) return { count: 0, liked: false };
+  return res.json() as Promise<{ count: number; liked: boolean }>;
+}
+
+export async function toggleLike(
+  recipeId: string,
+): Promise<{ liked: boolean; count: number }> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/recipes/${encodeURIComponent(recipeId)}/like`,
+    { method: "POST", cache: "no-store", headers: { ...(await authHeaders()) } },
+  );
+  if (!res.ok) throw new Error(`Toggle like falhou: ${res.status}`);
+  return res.json() as Promise<{ liked: boolean; count: number }>;
+}
+
 export async function adaptRecipe(id: string, body: AdaptBody): Promise<Recipe> {
   const res = await fetch(
     `${API_BASE}/api/v1/recipes/${encodeURIComponent(id)}/adapt`,

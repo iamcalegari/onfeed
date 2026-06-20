@@ -8,3 +8,4 @@ import "@/modules/recipes/recipe.model.js";
 import "@/modules/favorites/favorite.model.js";
 import "@/modules/usage/usage.model.js";
 import "@/modules/pantry/pantry.model.js";
+import "@/modules/likes/like.model.js";

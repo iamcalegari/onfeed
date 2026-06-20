@@ -31,8 +31,7 @@ export function AdaptButton({
 
   return (
     <>
-      {/* Overlay de loading */}
-      {pending && <ChefLoader />}
+      {pending && <AdaptLoader />}
 
       <div className="flex flex-col gap-1">
         <button
@@ -49,98 +48,45 @@ export function AdaptButton({
   );
 }
 
-/* ── Chef loader ───────────────────────────────────────────────── */
+/* ── Loader ────────────────────────────────────────────────────── */
 
-function ChefLoader() {
+function AdaptLoader() {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-creme/95 backdrop-blur-sm dark:bg-carvao/95">
-      {/* F-chef animado */}
-      <div className="chef-float">
-        <svg
-          viewBox="0 0 64 78"
-          width={96}
-          height={116}
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden
-        >
-          {/* Corpo (stroke vertical) */}
-          <line
-            x1="16" y1="12" x2="16" y2="68"
-            stroke="#162f25" strokeWidth="7.5" strokeLinecap="round"
-          />
-
-          {/* Topo / bigode — ondula como bigode de chef */}
-          <path stroke="#162f25" strokeWidth="7" strokeLinecap="round">
-            <animate
-              attributeName="d"
-              values="M16 20 Q34 13 52 19;M16 20 Q34 26 52 19;M16 20 Q34 13 52 19"
-              dur="1.5s"
-              repeatCount="indefinite"
-              calcMode="spline"
-              keySplines="0.45 0 0.55 1;0.45 0 0.55 1"
-            />
-          </path>
-
-          {/* Braço esquerdo — apoia na cintura (estático) */}
-          <path
-            d="M16 40 Q7 47 5 58"
-            stroke="#162f25"
-            strokeWidth="6.5"
-            strokeLinecap="round"
-          />
-
-          {/* Braço direito — levantado, enrolando a ponta do bigode */}
-          <path stroke="#162f25" strokeWidth="6.5" strokeLinecap="round">
-            <animate
-              attributeName="d"
-              values="M16 40 Q36 30 47 18;M16 40 Q40 25 52 13;M16 40 Q36 30 47 18"
-              dur="1.5s"
-              repeatCount="indefinite"
-              calcMode="spline"
-              keySplines="0.45 0 0.55 1;0.45 0 0.55 1"
-            />
-          </path>
-
-          {/* Dedo — ponta do braço direito */}
-          <circle r="5.5" fill="#162f25">
-            <animate
-              attributeName="cx"
-              values="47;52;47"
-              dur="1.5s"
-              repeatCount="indefinite"
-              calcMode="spline"
-              keySplines="0.45 0 0.55 1;0.45 0 0.55 1"
-            />
-            <animate
-              attributeName="cy"
-              values="18;13;18"
-              dur="1.5s"
-              repeatCount="indefinite"
-              calcMode="spline"
-              keySplines="0.45 0 0.55 1;0.45 0 0.55 1"
-            />
-          </circle>
-        </svg>
-      </div>
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-8"
+      style={{ background: "rgba(250,244,232,0.97)", backdropFilter: "blur(4px)" }}
+    >
+      {/* Ícone animado */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/app-icon.png"
+        alt=""
+        width={96}
+        height={96}
+        className="chef-float rounded-[22px] shadow-xl"
+        aria-hidden
+      />
 
       {/* Texto */}
       <div className="flex flex-col items-center gap-1 text-center">
-        <p className="font-display text-xl font-bold text-forest">
+        <p className="font-display text-xl font-bold" style={{ color: "#162f25" }}>
           Adaptando sua receita
         </p>
-        <p className="text-sm text-carvao/55">
-          o chef está trabalhando nisso…
+        <p className="text-sm" style={{ color: "rgba(35,35,32,0.50)" }}>
+          aguarda um instante…
         </p>
       </div>
 
-      {/* Dots pulsando */}
+      {/* Dots */}
       <div className="flex gap-2">
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className="h-2 w-2 rounded-full bg-terracota"
-            style={{ animation: `chef-dot 1.2s ease-in-out ${i * 0.2}s infinite` }}
+            className="h-2 w-2 rounded-full"
+            style={{
+              background: "#d4644a",
+              animation: `chef-dot 1.2s ease-in-out ${i * 0.2}s infinite`,
+            }}
           />
         ))}
       </div>

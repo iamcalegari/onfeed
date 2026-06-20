@@ -1,14 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { addFavoriteAction } from "@/app/actions";
 import { flagEmoji, formatMinutes, recipeHref } from "@/lib/format";
 import type { SearchHit } from "@/lib/types";
 import { LazyThumbnail } from "./LazyThumbnail";
 import { MatchScore } from "./MatchScore";
+import type { Rank } from "./ResultCard";
 import { ScoreBars } from "./ScoreBars";
+
+const MEDAL: Record<Rank, {
+  color: string;
+  label: string;
+  shimmerColor: string;
+  shimmerDuration: string;
+  shimmerDelay: string;
+  staticShadow?: string;
+}> = {
+  1: { color: "#c9973b", label: "1°", shimmerColor: "rgba(255,222,100,0.45)", shimmerDuration: "2.8s", shimmerDelay: "0.6s" },
+  2: { color: "#9aa0a6", label: "2°", shimmerColor: "rgba(210,218,222,0.40)", shimmerDuration: "4s",   shimmerDelay: "1.8s", staticShadow: "0 0 0 1.5px #9aa0a6, 0 0 14px rgba(154,160,166,0.32), 0 4px 16px rgba(154,160,166,0.16)" },
+  3: { color: "#a0663a", label: "3°", shimmerColor: "rgba(210,165,120,0.32)", shimmerDuration: "5.5s", shimmerDelay: "3s",   staticShadow: "0 0 0 1.5px #a0663a, 0 0 8px rgba(160,102,58,0.22), 0 4px 12px rgba(160,102,58,0.10)" },
+};
 
 const PACK_SIZE = 25;
 const THRESHOLD = 110;
@@ -165,14 +180,68 @@ function PackOpener({
   );
 }
 
-/* ── RecipePreview (bottom sheet no swipe-up) ────────────────── */
+/* ── PeekOverlay (aparece no card durante swipe-up) ─────────── */
+function PeekOverlay({ hit, dragY }: { hit: SearchHit; dragY: number }) {
+  const opacity = Math.min(1, (-dragY - 20) / 55);
+  const missingCore = hit.missing.filter((m) => m.core);
+  const missingOpt  = hit.missing.filter((m) => !m.core);
+
+  return (
+    <div
+      className="pointer-events-none absolute inset-x-0 bottom-0 overflow-hidden rounded-b-3xl"
+      style={{ opacity }}
+    >
+      <div className="flex flex-col gap-2 bg-carvao/82 px-4 pb-5 pt-3 backdrop-blur-sm">
+        {hit.missing.length === 0 ? (
+          <div className="flex items-center gap-2">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-forest/35 text-[10px] font-bold text-forest">✓</span>
+            <span className="text-sm font-semibold text-creme">Você tem todos os ingredientes</span>
+          </div>
+        ) : hit.cookableNow ? (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-forest/35 text-[10px] font-bold text-forest">✓</span>
+              <span className="text-xs font-semibold text-creme">Dá pra fazer! Falta só opcional:</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {missingOpt.slice(0, 5).map((m) => (
+                <span key={m.canonicalId} className="rounded-full bg-white/12 px-2 py-0.5 text-[11px] text-creme/75">{m.name}</span>
+              ))}
+              {missingOpt.length > 5 && <span className="text-[11px] text-creme/40">+{missingOpt.length - 5}</span>}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-terracota/80">
+              Falta {missingCore.length} essencial{missingCore.length !== 1 ? "is" : ""}
+            </span>
+            <div className="flex flex-wrap gap-1">
+              {missingCore.slice(0, 5).map((m) => (
+                <span key={m.canonicalId} className="rounded-full bg-terracota/28 px-2 py-0.5 text-[11px] font-medium text-creme/85">{m.name}</span>
+              ))}
+              {missingCore.length > 5 && <span className="text-[11px] text-creme/40">+{missingCore.length - 5}</span>}
+            </div>
+          </div>
+        )}
+        <div className="flex items-center gap-1.5">
+          <UpArrowIcon />
+          <span className="text-[10px] text-creme/40">Solte para ver mais</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── RecipePreview (card expandido no swipe-up) ──────────────── */
 function RecipePreview({
   hit,
   haveIds,
+  baseIngredients = [],
   onClose,
 }: {
   hit: SearchHit;
   haveIds: string[];
+  baseIngredients?: string[];
   onClose: () => void;
 }) {
   const [visible, setVisible] = useState(false);
@@ -184,74 +253,135 @@ function RecipePreview({
 
   function close() {
     setVisible(false);
-    setTimeout(onClose, 300);
+    setTimeout(onClose, 250);
   }
+
+  const missingCore   = hit.missing.filter((m) => m.core);
+  const missingOpt    = hit.missing.filter((m) => !m.core);
+  const coveragePct   = Math.round(hit.scores.i * 100);
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex flex-col justify-end transition-all duration-300 ${
+      className={`fixed inset-0 z-50 overflow-y-auto transition-opacity duration-250 ${
         visible ? "opacity-100" : "opacity-0"
       }`}
+      onClick={close}
     >
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-carvao/50 backdrop-blur-sm"
-        onClick={close}
-      />
+      <div className="absolute inset-0 bg-carvao/65 backdrop-blur-sm" />
 
-      {/* Sheet */}
+      {/* Wrapper que centraliza verticalmente e ainda permite scroll */}
+      <div className="relative flex min-h-full items-center justify-center px-4 py-8">
+
+      {/* Card expandido — stopPropagation para não fechar ao clicar nele */}
       <div
-        className={`relative rounded-t-3xl bg-surface shadow-2xl transition-transform duration-300 ${
-          visible ? "translate-y-0" : "translate-y-full"
+        className={`w-full max-w-sm overflow-hidden rounded-3xl bg-surface shadow-2xl transition-all duration-250 ${
+          visible ? "translate-y-0 scale-100" : "translate-y-5 scale-95"
         }`}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Handle */}
-        <div className="flex justify-center pt-3">
-          <div className="h-1 w-12 rounded-full bg-areia" />
-        </div>
-
-        {/* Fechar */}
+        {/* Botão fechar */}
         <button
           type="button"
           onClick={close}
-          className="absolute right-4 top-3.5 flex h-7 w-7 items-center justify-center rounded-full bg-areia/70 text-carvao/60 hover:text-carvao"
+          className="absolute right-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-carvao/40 text-creme/80 backdrop-blur-sm transition-colors hover:bg-carvao/60"
         >
           <XSmallIcon />
         </button>
 
-        {/* Imagem */}
-        <div className="mx-4 mt-3 overflow-hidden rounded-2xl" style={{ height: 152 }}>
+        {/* Thumbnail com título sobreposto */}
+        <div className="relative h-44">
           <LazyThumbnail
             recipeId={hit._id}
             initialUrl={hit.thumbnailUrl}
             className="h-full w-full"
             rounded="rounded-none"
-            iconClassName="text-4xl"
+            iconClassName="text-5xl"
           />
-        </div>
-
-        {/* Conteúdo */}
-        <div className="flex flex-col gap-3 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="font-display text-xl font-semibold leading-tight text-carvao">
+          <div className="absolute inset-x-0 bottom-0 h-20 bg-linear-to-t from-carvao/75 to-transparent" />
+          <div className="absolute bottom-3 left-4 right-14 pr-1">
+            <h3 className="font-display text-lg font-bold leading-tight text-creme line-clamp-2">
               {flagEmoji(hit.country)} {hit.title}
             </h3>
+          </div>
+          <div className="absolute bottom-3 right-3">
             <MatchScore score={hit.matchScore} />
           </div>
-          <p className="line-clamp-2 text-sm leading-relaxed text-carvao/60">
-            {hit.intro}
-          </p>
+        </div>
+
+        {/* Stats */}
+        <div className="flex items-center gap-3 border-b border-areia/50 px-4 py-3">
+          <RecipeStatChip icon="⏱" label={formatMinutes(hit.prepTimeMin)} />
+          <RecipeStatChip icon="🍽" label={`${hit.servings} porç${hit.servings !== 1 ? "ões" : "ão"}`} />
+          {hit.cookableNow && (
+            <span className="ml-auto rounded-full bg-forest/10 px-2.5 py-0.5 text-[11px] font-semibold text-forest">
+              ✓ dá pra fazer
+            </span>
+          )}
+        </div>
+
+        {/* Ingredientes */}
+        <div className="px-4 py-3">
+          <div className="mb-2.5 flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wider text-carvao/40">Ingredientes</p>
+            <span className={`text-xs font-semibold ${coveragePct >= 80 ? "text-forest" : coveragePct >= 50 ? "text-amber-600" : "text-terracota"}`}>
+              {coveragePct}% disponível
+            </span>
+          </div>
+
+          {hit.missing.length === 0 ? (
+            <p className="text-sm font-semibold text-forest">✓ Você tem todos os ingredientes!</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {missingCore.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-terracota/70">
+                    Precisa comprar ({missingCore.length})
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {missingCore.map((m) => (
+                      <span key={m.canonicalId} className="rounded-full border border-terracota/25 bg-terracota/10 px-2.5 py-0.5 text-xs font-medium text-terracota/80">
+                        {m.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {missingOpt.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-carvao/35">
+                    Opcional ({missingOpt.length})
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {missingOpt.map((m) => (
+                      <span key={m.canonicalId} className="rounded-full border border-areia bg-areia/50 px-2.5 py-0.5 text-xs text-carvao/55">
+                        {m.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ScoreBars */}
+        <div className="border-t border-areia/50 px-4 py-3">
           <ScoreBars scores={hit.scores} />
+        </div>
+
+        {/* CTA */}
+        <div className="px-4 pb-5 pt-2">
           <Link
-            href={recipeHref(hit._id, haveIds)}
+            href={recipeHref(hit._id, haveIds, baseIngredients.length ? baseIngredients : undefined)}
             onClick={close}
-            className="mt-1 flex items-center justify-center gap-2 rounded-2xl bg-forest py-3.5 text-sm font-semibold text-creme shadow-sm transition-transform active:scale-[0.98]"
+            className="flex items-center justify-center gap-2 rounded-2xl bg-forest py-3.5 text-sm font-semibold text-creme shadow-sm transition-transform active:scale-[0.98]"
           >
             Ver receita completa
             <ArrowRightIcon />
           </Link>
         </div>
-        <div className="h-4" />
+      </div>
       </div>
     </div>
   );
@@ -262,13 +392,21 @@ export function SwipeDeck({
   results,
   haveIds,
   authenticated,
+  baseIngredients = [],
 }: {
   results: SearchHit[];
   haveIds: string[];
   authenticated: boolean;
+  baseIngredients?: string[];
 }) {
   const [deck] = useState(() => buildDeck(results));
   const [index, setIndex] = useState(0);
+
+  // Mapeia _id → rank original (top 3 da busca, antes de embaralhar)
+  const rankMap = useMemo(
+    () => new Map(results.slice(0, 3).map((r, i) => [r._id, (i + 1) as Rank])),
+    [results],
+  );
   const [selected, setSelected] = useState<SearchHit[]>([]);
   const [showSelected, setShowSelected] = useState(false);
   const [drag, setDrag] = useState(0);
@@ -277,12 +415,15 @@ export function SwipeDeck({
   const [packOpener, setPackOpener] = useState<number | null>(null);
   const [deckShared, setDeckShared] = useState(false);
 
-  const dragging    = useRef(false);
-  const animating   = useRef(false);
-  const startX      = useRef(0);
-  const startY      = useRef(0);
-  const dragModeRef = useRef<"idle" | "horizontal" | "vertical">("idle");
-  const shownPacks  = useRef(new Set<number>());
+  const dragging            = useRef(false);
+  const animating           = useRef(false);
+  const startX              = useRef(0);
+  const startY              = useRef(0);
+  const dragModeRef         = useRef<"idle" | "horizontal" | "vertical">("idle");
+  const shownPacks          = useRef(new Set<number>());
+  const thresholdVibratedRef = useRef(false);
+  const containerRef         = useRef<HTMLDivElement>(null);
+  const centerOffsetRef      = useRef(0); // distância entre centro do card e centro da tela
 
   const current     = deck[index];
   const totalPacks  = Math.ceil(deck.length / PACK_SIZE);
@@ -344,6 +485,7 @@ export function SwipeDeck({
   function cancelDrag() {
     dragging.current = false;
     dragModeRef.current = "idle";
+    thresholdVibratedRef.current = false;
     setDrag(0);
     setDragY(0);
   }
@@ -365,18 +507,26 @@ export function SwipeDeck({
   /* ── Painel: selecionadas ─────────────────────────────────── */
   if (showSelected) {
     return (
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-xl font-semibold text-forest">
-            Selecionadas ({selected.length})
-          </h2>
-          <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-4">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h2 className="font-display text-2xl font-bold text-forest">
+              Seu deck
+            </h2>
+            <p className="mt-0.5 text-xs text-carvao/45">
+              {selected.length === 0
+                ? "nenhuma receita ainda"
+                : `${selected.length} receita${selected.length !== 1 ? "s" : ""} escolhida${selected.length !== 1 ? "s" : ""}`}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
             {selected.length > 0 && (
               <button
                 type="button"
                 onClick={shareDeck}
                 title={deckShared ? "Copiado!" : "Compartilhar deck"}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-areia bg-surface text-carvao/50 hover:text-carvao transition-colors"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-areia bg-surface text-carvao/50 shadow-sm transition-colors hover:text-carvao"
               >
                 {deckShared ? <CheckSmallIcon /> : <ShareSmallIcon />}
               </button>
@@ -384,7 +534,7 @@ export function SwipeDeck({
             <button
               type="button"
               onClick={() => setShowSelected(false)}
-              className="text-sm font-medium text-terracota"
+              className="rounded-full border border-areia bg-surface px-4 py-2 text-sm font-medium text-terracota shadow-sm"
             >
               voltar ao deck
             </button>
@@ -392,38 +542,40 @@ export function SwipeDeck({
         </div>
 
         {selected.length === 0 ? (
-          <p className="text-sm text-carvao/50">
-            Nenhuma ainda — arraste para a direita para selecionar.
-          </p>
+          /* Empty state */
+          <div className="flex flex-col items-center gap-3 py-14 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-areia/60 text-carvao/30">
+              <DeckStackIcon />
+            </div>
+            <p className="text-sm font-semibold text-carvao/50">Deck vazio</p>
+            <p className="max-w-60 text-xs leading-relaxed text-carvao/35">
+              Arraste os cards para a direita para montar seu deck
+            </p>
+          </div>
         ) : (
           <>
-            {selected.map((h) => (
-              <div
-                key={h._id}
-                className="flex items-center gap-3 rounded-2xl border border-areia bg-surface p-2.5"
-              >
-                <span className="text-xl">{flagEmoji(h.country)}</span>
-                <Link
-                  href={recipeHref(h._id, haveIds)}
-                  className="flex-1 truncate text-sm font-medium text-carvao"
-                >
-                  {h.title}
-                </Link>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSelected((p) => p.filter((x) => x._id !== h._id))
-                  }
-                  className="text-xs text-carvao/40 hover:text-terracota transition-colors"
-                >
-                  remover
-                </button>
-              </div>
-            ))}
+            <div className="flex flex-col gap-2.5">
+              {selected.map((h, i) => (
+                <SwipeableSelectedCard
+                  key={h._id}
+                  hit={h}
+                  index={i}
+                  haveIds={haveIds}
+                  baseIngredients={baseIngredients}
+                  onRemove={() => setSelected((p) => p.filter((x) => x._id !== h._id))}
+                />
+              ))}
+            </div>
+
+            {/* Hint de swipe — some após o primeiro uso */}
+            <p className="text-center text-[11px] text-carvao/30">
+              ← deslize para remover · ver receita →
+            </p>
+
             <button
               type="button"
               onClick={() => setSelected([])}
-              className="mt-1 text-xs text-carvao/40 hover:text-terracota transition-colors"
+              className="self-center text-xs text-carvao/30 transition-colors hover:text-terracota"
             >
               limpar tudo
             </button>
@@ -463,8 +615,10 @@ export function SwipeDeck({
 
   // Modo de arrasto determina o transform da carta ativa
   const isVerticalDrag = dragY < 0;
-  const cardTransform = isVerticalDrag
-    ? `translateY(${dragY * 0.45}px)`
+  const dragProgress   = isVerticalDrag ? Math.min(1, -dragY / VERTICAL_THRESHOLD) : 0;
+  // translateY primeiro (espaço original) → move em direção ao centro; scale depois (âncora = centro do card)
+  const cardTransform  = isVerticalDrag
+    ? `translateY(${centerOffsetRef.current * dragProgress}px) scale(${1 + dragProgress * 0.08})`
     : `translateX(${drag}px) rotate(${dragTilt}deg)`;
 
   return (
@@ -484,6 +638,7 @@ export function SwipeDeck({
         <RecipePreview
           hit={current}
           haveIds={haveIds}
+          baseIngredients={baseIngredients}
           onClose={() => setShowPreview(false)}
         />
       )}
@@ -512,6 +667,7 @@ export function SwipeDeck({
 
         {/* Área do deck */}
         <div
+          ref={containerRef}
           className="relative select-none"
           style={{ height: "clamp(300px, calc(100svh - 22rem), 440px)" }}
         >
@@ -519,6 +675,7 @@ export function SwipeDeck({
             <DeckCard
               key={bg2._id}
               hit={bg2}
+              rank={rankMap.get(bg2._id)}
               className="opacity-35 pointer-events-none"
               style={{
                 transform: `scale(0.89) translateY(26px) rotate(${tilt2}deg)`,
@@ -530,6 +687,7 @@ export function SwipeDeck({
             <DeckCard
               key={bg1._id}
               hit={bg1}
+              rank={rankMap.get(bg1._id)}
               className="opacity-60 pointer-events-none"
               style={{
                 transform: `scale(0.95) translateY(13px) rotate(${tilt1}deg)`,
@@ -542,6 +700,7 @@ export function SwipeDeck({
           <DeckCard
             key={current._id}
             hit={current}
+            rank={rankMap.get(current._id)}
             onPointerDown={(e) => {
               if (animating.current || packOpener !== null) return;
               dragging.current = true;
@@ -549,6 +708,11 @@ export function SwipeDeck({
               startY.current = e.clientY;
               dragModeRef.current = "idle";
               e.currentTarget.setPointerCapture(e.pointerId);
+              // calcula offset do centro do card até o centro da viewport
+              if (containerRef.current) {
+                const r = containerRef.current.getBoundingClientRect();
+                centerOffsetRef.current = window.innerHeight / 2 - (r.top + r.height / 2);
+              }
             }}
             onPointerMove={(e) => {
               if (!dragging.current) return;
@@ -563,12 +727,18 @@ export function SwipeDeck({
                 }
               }
               if (dragModeRef.current === "horizontal") setDrag(dx);
-              else if (dragModeRef.current === "vertical")
+              else if (dragModeRef.current === "vertical") {
                 setDragY(Math.min(0, dy));
+                if (-dy > VERTICAL_THRESHOLD && !thresholdVibratedRef.current) {
+                  thresholdVibratedRef.current = true;
+                  try { navigator.vibrate(12); } catch { /* not supported */ }
+                }
+              }
             }}
             onPointerUp={() => {
               if (!dragging.current) return;
               dragging.current = false;
+              thresholdVibratedRef.current = false;
               if (dragModeRef.current === "horizontal") {
                 if (Math.abs(drag) > THRESHOLD && !animating.current) {
                   decide(drag > 0 ? "yes" : "no");
@@ -609,20 +779,8 @@ export function SwipeDeck({
               </div>
             )}
 
-            {/* Hint: swipe para cima → preview */}
-            {dragY < -25 && (
-              <div
-                className="pointer-events-none absolute inset-x-0 bottom-5 flex flex-col items-center"
-                style={{ opacity: Math.min(1, (-dragY - 25) / 55) }}
-              >
-                <div className="flex items-center gap-1.5 rounded-full bg-carvao/70 px-4 py-1.5">
-                  <UpArrowIcon />
-                  <span className="text-xs font-semibold text-creme">
-                    ver receita
-                  </span>
-                </div>
-              </div>
-            )}
+            {/* Peek overlay durante swipe-up */}
+            {dragY < -20 && <PeekOverlay hit={current} dragY={dragY} />}
           </DeckCard>
         </div>
 
@@ -658,25 +816,205 @@ export function SwipeDeck({
   );
 }
 
+/* ── SwipeableSelectedCard ───────────────────────────────────── */
+function SwipeableSelectedCard({
+  hit,
+  index,
+  haveIds,
+  baseIngredients,
+  onRemove,
+}: {
+  hit: SearchHit;
+  index: number;
+  haveIds: string[];
+  baseIngredients: string[];
+  onRemove: () => void;
+}) {
+  const router = useRouter();
+  const [dx, setDx] = useState(0);
+  const draggingRef  = useRef(false);
+  const dirLockedRef = useRef<"h" | "v" | null>(null);
+  const startX = useRef(0);
+  const startY = useRef(0);
+
+  const COMMIT = 120;
+  const abs      = Math.abs(dx);
+  const progress = Math.min(1, abs / COMMIT);
+  const goingRight = dx > 0;
+  const goingLeft  = dx < 0;
+
+  function onPointerDown(e: React.PointerEvent) {
+    startX.current = e.clientX;
+    startY.current = e.clientY;
+    draggingRef.current = false;
+    dirLockedRef.current = null;
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    const ddx = e.clientX - startX.current;
+    const ddy = e.clientY - startY.current;
+
+    if (!dirLockedRef.current) {
+      if (Math.abs(ddx) < 6 && Math.abs(ddy) < 6) return;
+      dirLockedRef.current = Math.abs(ddx) > Math.abs(ddy) ? "h" : "v";
+    }
+    if (dirLockedRef.current !== "h") return;
+
+    if (!draggingRef.current) {
+      draggingRef.current = true;
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+    setDx(ddx);
+    if (Math.abs(ddx) >= COMMIT) {
+      try { navigator.vibrate(10); } catch { /* not supported */ }
+    }
+  }
+
+  function onPointerUp() {
+    // Tap sem arrasto → abre receita
+    if (!draggingRef.current) {
+      if (dirLockedRef.current === null) {
+        router.push(recipeHref(hit._id, haveIds, baseIngredients.length ? baseIngredients : undefined));
+      }
+      return;
+    }
+    draggingRef.current = false;
+
+    if (dx > COMMIT) {
+      setDx(600);
+      setTimeout(() => {
+        router.push(recipeHref(hit._id, haveIds, baseIngredients.length ? baseIngredients : undefined));
+      }, 250);
+    } else if (dx < -COMMIT) {
+      setDx(-600);
+      setTimeout(onRemove, 250);
+    } else {
+      setDx(0);
+    }
+  }
+
+  function onPointerCancel() {
+    draggingRef.current = false;
+    setDx(0);
+  }
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl">
+      {/* Fundo: ver receita (esquerda → direita) */}
+      <div
+        className="absolute inset-0 flex items-center justify-start gap-2 rounded-2xl bg-forest pl-5"
+        style={{ opacity: goingRight ? Math.min(1, progress * 1.4) : 0 }}
+        aria-hidden
+      >
+        <span className="text-xl text-creme">→</span>
+        <span className="text-sm font-bold text-creme">Ver receita</span>
+      </div>
+
+      {/* Fundo: remover (direita → esquerda) */}
+      <div
+        className="absolute inset-0 flex items-center justify-end gap-2 rounded-2xl bg-terracota pr-5"
+        style={{ opacity: goingLeft ? Math.min(1, progress * 1.4) : 0 }}
+        aria-hidden
+      >
+        <span className="text-sm font-bold text-creme">Remover</span>
+        <span className="text-xl text-creme">✕</span>
+      </div>
+
+      {/* Card */}
+      <div
+        className="relative flex touch-pan-y overflow-hidden rounded-2xl border border-areia/70 bg-surface shadow-card"
+        style={{
+          transform: `translateX(${dx}px)`,
+          transition: draggingRef.current ? "none" : "transform 0.28s cubic-bezier(0.25,1,0.5,1)",
+        }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+      >
+        {/* Thumbnail */}
+        <div className="relative shrink-0">
+          <LazyThumbnail
+            recipeId={hit._id}
+            initialUrl={hit.thumbnailUrl}
+            className="h-24 w-24"
+            rounded="rounded-none"
+            iconClassName="text-3xl"
+          />
+          <span className="absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-carvao/50 text-[10px] font-bold text-white backdrop-blur-sm">
+            {index + 1}
+          </span>
+        </div>
+
+        {/* Conteúdo */}
+        <div className="flex min-w-0 flex-1 flex-col justify-between p-3">
+          <div className="flex items-start justify-between gap-2">
+            <p className="line-clamp-2 text-sm font-semibold leading-snug text-carvao">
+              <span className="mr-0.5">{flagEmoji(hit.country)}</span>
+              {hit.title}
+            </p>
+            <MatchScore score={hit.matchScore} />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-carvao/40">{formatMinutes(hit.prepTimeMin)}</span>
+            {hit.cookableNow && (
+              <span className="text-[10px] font-semibold text-forest">✓ dá pra fazer</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── DeckCard ────────────────────────────────────────────────── */
 function DeckCard({
   hit,
+  rank,
   children,
   className = "",
   style,
   ...handlers
 }: {
   hit: SearchHit;
+  rank?: Rank;
   children?: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
 } & React.HTMLAttributes<HTMLDivElement>) {
+  const medal = rank ? MEDAL[rank] : undefined;
+  const isPerfect = hit.matchScore >= 85;
+
+  const medalClass = medal
+    ? rank === 1
+      ? "medal-gold"
+      : ""
+    : "";
+
+  const medalStyle: React.CSSProperties = {
+    ...(medal?.staticShadow ? { boxShadow: medal.staticShadow } : {}),
+    ...style,
+  };
+
   return (
     <div
       {...handlers}
-      style={style}
-      className={`absolute inset-0 flex touch-none flex-col overflow-hidden rounded-3xl border border-areia/80 bg-surface shadow-card ${className}`}
+      style={medalStyle}
+      className={`absolute inset-0 flex touch-none flex-col overflow-hidden rounded-3xl border border-areia/80 bg-surface shadow-card ${medalClass} ${className}`}
     >
+      {/* Shimmer sweep (medalhas) */}
+      {medal && (
+        <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden rounded-3xl">
+          <div
+            className="absolute inset-y-0 w-[42%]"
+            style={{
+              backgroundImage: `linear-gradient(to right, transparent, ${medal.shimmerColor}, transparent)`,
+              animation: `medal-shimmer ${medal.shimmerDuration} ease-in-out ${medal.shimmerDelay} infinite`,
+            }}
+          />
+        </div>
+      )}
+
       <div className="relative">
         <LazyThumbnail
           recipeId={hit._id}
@@ -685,10 +1023,25 @@ function DeckCard({
           rounded="rounded-none"
           iconClassName="text-5xl"
         />
-        <span className="absolute right-3 top-3">
-          <MatchScore score={hit.matchScore} />
+
+        {/* Badge de medalha */}
+        {medal && (
+          <div
+            className="absolute left-3 top-3 z-30 flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-extrabold text-white shadow-md"
+            style={{
+              backgroundColor: medal.color,
+              boxShadow: `0 0 0 1.5px rgba(255,255,255,0.35), 0 2px 8px rgba(0,0,0,0.25)`,
+            }}
+          >
+            {medal.label}
+          </div>
+        )}
+
+        <span className="absolute right-3 top-3 z-30">
+          <MatchScore score={hit.matchScore} rank={rank} />
         </span>
       </div>
+
       <div className="flex flex-1 flex-col gap-2 p-4">
         <h3 className="font-display text-xl font-semibold leading-tight text-carvao">
           <span className="mr-1">{flagEmoji(hit.country)}</span>
@@ -702,16 +1055,39 @@ function DeckCard({
           </span>
         </div>
       </div>
-      {hit.matchScore >= 85 && (
-        <div className="flex items-center gap-1.5 bg-forest/8 px-4 py-2">
-          <span className="text-[10px] text-forest">✦</span>
-          <span className="text-[11px] font-semibold text-forest">
+
+      {/* Banner "match perfeito" */}
+      {isPerfect && (
+        <div
+          className="flex items-center gap-2 px-4 py-2"
+          style={{
+            background: "linear-gradient(90deg, rgba(22,47,37,0.07) 0%, rgba(22,47,37,0.12) 50%, rgba(22,47,37,0.07) 100%)",
+          }}
+        >
+          <span
+            className="text-xs text-[#c9973b]"
+            style={{ animation: "star-spin 3s linear infinite", display: "inline-block" }}
+          >
+            ✦
+          </span>
+          <span className="text-[11px] font-bold text-forest tracking-wide">
             Essa receita é perfeita pra você
           </span>
         </div>
       )}
+
       {children}
     </div>
+  );
+}
+
+/* ── RecipeStatChip ──────────────────────────────────────────── */
+function RecipeStatChip({ icon, label }: { icon: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1 text-xs text-carvao/60">
+      <span aria-hidden>{icon}</span>
+      {label}
+    </span>
   );
 }
 

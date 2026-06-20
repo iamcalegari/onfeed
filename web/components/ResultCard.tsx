@@ -47,11 +47,13 @@ export function ResultCard({
   haveIds,
   highlight,
   rank,
+  baseIngredients = [],
 }: {
   hit: SearchHit;
   haveIds: string[];
   highlight?: boolean;
   rank?: Rank;
+  baseIngredients?: string[];
 }) {
   const hasExtra = hit.missing.length > 0 || hit.cookableNow;
   const isPerfect = hit.matchScore >= 85;
@@ -59,7 +61,7 @@ export function ResultCard({
 
   return (
     <Link
-      href={recipeHref(hit._id, haveIds)}
+      href={recipeHref(hit._id, haveIds, baseIngredients.length ? baseIngredients : undefined)}
       className={`group relative block overflow-hidden rounded-2xl bg-surface transition-all duration-200 hover:-translate-y-px ${
         medal
           ? rank === 1
