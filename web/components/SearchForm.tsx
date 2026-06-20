@@ -26,7 +26,7 @@ const GOAL_OPTIONS: { value: NutritionGoal | ""; label: string }[] = [
   { value: "macros", label: "Repetir sabores" },
 ];
 
-const OCCASION_OPTIONS = ["tira-gosto", "brunch", "almoço", "sobremesa"];
+const OCCASION_OPTIONS = ["tira-gosto", "brunch", "almoço", "sobremesa", "drinks"];
 
 export function SearchForm() {
   const router = useRouter();
@@ -126,7 +126,12 @@ export function SearchForm() {
               <button
                 key={entry.ts}
                 type="button"
-                onClick={() => router.push(`/results?${entry.params}`)}
+                onClick={() => {
+                  const ings = entry.query.split(",").map((s) => s.trim()).filter(Boolean);
+                  setIngredients(ings);
+                  const base = new URLSearchParams(entry.params).get("base");
+                  setBaseIngredients(base ? new Set(base.split(",").map((s) => s.trim())) : new Set());
+                }}
                 className="shrink-0 flex items-center gap-1.5 rounded-full border border-areia bg-surface px-3.5 py-1.5 text-xs font-medium text-carvao/70 hover:border-salvia hover:text-forest transition-colors whitespace-nowrap"
               >
                 {entry.query.length > 22

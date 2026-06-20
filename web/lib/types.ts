@@ -85,6 +85,7 @@ export interface FavoriteRecipe {
   thumbnailUrl: string;
   intro: string;
   prepTimeMin: number;
+  ingredientNames: string[];
 }
 
 export interface Recipe {

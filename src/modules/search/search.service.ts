@@ -21,7 +21,11 @@ function buildQueryText(req: SearchRequest): string {
   if (req.ingredients.length) {
     parts.push(`Ingredientes disponíveis: ${req.ingredients.join(", ")}.`);
   }
-  if (req.occasions?.length) parts.push(`Ocasião: ${req.occasions.join(", ")}.`);
+  if (req.occasions?.includes("drinks")) {
+    parts.push("Receita de bebida: drink, coquetel, suco, smoothie, vitamina, batida, chá gelado, limonada, ponche, caiprinha, mojito.");
+  } else if (req.occasions?.length) {
+    parts.push(`Ocasião: ${req.occasions.join(", ")}.`);
+  }
   if (req.equipment?.length) {
     parts.push(`Equipamentos: ${req.equipment.join(", ")}.`);
   }
@@ -61,6 +65,7 @@ export async function searchRecipes(req: SearchRequest): Promise<SearchOutcome> 
     ...(req.goal !== undefined && { goal: req.goal }),
     ...(req.limit !== undefined && { limit: req.limit }),
     ...(baseIds.length > 0 && { baseIds }),
+    ...(req.occasions?.length && { occasions: req.occasions }),
   });
 
   return { results, unresolvedIngredients: unresolved, haveIds };

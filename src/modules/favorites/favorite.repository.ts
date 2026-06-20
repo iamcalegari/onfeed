@@ -11,6 +11,7 @@ export interface FavoriteRecipe {
   thumbnailUrl: string;
   intro: string;
   prepTimeMin: number;
+  ingredientNames: string[];
 }
 
 export async function addFavorite(
@@ -54,7 +55,7 @@ export async function listFavoriteRecipes(
 
   const recipes = await RecipeModel.findMany(
     { _id: { $in: ids.map((id) => new ObjectId(id)) } } as never,
-    { projection: { title: 1, country: 1, thumbnailUrl: 1, intro: 1, prepTimeMin: 1 } },
+    { projection: { title: 1, country: 1, thumbnailUrl: 1, intro: 1, prepTimeMin: 1, ingredients: 1 } },
   );
 
   // reordena na ordem em que foram favoritadas (mais recente primeiro)
@@ -69,5 +70,6 @@ export async function listFavoriteRecipes(
       thumbnailUrl: r.thumbnailUrl,
       intro: r.intro,
       prepTimeMin: r.prepTimeMin,
+      ingredientNames: ((r as unknown as { ingredients?: { name: string }[] }).ingredients ?? []).map(i => i.name),
     }));
 }

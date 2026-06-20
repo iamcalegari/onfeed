@@ -26,6 +26,7 @@ export interface HybridSearchParams {
   goal?: NutritionGoal; // dimensão N
   baseIds?: string[]; // canonicalIds marcados como base (dimensão B)
   sources?: RecipeSource[];
+  occasions?: string[]; // filtro duro por ocasião (ex: ["drinks"])
   weights?: Partial<DimensionWeights>;
   numCandidates?: number;
   limit?: number;
@@ -82,6 +83,7 @@ export async function hybridSearch(
   const maxPrep = params.maxPrepTimeMin;
   const baseIds = params.baseIds ?? [];
   const hasBase = baseIds.length > 0;
+  const occasions = params.occasions ?? [];
 
   // Com ingrediente base presente, redistribui pesos: -0.10 de semantic, -0.10 de i, +0.30 de b
   const wSemantic = hasBase ? 0.15 : w.semantic;
@@ -173,7 +175,10 @@ export async function hybridSearch(
         queryVector: params.queryVector,
         numCandidates,
         limit: poolSize,
-        filter: { source: { $in: params.sources ?? DEFAULTS.sources } },
+        filter: {
+          source: { $in: params.sources ?? DEFAULTS.sources },
+          ...(occasions.length > 0 && { occasions: { $in: occasions } }),
+        },
       },
     },
     { $addFields: { vectorScore: { $meta: "vectorSearchScore" } } },

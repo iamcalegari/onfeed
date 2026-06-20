@@ -21,7 +21,8 @@ export const ExtractedRecipeSchema = z.object({
     .array(z.string())
     .describe(
       "ocasiões adequadas, vocabulário fixo: weeknight, romantic_dinner, " +
-        "party, comfort_food, healthy, breakfast, dessert, quick",
+        "party, comfort_food, healthy, breakfast, dessert, quick, drinks. " +
+        "Use 'drinks' para qualquer receita que seja uma bebida (suco, smoothie, coquetel, vitamina, batida, chá gelado, etc.)",
     ),
   equipment: z
     .array(z.enum(["stovetop", "oven", "microwave", "blender", "none"]))
