@@ -1,6 +1,6 @@
 import { embeddings } from "@/infra/embeddings/voyage.client.js";
 import { resolveUserIngredients } from "@/modules/ingredients/ingredient.service.js";
-import { hybridSearch } from "@/modules/recipes/recipe.repository.js";
+import { hybridSearch, searchByTitle } from "@/modules/recipes/recipe.repository.js";
 import type { RecipeSearchHit } from "@/modules/recipes/recipe.types.js";
 import type { SearchRequest } from "./search.dto.js";
 
@@ -37,6 +37,12 @@ function buildQueryText(req: SearchRequest): string {
 }
 
 export async function searchRecipes(req: SearchRequest): Promise<SearchOutcome> {
+  // Modo "já sei o que fazer": busca por título, sem vetor nem ingredientes.
+  if (req.titleSearch?.trim()) {
+    const results = await searchByTitle(req.titleSearch, req.limit ?? 20);
+    return { results, unresolvedIngredients: [], haveIds: [] };
+  }
+
   // Sem nenhum critério não há o que embeddar/buscar — e a Voyage rejeita input
   // vazio (400). Retorna vazio em vez de estourar; o front trata results=[].
   const queryText = buildQueryText(req);

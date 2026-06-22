@@ -108,6 +108,11 @@ function pillStyle(open: boolean, set: boolean) {
 export default function BuscarPage() {
   const router = useRouter();
 
+  // modo: "ingredientes" (tenho na cozinha) ou "nome" (já sei o que fazer)
+  const [mode, setMode] = useState<"ingredientes" | "nome">("ingredientes");
+  const [titleDraft, setTitleDraft] = useState("");
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
   // core search state
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [draft, setDraft]             = useState("");
@@ -180,6 +185,14 @@ export default function BuscarPage() {
 
   /* ── Submit ──────────────────────────────────────────────────── */
   function submit() {
+    // Modo "já sei o que fazer" — busca por nome
+    if (mode === "nome") {
+      const q = titleDraft.trim();
+      if (!q) return;
+      router.push(`/results?titleSearch=${encodeURIComponent(q)}`);
+      return;
+    }
+
     // Inclui ingrediente que está no campo mas ainda não foi confirmado
     const draftParts = draft.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
     const existing = new Set(ingredients.map(g => g.name));
@@ -295,87 +308,138 @@ export default function BuscarPage() {
         {recap}
       </div>
 
-      {/* ── Tenho na cozinha ───────────────────────────────── */}
+      {/* ── Card principal (Tenho na cozinha / Já sei o que fazer) ── */}
       <div style={{
         background: "#fff", border: "1px solid #f0e4d2", borderRadius: 22, padding: 16,
         boxShadow: "0 10px 24px -16px rgba(22,47,37,.3)",
       }}>
+        {/* Header com toggle */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 17 }}>🧺</span>
-            <span style={{ fontSize: 13.5, fontWeight: 700, color: "#162f25" }}>Tenho na cozinha</span>
+            <span style={{ fontSize: 17 }}>{mode === "nome" ? "🔍" : "🧺"}</span>
+            <span style={{ fontSize: 13.5, fontWeight: 700, color: "#162f25" }}>
+              {mode === "nome" ? "Já sei o que fazer" : "Tenho na cozinha"}
+            </span>
           </div>
-          <span style={{ fontSize: 12, color: "#9aa39b", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-            {ingredients.length} {ingredients.length === 1 ? "item" : "itens"}
-          </span>
-        </div>
-
-        {/* Chips */}
-        {sortedIngs.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 13 }}>
-            {sortedIngs.map((g, origIdx) => {
-              const i = ingredients.indexOf(g);
-              return (
-                <span
-                  key={g.name}
-                  onClick={() => toggleBase(i)}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    fontSize: 13, fontWeight: 600, padding: "8px 12px", borderRadius: 18,
-                    background: g.base ? "#fbf1de" : "#fff",
-                    color:      g.base ? "#a76a00" : "#3a3a36",
-                    border:     `1px solid ${g.base ? "#eccf95" : "#e6d8c2"}`,
-                    cursor: "pointer", userSelect: "none",
-                  }}
-                >
-                  {g.base && <span style={{ color: "#e8a020" }}>★</span>}
-                  {g.name}
-                  <span
-                    onClick={e => { e.stopPropagation(); removeIng(i); }}
-                    style={{ marginLeft: 1, fontSize: 12, lineHeight: 1, opacity: 0.5, cursor: "pointer" }}
-                  >✕</span>
-                </span>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Input */}
-        <div style={{ display: "flex", gap: 9, marginTop: 13 }}>
-          <input
-            ref={inputRef}
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onKeyDown={onDraftKey}
-            placeholder="adicionar ingrediente…"
+          {/* Toggle pill */}
+          <button
+            type="button"
+            onClick={() => setMode(m => m === "ingredientes" ? "nome" : "ingredientes")}
             style={{
-              flex: 1, fontFamily: "Inter,sans-serif", fontSize: 14, color: "#232320",
-              background: "#faf6ee", border: "1px solid #efe2cd", borderRadius: 13,
-              padding: "12px 14px", outline: "none",
-            }}
-          />
-          <div
-            onClick={addIng}
-            style={{
-              width: 46, flexShrink: 0, background: "#162f25", borderRadius: 13,
-              display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 5,
+              background: mode === "nome" ? "#162f25" : "#f3ede1",
+              border: "none", borderRadius: 20, padding: "5px 10px 5px 6px",
+              cursor: "pointer", transition: "background .2s ease",
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#faf4e8" strokeWidth="2.4" strokeLinecap="round">
-              <path d="M12 5v14M5 12h14"/>
-            </svg>
-          </div>
+            <span style={{
+              width: 20, height: 20, borderRadius: "50%",
+              background: mode === "nome" ? "#e0c9a6" : "#162f25",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 10, transition: "background .2s ease",
+            }}>
+              {mode === "nome" ? "✓" : "→"}
+            </span>
+            <span style={{
+              fontSize: 11, fontWeight: 700, letterSpacing: 0.2,
+              color: mode === "nome" ? "#e0c9a6" : "#162f25",
+            }}>
+              {mode === "nome" ? "por ingredientes" : "pelo nome"}
+            </span>
+          </button>
         </div>
 
-        {ingredients.length > 0 && (
-          <div style={{ fontSize: 11, color: "#b4b9ad", marginTop: 9 }}>
-            Toque num item pra marcar como <b style={{ color: "#a76a00", fontWeight: 700 }}>★ principal</b>
+        {mode === "nome" ? (
+          /* ── Modo busca por nome ─────────────────────────── */
+          <div style={{ marginTop: 13 }}>
+            <input
+              ref={titleInputRef}
+              autoFocus
+              value={titleDraft}
+              onChange={e => setTitleDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") submit(); }}
+              placeholder="ex: frango grelhado, bolo de cenoura…"
+              style={{
+                width: "100%", fontFamily: "Inter,sans-serif", fontSize: 14, color: "#232320",
+                background: "#faf6ee", border: "1px solid #efe2cd", borderRadius: 13,
+                padding: "12px 14px", outline: "none", boxSizing: "border-box",
+              }}
+            />
+            <div style={{ fontSize: 11, color: "#b4b9ad", marginTop: 9 }}>
+              Busca pelo nome da receita no catálogo
+            </div>
           </div>
+        ) : (
+          /* ── Modo ingredientes ────────────────────────────── */
+          <>
+            {/* Chips */}
+            {sortedIngs.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 13 }}>
+                {sortedIngs.map((g) => {
+                  const i = ingredients.indexOf(g);
+                  return (
+                    <span
+                      key={g.name}
+                      onClick={() => toggleBase(i)}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        fontSize: 13, fontWeight: 600, padding: "8px 12px", borderRadius: 18,
+                        background: g.base ? "#fbf1de" : "#fff",
+                        color:      g.base ? "#a76a00" : "#3a3a36",
+                        border:     `1px solid ${g.base ? "#eccf95" : "#e6d8c2"}`,
+                        cursor: "pointer", userSelect: "none",
+                      }}
+                    >
+                      {g.base && <span style={{ color: "#e8a020" }}>★</span>}
+                      {g.name}
+                      <span
+                        onClick={e => { e.stopPropagation(); removeIng(i); }}
+                        style={{ marginLeft: 1, fontSize: 12, lineHeight: 1, opacity: 0.5, cursor: "pointer" }}
+                      >✕</span>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Input ingredientes */}
+            <div style={{ display: "flex", gap: 9, marginTop: 13 }}>
+              <input
+                ref={inputRef}
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                onKeyDown={onDraftKey}
+                placeholder="adicionar ingrediente…"
+                style={{
+                  flex: 1, fontFamily: "Inter,sans-serif", fontSize: 14, color: "#232320",
+                  background: "#faf6ee", border: "1px solid #efe2cd", borderRadius: 13,
+                  padding: "12px 14px", outline: "none",
+                }}
+              />
+              <div
+                onClick={addIng}
+                style={{
+                  width: 46, flexShrink: 0, background: "#162f25", borderRadius: 13,
+                  display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#faf4e8" strokeWidth="2.4" strokeLinecap="round">
+                  <path d="M12 5v14M5 12h14"/>
+                </svg>
+              </div>
+            </div>
+
+            {ingredients.length > 0 && (
+              <div style={{ fontSize: 11, color: "#b4b9ad", marginTop: 9 }}>
+                Toque num item pra marcar como <b style={{ color: "#a76a00", fontWeight: 700 }}>★ principal</b>
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {/* ── Refinar pills ──────────────────────────────────── */}
-      <div style={{ display: "flex", gap: 8, overflowX: "auto", marginTop: 16, paddingBottom: 3 }}>
+      {/* ── Refinar pills (apenas modo ingredientes) ───────── */}
+      {mode === "ingredientes" && <div style={{ display: "flex", gap: 8, overflowX: "auto", marginTop: 16, paddingBottom: 3 }}>
         {pills.map(p => {
           const s = pillStyle(openFilter === p.key, p.set);
           return (
@@ -395,10 +459,10 @@ export default function BuscarPage() {
             </div>
           );
         })}
-      </div>
+      </div>}
 
       {/* ── Tray ───────────────────────────────────────────── */}
-      {openFilter && trayMap[openFilter] && (
+      {mode === "ingredientes" && openFilter && trayMap[openFilter] && (
         <div style={{
           background: "#fbf7ef", border: "1px solid #efe2cd", borderRadius: 18,
           padding: 15, marginTop: 11,
@@ -430,8 +494,8 @@ export default function BuscarPage() {
         </div>
       )}
 
-      {/* ── Buscas recentes ────────────────────────────────── */}
-      {recents.length > 0 && (
+      {/* ── Buscas recentes (apenas ingredientes) ──────────── */}
+      {mode === "ingredientes" && recents.length > 0 && (
         <div style={{ marginTop: 22 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "#7a9e94" }}>
@@ -464,23 +528,30 @@ export default function BuscarPage() {
         </div>
       )}
 
-      {/* ── Live match bar ─────────────────────────────────── */}
+      {/* ── CTA ────────────────────────────────────────────── */}
       <div
-        onClick={submit}
+        onClick={mode === "nome" && !titleDraft.trim() ? undefined : submit}
         style={{
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
-          background: "linear-gradient(120deg,#1d3a2c,#2a5440)", borderRadius: 18,
-          padding: "15px 17px", marginTop: 20, cursor: "pointer",
+          background: mode === "nome" && !titleDraft.trim()
+            ? "linear-gradient(120deg,#3a3a38,#5a5a56)"
+            : "linear-gradient(120deg,#1d3a2c,#2a5440)",
+          borderRadius: 18,
+          padding: "15px 17px", marginTop: 20,
+          cursor: mode === "nome" && !titleDraft.trim() ? "default" : "pointer",
+          opacity: mode === "nome" && !titleDraft.trim() ? 0.6 : 1,
           boxShadow: "0 14px 28px -12px rgba(22,47,37,.5)",
-          transition: "transform .12s ease, box-shadow .12s ease",
+          transition: "all .15s ease",
         }}
       >
         <div>
           <div style={{ fontSize: 15, fontWeight: 800, color: "#faf4e8", fontVariantNumeric: "tabular-nums" }}>
-            {matchCount} receitas combinam ✨
+            {mode === "nome"
+              ? (titleDraft.trim() ? `Buscar "${titleDraft.trim()}"` : "Digite o nome da receita")
+              : `${matchCount} receitas combinam ✨`}
           </div>
           <div style={{ fontSize: 12, color: "#9db8ad", marginTop: 1 }}>
-            com o que você tem e seu plano
+            {mode === "nome" ? "busca no catálogo completo" : "com o que você tem e seu plano"}
           </div>
         </div>
         <div style={{

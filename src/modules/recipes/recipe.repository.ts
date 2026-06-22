@@ -332,6 +332,45 @@ export async function hybridSearch(
   return RecipeModel.aggregate(pipeline) as Promise<RecipeSearchHit[]>;
 }
 
+/**
+ * Busca receitas pelo título via regex case-insensitive.
+ * Usado no modo "já sei o que fazer" — não calcula scores I/E/T/N.
+ * Retorna hits com matchScore=100 e missing=[] (o usuário já escolheu a receita).
+ */
+export async function searchByTitle(
+  query: string,
+  limit = 20,
+): Promise<RecipeSearchHit[]> {
+  const docs = (await RecipeModel.findMany(
+    { title: { $regex: query.trim(), $options: "i" } } as never,
+    {
+      limit,
+      projection: {
+        embedding: 0,
+        embeddingText: 0,
+        ingredients: 0,
+      },
+    },
+  )) as (Recipe & { _id: { toString(): string } })[];
+
+  return (docs ?? []).map((r) => ({
+    _id:            String(r._id),
+    title:          r.title,
+    intro:          r.intro ?? "",
+    country:        r.country ?? "",
+    thumbnailUrl:   r.thumbnailUrl ?? "",
+    prepTimeMin:    r.prepTimeMin ?? 0,
+    servings:       r.servings ?? 1,
+    source:         r.source,
+    matchScore:     100,
+    scores:         { i: 1, e: 1, t: 1, n: 1 },
+    missing:        [],
+    missingCoreCount: 0,
+    cookableNow:    false,
+    ...(r.nutrition !== undefined && { nutrition: r.nutrition }),
+  }));
+}
+
 /** Receita completa para a tela de detalhe (sem o embedding pesado). */
 export async function getRecipeById(id: string): Promise<Recipe | null> {
   const recipe = await RecipeModel.findById(id, {

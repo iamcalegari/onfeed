@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { SearchHit } from "@/lib/types";
 import { InfiniteList } from "./InfiniteList";
@@ -32,11 +31,13 @@ export function ResultsView({
   const perfectMatches  = results.filter((r) => r.matchScore >= 75);
   const cookableNow     = results.filter((r) => r.cookableNow && r.matchScore >= 75);
 
-  // Mostra popup uma vez se houver receitas com match perfeito
-  const shownRef = useRef(false);
+  // Mostra popup se houver receitas com match perfeito.
+  // shownRef quebrava no React StrictMode: cleanup cancelava o timeout mas
+  // não resetava o ref, então o segundo mount (StrictMode) via ref=true e abortava.
+  // results é prop estático — perfectMatches.length não muda após mount,
+  // então o timeout só dispara uma vez mesmo sem o guard.
   useEffect(() => {
-    if (shownRef.current || perfectMatches.length === 0) return;
-    shownRef.current = true;
+    if (perfectMatches.length === 0) return;
     const t = setTimeout(() => setShowPopup(true), 420);
     return () => clearTimeout(t);
   }, [perfectMatches.length]);
@@ -52,65 +53,77 @@ export function ResultsView({
         />
       )}
 
-      {/* Header — escondido no modo packs */}
+      {/* Tabs — pill style */}
+      <div style={{ display: "flex", gap: 8, background: "#f1e7d6", padding: 5, borderRadius: 16 }}>
+        {[
+          { id: "list",  icon: "📋", label: "Lista"  },
+          { id: "packs", icon: "🧩", label: "Packs"  },
+        ].map(t => {
+          const on = (t.id === "list") === !isPacks;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setView(t.id as "list" | "packs")}
+              style={{
+                flex: 1, textAlign: "center", padding: "11px 0",
+                borderRadius: 12, fontSize: 14, fontWeight: 700,
+                background: on ? "#fff" : "transparent",
+                color: on ? "#162f25" : "#9aa39b",
+                boxShadow: on ? "0 2px 8px -3px rgba(22,47,37,.2)" : "none",
+                cursor: "pointer", border: "none",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                transition: "all .15s ease",
+              }}
+            >
+              <span>{t.icon}</span>{t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Header + legenda — escondido no modo packs */}
       {!isPacks && (
         <>
-          <header className="flex items-center justify-between">
-            <h1 className="font-display text-2xl font-semibold text-forest">
-              Resultados
-            </h1>
-            <div className="flex items-center gap-3">
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop: 6 }}>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "#162f25" }}>
+              Combinam com você
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12.5, color: "#7a9e94", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+                {results.length} receita{results.length === 1 ? "" : "s"} · ordenadas por match
+              </span>
               <ShareButton
                 title="Receitas encontradas no onFeed"
                 text={query ? `Receitas para: ${query}` : "Resultados no onFeed"}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-areia bg-surface text-carvao/50 hover:text-carvao transition-colors"
+                className="flex h-7 w-7 items-center justify-center rounded-full border border-areia bg-surface text-carvao/50 hover:text-carvao transition-colors"
               />
-              <Link href="/buscar" className="text-sm font-medium text-terracota">
-                nova busca
-              </Link>
             </div>
-          </header>
+          </div>
 
-          {query && (
-            <div className="flex items-center gap-2 rounded-xl border border-areia bg-surface px-3.5 py-2.5">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-carvao/40">
-                <circle cx="11" cy="11" r="7" />
-                <path d="m21 21-4.3-4.3" strokeLinecap="round" />
-              </svg>
-              <span className="truncate text-sm text-carvao/70">{query}</span>
-            </div>
-          )}
+          {/* Legenda */}
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", fontSize: 11.5, color: "#9aa39b", fontWeight: 600 }}>
+            <span style={{ color: "#7a9e94" }}>O que o match considera:</span>
+            {[
+              { label: "Ingredientes", color: "#2d7d4e" },
+              { label: "Equipamento",  color: "#7a9e94" },
+              { label: "Tempo",        color: "#c27a00" },
+              { label: "Nutrição",     color: "#4a7fcb" },
+            ].map(l => (
+              <span key={l.label} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: l.color, display: "inline-block" }} />
+                {l.label}
+              </span>
+            ))}
+          </div>
 
           {unresolvedIngredients && unresolvedIngredients.length > 0 && (
             <p className="rounded-xl bg-terracota/10 px-3 py-2 text-xs text-terracota">
               Não reconhecemos: {unresolvedIngredients.join(", ")}
             </p>
           )}
-
-          <p className="text-xs font-medium text-carvao/50">
-            {results.length} receita{results.length === 1 ? "" : "s"} encontrada
-            {results.length === 1 ? "" : "s"}
-          </p>
         </>
       )}
-
-      {/* Toggle lista / packs */}
-      <div className={`flex gap-1 rounded-full bg-areia/40 p-1 text-sm ${isPacks ? "-mx-1" : ""}`}>
-        <ViewTab active={!isPacks} onClick={() => setView("list")}>
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5">
-            <path d="M2 4h12M2 8h12M2 12h12" strokeLinecap="round" />
-          </svg>
-          Lista
-        </ViewTab>
-        <ViewTab active={isPacks} onClick={() => setView("packs")}>
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-3.5 w-3.5">
-            <rect x="3" y="5" width="10" height="8" rx="1.5" />
-            <path d="M2 4h12" strokeLinecap="round" opacity="0.5" />
-            <path d="M1 3h14" strokeLinecap="round" opacity="0.25" />
-          </svg>
-          Packs
-        </ViewTab>
-      </div>
 
       {results.length === 0 ? (
         <p className="text-sm text-carvao/50">
@@ -121,7 +134,7 @@ export function ResultsView({
       ) : (
         <InfiniteList
           items={results}
-          className="flex flex-col gap-3"
+          className="flex flex-col gap-3.5"
           renderItem={(hit, i) => (
             <ResultCard
               key={hit._id}
@@ -162,7 +175,6 @@ function PerfectMatchPopup({
   }
 
   const pStr = perfectCount === 1 ? "receita" : "receitas";
-  const cStr = cookableCount === 1 ? "ela" : "elas";
 
   return (
     <div
@@ -284,28 +296,3 @@ function PerfectMatchPopup({
   );
 }
 
-/* ── ViewTab ─────────────────────────────────────────────────── */
-
-function ViewTab({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-xs font-semibold transition-all duration-200 ${
-        active
-          ? "bg-surface text-forest shadow-sm"
-          : "text-carvao/50 hover:text-carvao/70"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}

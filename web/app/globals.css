@@ -78,6 +78,28 @@ body {
   border-radius:  6px;
 }
 
+/* ── Animações onFeed design ───────────────────────────────── */
+@keyframes ofRise {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+@keyframes ofPop {
+  from { transform: scale(.96); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+@keyframes ofToast {
+  0%   { transform: translate(-50%, 20px); opacity: 0; }
+  12%  { transform: translate(-50%, 0);    opacity: 1; }
+  88%  { transform: translate(-50%, 0);    opacity: 1; }
+  100% { transform: translate(-50%, -8px); opacity: 0; }
+}
+.ofcard {
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.ofcard:active {
+  transform: scale(.985) !important;
+}
+
 /* ── Animações ─────────────────────────────────────────────── */
 @keyframes jiggle {
   0%   { transform: rotate(-0.5deg); }

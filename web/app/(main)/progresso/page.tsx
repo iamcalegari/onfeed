@@ -14,9 +14,9 @@ import {
 
 /* ── Achievements ────────────────────────────────────────────── */
 const ACHIEVEMENTS = [
-  { icon: "🔥", title: "Semana perfeita",     sub: "7 dias seguidos na meta",    bg: "#fde8df", minStreak: 7  },
-  { icon: "🥗", title: "Primeira receita",    sub: "Você registrou uma refeição", bg: "#e4f1e9", minStreak: 0  },
-  { icon: "💪", title: "3 dias na meta",      sub: "Bateu a meta por 3 dias",    bg: "#eef3fb", minStreak: 3  },
+  { icon: "🔥", title: "Semana perfeita",        sub: "7 dias seguidos na meta",      bg: "#fde8df", minStreak: 7 },
+  { icon: "🥗", title: "10 receitas cozinhadas", sub: "Você está pegando o jeito!",   bg: "#e4f1e9", minStreak: 0 },
+  { icon: "💪", title: "Meta de proteína 5×",    sub: "Bateu a meta 5 dias seguidos", bg: "#eef3fb", minStreak: 5 },
 ];
 
 export default function ProgressoPage() {

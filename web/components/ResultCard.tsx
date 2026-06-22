@@ -1,53 +1,114 @@
 import Link from "next/link";
 
 import { flagEmoji, formatMinutes, recipeHref } from "@/lib/format";
-import type { SearchHit } from "@/lib/types";
+import type { DimensionScores, SearchHit } from "@/lib/types";
 import { LazyThumbnail } from "./LazyThumbnail";
-import { MacroLine } from "./MacroLine";
-import { MatchScore } from "./MatchScore";
-import { NutritionBadge } from "./NutritionBadge";
-import { ScoreBars } from "./ScoreBars";
 
 export type Rank = 1 | 2 | 3;
 
-const MEDAL: Record<Rank, {
-  color: string;
-  label: string;
-  shimmerColor: string;
-  shimmerDuration: string;
-  shimmerDelay: string;
-  staticShadow?: string;
-}> = {
-  1: {
-    color:           "#c9973b",
-    label:           "1°",
-    shimmerColor:    "rgba(255,222,100,0.45)",
-    shimmerDuration: "2.8s",
-    shimmerDelay:    "0.6s",
-    // shadow handled by .medal-gold keyframe animation
-  },
-  2: {
-    color:           "#9aa0a6",
-    label:           "2°",
-    shimmerColor:    "rgba(210,218,222,0.40)",
-    shimmerDuration: "4s",
-    shimmerDelay:    "1.8s",
-    staticShadow:    "0 0 0 1.5px #9aa0a6, 0 0 14px rgba(154,160,166,0.32), 0 4px 16px rgba(154,160,166,0.16)",
-  },
-  3: {
-    color:           "#a0663a",
-    label:           "3°",
-    shimmerColor:    "rgba(210,165,120,0.32)",
-    shimmerDuration: "5.5s",
-    shimmerDelay:    "3s",
-    staticShadow:    "0 0 0 1.5px #a0663a, 0 0 8px rgba(160,102,58,0.22), 0 4px 12px rgba(160,102,58,0.10)",
-  },
+/* ── Tier (score → cor + label) ─────────────────────────────── */
+function tierOf(score: number): { color: string; tier: string } {
+  if (score >= 80) return { color: "#2d7d4e", tier: "ótimo" };
+  if (score >= 72) return { color: "#7a9e3a", tier: "bom" };
+  if (score >= 60) return { color: "#c27a00", tier: "ok" };
+  return { color: "#d4644a", tier: "fraco" };
+}
+
+/* ── Gauge circular SVG ──────────────────────────────────────── */
+function ScoreGauge({ score }: { score: number }) {
+  const size = 56, stroke = 5;
+  const r = (size - stroke) / 2;
+  const C = 2 * Math.PI * r;
+  const cx = size / 2, cy = size / 2;
+  const { color, tier } = tierOf(score);
+  const len = (score / 100) * C;
+
+  return (
+    <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+      <div style={{ position: "relative", width: size, height: size }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f0eadd" strokeWidth={stroke} />
+          <circle
+            cx={cx} cy={cy} r={r} fill="none"
+            stroke={color} strokeWidth={stroke}
+            strokeDasharray={`${len} ${C - len}`}
+            strokeLinecap="round"
+            transform={`rotate(-90 ${cx} ${cy})`}
+            style={{ transition: "stroke-dasharray .6s ease" }}
+          />
+        </svg>
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <span style={{
+            fontFamily: "var(--font-display)", fontSize: 22, lineHeight: 1,
+            color, fontVariantNumeric: "tabular-nums",
+          }}>
+            {score}
+          </span>
+        </div>
+      </div>
+      <span style={{
+        fontSize: 9.5, fontWeight: 800, letterSpacing: .6,
+        textTransform: "uppercase", color,
+      }}>
+        {tier}
+      </span>
+    </div>
+  );
+}
+
+/* ── Match Breakdown (2×2 grid de barrinhas pontuadas) ───────── */
+const FACTORS: { label: string; key: keyof DimensionScores; color: string }[] = [
+  { label: "Ingredientes", key: "i", color: "#2d7d4e" },
+  { label: "Equipamento",  key: "e", color: "#7a9e94" },
+  { label: "Tempo",        key: "t", color: "#c27a00" },
+  { label: "Nutrição",     key: "n", color: "#4a7fcb" },
+];
+
+function MatchBreakdown({ scores }: { scores: DimensionScores }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
+      {FACTORS.map(f => {
+        const val = Math.round(Math.max(0, Math.min(1, scores[f.key])) * 5);
+        return (
+          <div key={f.key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: "#5c5c57" }}>{f.label}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: f.color, fontVariantNumeric: "tabular-nums" }}>
+                {val}/5
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: 3 }}>
+              {[0,1,2,3,4].map(seg => (
+                <div
+                  key={seg}
+                  style={{
+                    flex: 1, height: 5, borderRadius: 3,
+                    background: seg < val ? f.color : "#efe7d8",
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Rank badge configs ──────────────────────────────────────── */
+const RANK_CONFIG: Record<Rank, { icon: string; bg: string; fg: string }> = {
+  1: { icon: "🥇", bg: "#fdf0d2", fg: "#9a6b00" },
+  2: { icon: "🥈", bg: "#eef0f2", fg: "#5c6770" },
+  3: { icon: "🥉", bg: "#f6e4d6", fg: "#9a5a32" },
 };
 
+/* ── ResultCard ──────────────────────────────────────────────── */
 export function ResultCard({
   hit,
   haveIds,
-  highlight,
   rank,
   baseIngredients = [],
 }: {
@@ -57,151 +118,117 @@ export function ResultCard({
   rank?: Rank;
   baseIngredients?: string[];
 }) {
-  const hasExtra = hit.missing.length > 0 || hit.cookableNow;
-  const isPerfect = hit.matchScore >= 85;
-  const medal = rank ? MEDAL[rank] : undefined;
-  const isVariant = hit.source === "variant";
+  const rk = rank ? RANK_CONFIG[rank] : null;
+  const flag = flagEmoji(hit.country);
+  const missing = hit.missing.map(m => m.name).join(", ");
+  const hasFalta = missing.length > 0;
 
   return (
     <Link
       href={recipeHref(hit._id, haveIds, baseIngredients.length ? baseIngredients : undefined)}
-      className={`group relative block overflow-hidden rounded-2xl bg-surface transition-all duration-200 hover:-translate-y-px ${
-        medal
-          ? rank === 1
-            ? "medal-gold shadow-lift"
-            : "shadow-lift"
-          : isVariant
-          ? "variant-glow"
-          : highlight
-          ? "shadow-lift ring-1 ring-salvia/40"
-          : "shadow-card ring-1 ring-areia/70 hover:shadow-lift"
-      }`}
-      style={medal?.staticShadow ? { boxShadow: medal.staticShadow } : undefined}
+      style={{
+        background: "#fff",
+        border: "1px solid #f0e4d2",
+        borderRadius: 20,
+        overflow: "hidden",
+        display: "flex",
+        cursor: "pointer",
+        boxShadow: "0 6px 18px -12px rgba(22,47,37,.2)",
+        textDecoration: "none",
+        transition: "transform .14s ease, box-shadow .14s ease",
+      }}
     >
-      {/* Shimmer sweep — medalha ou variante */}
-      {(medal || isVariant) && (
-        <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden rounded-2xl">
-          <div
-            className="absolute inset-y-0 w-[42%]"
-            style={{
-              backgroundImage: medal
-                ? `linear-gradient(to right, transparent, ${medal.shimmerColor}, transparent)`
-                : `linear-gradient(to right, transparent, rgba(200,165,80,0.22), transparent)`,
-              animation: medal
-                ? `medal-shimmer ${medal.shimmerDuration} ease-in-out ${medal.shimmerDelay} infinite`
-                : `variant-shimmer 5s ease-in-out 1s infinite`,
-            }}
-          />
-        </div>
-      )}
+      {/* Imagem — estica até a altura do card */}
+      <div style={{
+        width: 138, flexShrink: 0, alignSelf: "stretch", position: "relative",
+        minHeight: 170,
+      }}>
+        <LazyThumbnail
+          recipeId={hit._id}
+          initialUrl={hit.thumbnailUrl}
+          className="h-full w-full"
+          rounded="rounded-none"
+          iconClassName="text-4xl"
+        />
 
-      {/* Corpo horizontal: thumbnail + conteúdo */}
-      <div className="flex">
-        {/* Thumbnail com badge de medalha ou variante */}
-        <div className="relative shrink-0">
-          <LazyThumbnail
-            recipeId={hit._id}
-            initialUrl={hit.thumbnailUrl}
-            className="h-27 w-27"
-            rounded="rounded-none"
-            iconClassName="text-4xl"
-          />
-
-          {/* Badge de medalha */}
-          {medal && (
-            <div
-              className="absolute left-2 top-2 z-30 flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-extrabold text-white shadow-md"
-              style={{
-                backgroundColor: medal.color,
-                boxShadow: `0 0 0 1.5px rgba(255,255,255,0.35), 0 2px 8px rgba(0,0,0,0.25)`,
-              }}
-            >
-              {medal.label}
-            </div>
-          )}
-
-          {/* Badge de variante */}
-          {isVariant && !medal && (
-            <div className="absolute left-2 top-2 z-30 flex items-center gap-1 rounded-full bg-carvao/75 px-2 py-0.5 backdrop-blur-sm">
-              <span className="text-[9px] text-amber-300">✦</span>
-              <span className="text-[9px] font-bold uppercase tracking-wide text-amber-200">
-                Variante
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Conteúdo */}
-        <div className="flex min-w-0 flex-1 flex-col justify-between p-3">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="font-display text-[0.92rem] font-semibold leading-snug text-carvao line-clamp-2">
-              <span className="mr-1">{flagEmoji(hit.country)}</span>
-              {hit.title}
-            </h3>
-            <MatchScore score={hit.matchScore} rank={rank} />
+        {/* Badge de rank */}
+        {rk && (
+          <div style={{
+            position: "absolute", top: 10, left: 10,
+            display: "flex", alignItems: "center", gap: 5,
+            background: rk.bg, color: rk.fg,
+            fontSize: 11, fontWeight: 800,
+            padding: "4px 9px", borderRadius: 20,
+            boxShadow: "0 2px 6px rgba(0,0,0,.18)",
+          }}>
+            <span>{rk.icon}</span>
+            {rank}º
           </div>
-
-          <p className="mt-1 line-clamp-1 text-[0.72rem] leading-relaxed text-carvao/45">
-            {hit.intro}
-          </p>
-
-          <div className="mt-2 flex items-end justify-between">
-            <ScoreBars scores={hit.scores} />
-            <span className="text-[11px] font-medium text-carvao/35">
-              {formatMinutes(hit.prepTimeMin)}
-            </span>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Banner "match perfeito" */}
-      {isPerfect && (
-        <div
-          className="flex items-center gap-2 px-3 py-2"
-          style={{
-            background: "linear-gradient(90deg, rgba(22,47,37,0.07) 0%, rgba(22,47,37,0.12) 50%, rgba(22,47,37,0.07) 100%)",
-          }}
-        >
-          <span
-            className="text-xs text-[#c9973b]"
-            style={{ animation: "star-spin 3s linear infinite", display: "inline-block" }}
-          >
-            ✦
-          </span>
-          <span className="text-[11px] font-bold text-forest tracking-wide">
-            Essa receita é perfeita pra você
-          </span>
-        </div>
-      )}
+      {/* Conteúdo */}
+      <div style={{
+        flex: 1, minWidth: 0,
+        padding: "15px 16px",
+        display: "flex", flexDirection: "column",
+      }}>
 
-      {/* Rodapé: macros + cookableNow + ingredientes faltando */}
-      {(hit.nutrition || hasExtra) && (
-        <div className="flex flex-col gap-1 border-t border-areia/50 px-3 py-2">
-          {hit.nutrition && (
-            <div className="flex items-center justify-between gap-2">
-              <MacroLine nutrition={hit.nutrition} compact />
-              <NutritionBadge nutrition={hit.nutrition} />
+        {/* Título + gauge */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12, color: "#7a9e94", fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+              {flag} {hit.country}
             </div>
-          )}
-          {hasExtra && (
-            <div className="flex flex-wrap items-center gap-2">
-              {hit.cookableNow && (
-                <span className="rounded-full bg-forest/8 px-2.5 py-0.5 text-[10px] font-semibold text-forest">
-                  ✓ dá pra fazer agora
-                </span>
-              )}
-              {hit.missing.length > 0 && (
-                <p className="truncate text-[10px] text-carvao/40">
-                  Falta:{" "}
-                  <span className="font-medium text-terracota/70">
-                    {hit.missing.map((m) => m.name).join(", ")}
-                  </span>
-                </p>
-              )}
+            <div style={{
+              fontFamily: "var(--font-display)", fontSize: 18.5,
+              color: "#162f25", lineHeight: 1.18, marginTop: 3,
+            }}>
+              {hit.title}
             </div>
-          )}
+          </div>
+          <ScoreGauge score={hit.matchScore} />
         </div>
-      )}
+
+        {/* Descrição */}
+        <div style={{
+          fontSize: 12.5, color: "#6c726a", lineHeight: 1.45, marginTop: 8,
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        } as React.CSSProperties}>
+          {hit.intro}
+        </div>
+
+        {/* Match breakdown */}
+        <div style={{ marginTop: 12 }}>
+          <MatchBreakdown scores={hit.scores} />
+        </div>
+
+        {/* Rodapé */}
+        <div style={{
+          marginTop: 13, paddingTop: 12,
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+          borderTop: "1px solid #f3ece0",
+        }}>
+          <div style={{
+            fontSize: 11.5, color: "#9aa39b", fontWeight: 500,
+            minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {hasFalta
+              ? <><span style={{ color: "#b06a55", fontWeight: 700 }}>Falta:</span> {missing}</>
+              : <span style={{ color: "#2d7d4e", fontWeight: 700 }}>✓ Você tem tudo</span>
+            }
+          </div>
+          <span style={{
+            flexShrink: 0, fontSize: 12, color: "#7a9e94",
+            fontWeight: 700, fontVariantNumeric: "tabular-nums",
+          }}>
+            ⏱ {formatMinutes(hit.prepTimeMin)}
+          </span>
+        </div>
+      </div>
     </Link>
   );
 }

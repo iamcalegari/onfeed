@@ -110,10 +110,9 @@ export default function PerfilPage() {
   const ini = profileName ? initials(profileName) : "👤";
 
   const SETTINGS = [
-    { icon: "🥑", title: "Preferências de dieta",  sub: "Restrições e preferências alimentares", href: "/settings" },
-    { icon: "🧺", title: "Minha despensa",           sub: "Ingredientes que você sempre tem",       href: "/pantry"   },
-    { icon: "❤️",  title: "Favoritos",               sub: "Receitas salvas",                         href: "/favorites" },
-    { icon: "⚙️", title: "Configurações",            sub: "Conta, notificações e dados",             href: "/settings" },
+    { icon: "🥑", title: "Preferências de dieta", sub: "Restrições e preferências alimentares", href: "/settings" },
+    { icon: "🧺", title: "Minha despensa",          sub: "Ingredientes que você sempre tem",      href: "/pantry"   },
+    { icon: "⚙️", title: "Configurações",           sub: "Conta, notificações e dados",           href: "/settings" },
   ];
 
   return (
@@ -194,7 +193,10 @@ export default function PerfilPage() {
 
           {goals ? (
             <>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 10 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#9db8ad", marginTop: 10 }}>
+                {goals.calories >= 1800 ? "Manutenção de peso" : "Perda de peso"} · {goals.calories} kcal/dia
+              </div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 6 }}>
                 <span style={{ fontFamily: "var(--font-display)", fontSize: 30, fontVariantNumeric: "tabular-nums" }}>
                   {goals.calories.toLocaleString("pt-BR")}
                 </span>

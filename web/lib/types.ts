@@ -14,6 +14,7 @@ export interface SearchRequest {
   limit?: number;
   lang?: "pt" | "en";
   baseIngredients?: string[];
+  titleSearch?: string;
 }
 
 export interface DimensionScores {

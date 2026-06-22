@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -11,6 +10,7 @@ import {
   type MealLogEntry,
   type NutritionGoals,
 } from "@/lib/nutritionPlan";
+import { setPendingSlot } from "@/lib/planStorage";
 
 /* ── Streak ──────────────────────────────────────────────────── */
 const STREAK_KEY = "onfeed:streak";
@@ -29,7 +29,20 @@ function recordStreak(): number {
   } catch { return 0; }
 }
 
-/* ── Greeting ─────────────────────────────────────────────────── */
+/* ── Profile ──────────────────────────────────────────────────── */
+function loadProfileName(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    const raw = localStorage.getItem("onfeed:profile");
+    return raw ? (JSON.parse(raw).name ?? "") : "";
+  } catch { return ""; }
+}
+
+function firstName(fullName: string): string {
+  return fullName.split(" ")[0] || "";
+}
+
+/* ── Time helpers ─────────────────────────────────────────────── */
 function greeting() {
   const h = new Date().getHours();
   if (h < 12) return "Bom dia";
@@ -41,7 +54,7 @@ function todayLabel() {
   return new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
 }
 
-function nextMealSlot() {
+function nextMealSlot(): string {
   const h = new Date().getHours();
   if (h < 10) return "Café da manhã";
   if (h < 14) return "Almoço";
@@ -49,7 +62,7 @@ function nextMealSlot() {
   return "Jantar";
 }
 
-/* ── Slot definitions ────────────────────────────────────────── */
+/* ── Slot definitions ─────────────────────────────────────────── */
 const SLOTS = [
   { label: "Café da manhã", icon: "☕", iconBg: "#f3ede1", hours: [0, 10] as [number, number] },
   { label: "Almoço",        icon: "🍽", iconBg: "#eef3fb", hours: [10, 14] as [number, number] },
@@ -60,6 +73,19 @@ const SLOTS = [
 function slotForEntry(entry: MealLogEntry): string {
   const h = new Date(entry.loggedAt).getHours();
   return SLOTS.find(s => h >= s.hours[0] && h < s.hours[1])?.label ?? "Jantar";
+}
+
+/* ── Suggestion type ──────────────────────────────────────────── */
+interface Suggestion {
+  _id: string;
+  title: string;
+  thumbnailUrl: string | null;
+  prepTimeMin: number | null;
+  kcal: number | null;
+  protein: number | null;
+  carbs: number | null;
+  fat: number | null;
+  fits: boolean | null;
 }
 
 /* ── Dark Macro Ring ─────────────────────────────────────────── */
@@ -100,7 +126,7 @@ function DarkRing({ totals, goals }: { totals: ReturnType<typeof getTodayTotals>
             strokeDashoffset={arc.dashOffset}
             strokeLinecap="butt"
             transform={`rotate(-90 ${cx} ${cy})`}
-            style={{ transition: "stroke-dasharray .5s ease" }}
+            style={{ transition: "stroke-dasharray .5s ease, stroke-dashoffset .5s ease" }}
           />
         ))}
       </svg>
@@ -129,10 +155,14 @@ function DarkRing({ totals, goals }: { totals: ReturnType<typeof getTodayTotals>
 /* ── Page ─────────────────────────────────────────────────────── */
 export default function HojePage() {
   const router = useRouter();
-  const [goals, setGoalsState] = useState<NutritionGoals | null>(null);
-  const [entries, setEntries]  = useState<MealLogEntry[]>([]);
-  const [streak, setStreak]    = useState(0);
-  const [mounted, setMounted]  = useState(false);
+
+  const [goals, setGoalsState]       = useState<NutritionGoals | null>(null);
+  const [entries, setEntries]        = useState<MealLogEntry[]>([]);
+  const [streak, setStreak]          = useState(0);
+  const [profileName, setProfileName] = useState("");
+  const [pantryCount, setPantryCount] = useState<number | null>(null);
+  const [suggestion, setSuggestion]  = useState<Suggestion | null>(null);
+  const [mounted, setMounted]        = useState(false);
 
   useEffect(() => {
     const g = getGoals();
@@ -140,7 +170,23 @@ export default function HojePage() {
     setGoalsState(g);
     setEntries(getTodayEntries());
     setStreak(recordStreak());
+    setProfileName(loadProfileName());
     setMounted(true);
+
+    // Buscar contagem da despensa
+    fetch("/api/pantry")
+      .then(r => r.json())
+      .then(d => setPantryCount(Array.isArray(d.items) ? d.items.length : null))
+      .catch(() => setPantryCount(null));
+
+    // Buscar sugestão de receita
+    const totals = getTodayTotals();
+    const consumed = totals.protein * 4 + totals.carbs * 4 + totals.fat * 9;
+    const remaining = Math.max(0, Math.round(g.calories - consumed));
+    fetch(`/api/suggest?kcal=${remaining}`)
+      .then(r => r.json())
+      .then(d => Array.isArray(d) && d.length > 0 ? setSuggestion(d[0]) : null)
+      .catch(() => null);
   }, [router]);
 
   if (!mounted) return <HojeSkeleton />;
@@ -155,29 +201,50 @@ export default function HojePage() {
   const slotMap: Record<string, MealLogEntry | undefined> = {};
   for (const e of entries) slotMap[slotForEntry(e)] = e;
 
+  const today = new Date().toISOString().slice(0, 10);
+  const nextSlot = nextMealSlot();
+
+  function handleSlotClick(slotLabel: string, entry?: MealLogEntry) {
+    if (entry) {
+      router.push(`/recipe/${entry.recipeId}`);
+    } else {
+      setPendingSlot(slotLabel, today);
+      router.push("/buscar");
+    }
+  }
+
+  const greetingText = profileName
+    ? `${greeting()}, ${firstName(profileName)} 👋`
+    : `${greeting()} 👋`;
+
   return (
-    <div className="flex flex-col gap-6 pb-4">
+    <div className="flex flex-col gap-6 pb-4" style={{ animation: "ofRise .28s ease both" }}>
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <header className="flex items-start justify-between pt-1">
+      <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 0, paddingTop: 4 }}>
         <div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 26, color: "#162f25", lineHeight: 1.1 }}>
-            {greeting()} 👋
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 26, color: "#162f25", lineHeight: 1.1, margin: 0 }}>
+            {greetingText}
           </h1>
-          <p style={{ fontSize: 13, color: "#7a9e94", fontWeight: 500, marginTop: 3 }}>
+          <p style={{ fontSize: 13, color: "#7a9e94", fontWeight: 500, marginTop: 3, margin: "3px 0 0" }}>
             {todayLabel()}
           </p>
         </div>
-        {streak > 0 && (
-          <Link href="/progresso"
-            className="flex items-center gap-1.5 rounded-full"
-            style={{ background: "#fff", border: "1px solid #f2e6d6", padding: "7px 11px", boxShadow: "0 2px 6px rgba(22,47,37,.05)" }}>
-            <span style={{ fontSize: 14 }}>🔥</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#f45d22", fontVariantNumeric: "tabular-nums" }}>
-              {streak}
-            </span>
-          </Link>
-        )}
+        <button
+          type="button"
+          onClick={() => router.push("/progresso")}
+          style={{
+            display: "flex", alignItems: "center", gap: 5,
+            background: "#fff", border: "1px solid #f2e6d6",
+            padding: "7px 11px", borderRadius: 20, cursor: "pointer",
+            boxShadow: "0 2px 6px rgba(22,47,37,.05)",
+          }}
+        >
+          <span style={{ fontSize: 14 }}>🔥</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#f45d22", fontVariantNumeric: "tabular-nums" }}>
+            {streak}
+          </span>
+        </button>
       </header>
 
       {/* ── MacroRing Card ─────────────────────────────────── */}
@@ -215,29 +282,116 @@ export default function HojePage() {
         </div>
       </div>
 
+      {/* ── Despensa Shortcut ──────────────────────────────── */}
+      <button
+        type="button"
+        onClick={() => router.push("/pantry")}
+        style={{
+          display: "flex", alignItems: "center", gap: 13,
+          background: "#fff", border: "1px solid #f2e6d6",
+          borderRadius: 18, padding: "14px 16px", cursor: "pointer",
+          boxShadow: "0 3px 10px -6px rgba(22,47,37,.12)",
+          textAlign: "left", width: "100%",
+          transition: "transform .12s ease, box-shadow .12s ease",
+        }}
+        onMouseDown={e => (e.currentTarget.style.transform = "scale(.985)")}
+        onMouseUp={e => (e.currentTarget.style.transform = "")}
+        onTouchStart={e => (e.currentTarget.style.transform = "scale(.985)")}
+        onTouchEnd={e => (e.currentTarget.style.transform = "")}
+      >
+        <div style={{
+          width: 40, height: 40, borderRadius: 12,
+          background: "#f3ede1", display: "flex",
+          alignItems: "center", justifyContent: "center",
+          fontSize: 18, flexShrink: 0,
+        }}>
+          🧺
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, color: "#232320", fontWeight: 700 }}>Minha despensa</div>
+          <div style={{ fontSize: 12, color: "#7a9e94", fontWeight: 600, marginTop: 1 }}>
+            {pantryCount !== null
+              ? `${pantryCount} ${pantryCount === 1 ? "item" : "itens"} · ver o que dá pra cozinhar`
+              : "ver o que dá pra cozinhar"}
+          </div>
+        </div>
+        <span style={{ color: "#d4644a", fontSize: 16, flexShrink: 0 }}>→</span>
+      </button>
+
       {/* ── Próxima refeição ───────────────────────────────── */}
       <div>
-        <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: "#7a9e94", marginBottom: 11 }}>
-          Próxima refeição · {nextMealSlot()}
+        <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: "#7a9e94", margin: "0 0 11px" }}>
+          Próxima refeição · {nextSlot}
         </p>
-        <Link href="/buscar" className="block" style={{ borderRadius: 22, overflow: "hidden", background: "#fff", boxShadow: "0 8px 22px -12px rgba(22,47,37,.22)", border: "1px solid #f2e6d6", textDecoration: "none" }}>
-          <div style={{ height: 142, position: "relative", background: "repeating-linear-gradient(135deg,#e9ddc7 0 11px,#e2d4ba 11px 22px)", display: "flex", alignItems: "flex-end" }}>
-            <span style={{ position: "absolute", top: 12, left: 12, background: "rgba(45,125,78,.95)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 20 }}>
-              ✓ Buscar receitas
-            </span>
-            <div style={{ width: "100%", padding: "14px 16px", background: "linear-gradient(to top,rgba(0,0,0,.32),transparent)" }}>
+
+        <div
+          onClick={() => suggestion ? router.push(`/recipe/${suggestion._id}`) : router.push("/buscar")}
+          style={{
+            borderRadius: 22, overflow: "hidden", background: "#fff",
+            boxShadow: "0 8px 22px -12px rgba(22,47,37,.22)",
+            border: "1px solid #f2e6d6", cursor: "pointer",
+            transition: "transform .12s ease, box-shadow .12s ease",
+          }}
+          onMouseDown={e => (e.currentTarget.style.transform = "scale(.985)")}
+          onMouseUp={e => (e.currentTarget.style.transform = "")}
+          onTouchStart={e => (e.currentTarget.style.transform = "scale(.985)")}
+          onTouchEnd={e => (e.currentTarget.style.transform = "")}
+        >
+          {/* Imagem */}
+          <div style={{
+            height: 142, position: "relative",
+            background: suggestion?.thumbnailUrl
+              ? `url(${suggestion.thumbnailUrl}) center/cover`
+              : "repeating-linear-gradient(135deg,#e9ddc7 0 11px,#e2d4ba 11px 22px)",
+            display: "flex", alignItems: "flex-end",
+          }}>
+            {suggestion?.fits && (
+              <span style={{
+                position: "absolute", top: 12, left: 12,
+                background: "rgba(45,125,78,.95)", color: "#fff",
+                fontSize: 11, fontWeight: 700,
+                padding: "5px 10px", borderRadius: 20,
+              }}>
+                ✓ Cabe no plano
+              </span>
+            )}
+            <div style={{
+              width: "100%", padding: "14px 16px",
+              background: "linear-gradient(to top,rgba(0,0,0,.32),transparent)",
+            }}>
               <span style={{ color: "#fff", fontFamily: "var(--font-display)", fontSize: 21 }}>
-                Encontrar receita para {nextMealSlot()}
+                {suggestion?.title ?? `Encontrar receita para ${nextSlot}`}
               </span>
             </div>
           </div>
+
+          {/* Info bar */}
           <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 13, color: "#5c5c57", fontWeight: 600 }}>
-              Ver receitas que cabem no plano
-            </span>
-            <span style={{ fontSize: 13, color: "#d4644a", fontWeight: 600 }}>→</span>
+            {suggestion?.kcal ? (
+              <div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: "#162f25", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                    {suggestion.kcal}
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#7a9e94" }}>kcal</span>
+                </div>
+                <div style={{ fontSize: 13, color: "#5c5c57", fontWeight: 600, marginTop: 5, fontVariantNumeric: "tabular-nums" }}>
+                  P {suggestion.protein}g · C {suggestion.carbs}g · G {suggestion.fat}g
+                </div>
+              </div>
+            ) : (
+              <span style={{ fontSize: 13, color: "#5c5c57", fontWeight: 600 }}>
+                Ver receitas que cabem no plano
+              </span>
+            )}
+            {suggestion?.prepTimeMin && (
+              <span style={{ fontSize: 13, color: "#7a9e94", fontWeight: 600, flexShrink: 0 }}>
+                ⏱ {suggestion.prepTimeMin} min
+              </span>
+            )}
           </div>
-        </Link>
+        </div>
+
         <p
           onClick={() => router.push("/buscar")}
           style={{ textAlign: "center", marginTop: 11, fontSize: 13, fontWeight: 600, color: "#d4644a", cursor: "pointer" }}>
@@ -247,40 +401,57 @@ export default function HojePage() {
 
       {/* ── Refeições de hoje ──────────────────────────────── */}
       <div>
-        <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: "#7a9e94", marginBottom: 12 }}>
+        <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: "#7a9e94", margin: "0 0 12px" }}>
           Hoje
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {SLOTS.map(slot => {
             const entry = slotMap[slot.label];
             const kcal = entry ? Math.round(entry.nutrition.calories * entry.servings) : 0;
-            const p = entry ? Math.round(entry.nutrition.protein * entry.servings) : 0;
-            const c = entry ? Math.round(entry.nutrition.carbs   * entry.servings) : 0;
-            const f = entry ? Math.round(entry.nutrition.fat     * entry.servings) : 0;
+            const p    = entry ? Math.round(entry.nutrition.protein   * entry.servings) : 0;
+            const c    = entry ? Math.round(entry.nutrition.carbs     * entry.servings) : 0;
+            const f    = entry ? Math.round(entry.nutrition.fat       * entry.servings) : 0;
             return (
               <div
                 key={slot.label}
-                onClick={() => router.push(entry ? `/recipe/${entry.recipeId}` : "/buscar")}
+                onClick={() => handleSlotClick(slot.label, entry)}
                 style={{
                   background: "#fff", border: "1px solid #f2e6d6", borderRadius: 18,
                   padding: "14px 16px", display: "flex", alignItems: "center", gap: 13,
                   cursor: "pointer", boxShadow: "0 3px 10px -6px rgba(22,47,37,.12)",
+                  transition: "transform .12s ease, box-shadow .12s ease",
                 }}
+                onMouseDown={e => (e.currentTarget.style.transform = "scale(.985)")}
+                onMouseUp={e => (e.currentTarget.style.transform = "")}
+                onTouchStart={e => (e.currentTarget.style.transform = "scale(.985)")}
+                onTouchEnd={e => (e.currentTarget.style.transform = "")}
               >
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: slot.iconBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: 12,
+                  background: slot.iconBg,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 18, flexShrink: 0,
+                }}>
                   {slot.icon}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, color: "#7a9e94", fontWeight: 600 }}>{slot.label}</div>
-                  <div style={{ fontSize: 14, color: "#232320", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <div style={{
+                    fontSize: 14, color: "#232320", fontWeight: 600,
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  }}>
                     {entry ? entry.title : "Toque para adicionar"}
                   </div>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                   {entry ? (
                     <>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#162f25", fontVariantNumeric: "tabular-nums" }}>{kcal} kcal</div>
-                      <div style={{ fontSize: 11, color: "#9aa39b", fontVariantNumeric: "tabular-nums" }}>P{p} C{c} G{f}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#162f25", fontVariantNumeric: "tabular-nums" }}>
+                        {kcal} kcal
+                      </div>
+                      <div style={{ fontSize: 11, color: "#9aa39b", fontVariantNumeric: "tabular-nums" }}>
+                        P {p}g · C {c}g · G {f}g
+                      </div>
                     </>
                   ) : (
                     <div style={{ fontSize: 13, fontWeight: 700, color: "#d4644a" }}>+ Registrar</div>
@@ -301,7 +472,8 @@ function HojeSkeleton() {
     <div className="flex flex-col gap-6 animate-pulse pt-2">
       <div className="h-8 w-48 rounded-full bg-areia/40" />
       <div className="h-48 rounded-[26px] bg-forest/10" />
-      <div className="h-36 rounded-[22px] bg-areia/30" />
+      <div className="h-16 rounded-[18px] bg-areia/30" />
+      <div className="h-44 rounded-[22px] bg-areia/30" />
       <div className="flex flex-col gap-3">
         {[0,1,2,3].map(i => <div key={i} className="h-16 rounded-[18px] bg-areia/30" />)}
       </div>

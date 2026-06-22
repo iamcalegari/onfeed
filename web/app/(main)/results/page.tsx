@@ -17,6 +17,7 @@ function parseParams(
   const goal = str("goal");
 
   const base = list("base");
+  const titleSearch = str("titleSearch");
 
   return {
     ingredients: list("ingredients"),
@@ -26,6 +27,7 @@ function parseParams(
     occasions: list("occasions"),
     limit: 75,
     ...(base.length > 0 && { baseIngredients: base }),
+    ...(titleSearch && { titleSearch }),
   };
 }
 
@@ -44,7 +46,7 @@ export default async function ResultsPage({
     authenticated = false;
   }
 
-  const query = req.ingredients.join(", ");
+  const query = req.titleSearch ?? req.ingredients.join(", ");
 
   return (
     <ResultsView
