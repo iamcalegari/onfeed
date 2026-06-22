@@ -29,6 +29,19 @@ export interface MissingIngredient {
   core: boolean;
 }
 
+export type RecipeSource =
+  | "curated"
+  | "generated_pending"
+  | "generated_validated"
+  | "variant"
+  | "rejected"
+  | "user";
+
+export interface RecipeCreator {
+  userId: string;
+  username: string;
+}
+
 export interface SearchHit {
   _id: string;
   title: string;
@@ -37,11 +50,15 @@ export interface SearchHit {
   thumbnailUrl: string;
   prepTimeMin: number;
   servings: number;
+  source: RecipeSource;
+  parentRecipeId?: string;
+  createdBy?: RecipeCreator[];
   matchScore: number;
   scores: DimensionScores;
   missing: MissingIngredient[];
   missingCoreCount: number;
   cookableNow: boolean;
+  nutrition?: Nutrition;
 }
 
 export interface SearchResponse {
@@ -101,4 +118,7 @@ export interface Recipe {
   ingredients: RecipeIngredient[];
   steps: RecipeStep[];
   nutrition?: Nutrition;
+  source: RecipeSource;
+  parentRecipeId?: string;
+  createdBy?: RecipeCreator[];
 }

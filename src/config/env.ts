@@ -46,11 +46,17 @@ export const env = {
 
   anthropic: {
     apiKey: required("ANTHROPIC_API_KEY"),
-    // Extração e adaptação. Default Haiku 4.5 (5-10x mais barato que Opus e
-    // suficiente p/ essas tarefas). Troque p/ opus/sonnet se quiser mais qualidade.
     model: optional("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
-    // teto diário de adaptações (LLM) por usuário — segura o custo variável
     adaptDailyLimit: Number(optional("ADAPT_DAILY_LIMIT", "10")),
+  },
+
+  variants: {
+    promoteThreshold: Number(optional("VARIANT_PROMOTE_THRESHOLD", "5")),
+    // Clerk userIds autorizados a moderar variantes (separados por vírgula)
+    adminUserIds: optional("ADMIN_USER_IDS", "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
   },
 
   // Auth via Clerk. Sem CLERK_SECRET_KEY, `enabled=false` e as rotas protegidas

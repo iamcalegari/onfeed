@@ -6,8 +6,10 @@ import type {
   Equipment,
   NutritionGoal,
   Recipe,
+  RecipeIngredient,
   RecipeSearchHit,
   RecipeSource,
+  RecipeStep,
 } from "./recipe.types.js";
 
 export interface DimensionWeights {
@@ -46,7 +48,7 @@ const DEFAULT_WEIGHTS: DimensionWeights = {
 const DEFAULTS = {
   numCandidates: 200,
   limit: 20,
-  sources: ["curated", "generated_validated", "user"] as RecipeSource[],
+  sources: ["curated", "generated_validated", "variant", "user"] as RecipeSource[],
 };
 
 // Referências para o score N (heurístico — ajustável)
@@ -309,6 +311,9 @@ export async function hybridSearch(
         thumbnailUrl: 1,
         prepTimeMin: 1,
         servings: 1,
+        source: 1,
+        parentRecipeId: 1,
+        createdBy: 1,
         matchScore: { $round: [{ $multiply: ["$finalScore", 100] }, 0] },
         scores: {
           i: "$scoreI",
@@ -319,6 +324,7 @@ export async function hybridSearch(
         missing: 1,
         missingCoreCount: 1,
         cookableNow: 1,
+        nutrition: 1,
       },
     },
   ];
@@ -339,5 +345,65 @@ export async function setThumbnail(id: string, url: string): Promise<void> {
   await RecipeModel.update(
     { _id: new ObjectId(id) } as never,
     { $set: { thumbnailUrl: url, updatedAt: new Date() } },
+  );
+}
+
+/** Retorna todas as variantes diretas de uma receita (filhos imediatos). */
+export async function getVariantsByParentId(parentId: string): Promise<Recipe[]> {
+  const docs = await RecipeModel.findMany(
+    { parentRecipeId: new ObjectId(parentId) } as never,
+    { projection: { embedding: 0, embeddingText: 0 } },
+  );
+  return (docs ?? []) as Recipe[];
+}
+
+/** Contagem de variantes diretas — para o badge na receita original. */
+export async function getVariantCount(recipeId: string): Promise<number> {
+  return RecipeModel.total({ parentRecipeId: new ObjectId(recipeId) } as never);
+}
+
+/** Promove generated_pending → variant. */
+export async function promoteToVariant(recipeId: string): Promise<void> {
+  await RecipeModel.update(
+    { _id: new ObjectId(recipeId), source: "generated_pending" } as never,
+    { $set: { source: "variant", updatedAt: new Date() } },
+  );
+}
+
+/** Admin rejeita a variante. */
+export async function rejectVariant(recipeId: string): Promise<void> {
+  await RecipeModel.update(
+    { _id: new ObjectId(recipeId) } as never,
+    { $set: { source: "rejected", updatedAt: new Date() } },
+  );
+}
+
+/**
+ * Adiciona um criador à lista da variante (deduplicação: se o userId já existe,
+ * não duplica). Usado quando dois usuários adaptaram a mesma receita.
+ */
+export async function addCreatorToVariant(
+  recipeId: string,
+  creator: { userId: string; username: string },
+): Promise<void> {
+  await RecipeModel.update(
+    { _id: new ObjectId(recipeId) } as never,
+    {
+      $addToSet: { createdBy: creator } as never,
+      $set: { updatedAt: new Date() },
+    },
+  );
+}
+
+/** Persiste a tradução inglês gerada lazily (introEn + textEn em steps + nameEn em ingredients). */
+export async function setTranslation(
+  id: string,
+  introEn: string,
+  steps: RecipeStep[],
+  ingredients: RecipeIngredient[],
+): Promise<void> {
+  await RecipeModel.update(
+    { _id: new ObjectId(id) } as never,
+    { $set: { introEn, steps, ingredients, updatedAt: new Date() } },
   );
 }

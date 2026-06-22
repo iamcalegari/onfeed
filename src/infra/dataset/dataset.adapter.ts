@@ -115,6 +115,7 @@ export const foodComAdapter: DatasetAdapter = (row) => {
     steps,
     thumbnailUrl: PLACEHOLDER_THUMBNAIL,
     servings: DEFAULT_SERVINGS,
+    ...(row.id && { externalId: `food-com:${row.id}` }),
     ...(Number.isFinite(minutes) &&
       minutes > 0 && { prepTimeMin: Math.min(minutes, MAX_PREP_MIN) }),
     ...(nutrition && { nutrition }),

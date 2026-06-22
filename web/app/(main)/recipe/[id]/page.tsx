@@ -8,10 +8,12 @@ import { AdaptButton } from "@/components/AdaptButton";
 import { BackButton } from "@/components/BackButton";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { LikeButton } from "@/components/LikeButton";
+import { LogMealButton } from "@/components/LogMealButton";
+import { NutritionBadge } from "@/components/NutritionBadge";
 import { RecipeThumbnail } from "@/components/RecipeThumbnail";
 import { ShareButton } from "@/components/ShareButton";
 import { StepTimer } from "@/components/StepTimer";
-import { getFavoriteIds, getRecipe, getRecipeLikes } from "@/lib/api";
+import { getFavoriteIds, getRecipe, getRecipeLikes, getRecipeVariants } from "@/lib/api";
 import { flagEmoji, formatMinutes } from "@/lib/format";
 import { COOKIE_LANG, COOKIE_UNIT, formatQtyForSystem, translateUnit } from "@/lib/settings";
 import type { Language, UnitSystem } from "@/lib/settings";
@@ -75,9 +77,15 @@ export default async function RecipePage({
   } catch {
     userId = null;
   }
-  const [favorited, likes] = await Promise.all([
+  const isVariant = recipe.source === "variant";
+
+  const [favorited, likes, variantData, parentRecipe] = await Promise.all([
     userId ? getFavoriteIds().then((ids) => ids.includes(recipe._id)) : false,
     getRecipeLikes(recipe._id),
+    // conta variantes só se for receita base
+    isVariant ? Promise.resolve({ count: 0, variants: [] }) : getRecipeVariants(recipe._id),
+    // busca receita pai se for variante
+    isVariant && recipe.parentRecipeId ? getRecipe(recipe.parentRecipeId) : Promise.resolve(null),
   ]);
 
   const haveSet = new Set((have ?? "").split(",").filter(Boolean));
@@ -109,6 +117,41 @@ export default async function RecipePage({
           <div>
             <p className="font-display text-base font-bold text-forest">Receita adaptada</p>
             <p className="text-sm text-carvao/65">com base nos ingredientes que você tem.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Banner variante — só aparece quando a receita é uma variante */}
+      {isVariant && (
+        <div
+          className="variant-glow flex items-start gap-3 rounded-2xl p-4"
+          style={{ background: "linear-gradient(135deg, rgba(180,140,60,0.10) 0%, rgba(200,165,80,0.06) 100%)" }}
+        >
+          <span className="text-lg text-amber-500">✦</span>
+          <div className="flex-1 min-w-0">
+            <p className="font-display text-base font-bold text-amber-700 dark:text-amber-400">
+              Receita Variante
+            </p>
+            {recipe.createdBy && recipe.createdBy.length > 0 && (
+              <p className="mt-0.5 text-sm text-carvao/60">
+                Por{" "}
+                {recipe.createdBy.map((c, i) => (
+                  <span key={c.userId}>
+                    {i > 0 && ", "}
+                    <span className="font-semibold text-carvao/80">@{c.username}</span>
+                  </span>
+                ))}
+              </p>
+            )}
+            {parentRecipe && (
+              <Link
+                href={`/recipe/${parentRecipe._id}`}
+                className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700 dark:text-amber-400"
+              >
+                Ver receita original: {parentRecipe.title}
+                <span aria-hidden>→</span>
+              </Link>
+            )}
           </div>
         </div>
       )}
@@ -155,6 +198,18 @@ export default async function RecipePage({
           <MetaTag icon="⏱" label={formatMinutes(totalTime)} />
           <div className="h-4 w-px bg-areia" />
           <MetaTag icon="🍽" label={`${recipe.servings} porções`} />
+          {variantData.count > 0 && (
+            <>
+              <div className="h-4 w-px bg-areia" />
+              <Link
+                href={`/recipe/${recipe._id}/variants`}
+                className="flex items-center gap-1 text-amber-600 transition-colors hover:text-amber-700"
+              >
+                <span className="text-[11px]">✦</span>
+                <span>{variantData.count} variante{variantData.count !== 1 ? "s" : ""}</span>
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Badges */}
@@ -177,11 +232,26 @@ export default async function RecipePage({
 
       {/* Macros */}
       {recipe.nutrition && (
-        <section className="grid grid-cols-4 gap-3 rounded-2xl bg-surface p-5 text-center shadow-card ring-1 ring-areia/60">
-          <MacroCell label="kcal" value={recipe.nutrition.calories} />
-          <MacroCell label="prot" value={`${recipe.nutrition.protein}g`} />
-          <MacroCell label="carb" value={`${recipe.nutrition.carbs}g`} />
-          <MacroCell label="gord" value={`${recipe.nutrition.fat}g`} />
+        <section className="flex flex-col gap-3 rounded-2xl bg-surface p-5 shadow-card ring-1 ring-areia/60">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-base font-bold text-carvao">Nutrição</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-carvao/35">por porção</span>
+              <NutritionBadge nutrition={recipe.nutrition} />
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-3 text-center">
+            <MacroCell label="kcal" value={Math.round(recipe.nutrition.calories)} color="#162f25" />
+            <MacroCell label="prot" value={`${Math.round(recipe.nutrition.protein)}g`} color="#4a7fcb" />
+            <MacroCell label="carb" value={`${Math.round(recipe.nutrition.carbs)}g`} color="#c27a00" />
+            <MacroCell label="gord" value={`${Math.round(recipe.nutrition.fat)}g`} color="#d4644a" />
+          </div>
+          <LogMealButton
+            recipeId={recipe._id}
+            title={recipe.title}
+            nutrition={recipe.nutrition}
+            servings={1}
+          />
         </section>
       )}
 
@@ -287,11 +357,13 @@ function OccasionBadge({ children }: { children: React.ReactNode }) {
 }
 
 
-function MacroCell({ label, value }: { label: string; value: string | number }) {
+function MacroCell({ label, value, color }: { label: string; value: string | number; color?: string }) {
   return (
-    <div className="flex flex-col items-center gap-0.5">
-      <span className="font-display text-base font-bold text-carvao">{value}</span>
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-carvao/35">
+    <div className="flex flex-col items-center gap-0.5 rounded-xl bg-areia/30 py-2.5">
+      <span className="font-display text-base font-bold" style={{ color: color ?? "#232320" }}>
+        {value}
+      </span>
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-carvao/40">
         {label}
       </span>
     </div>

@@ -27,6 +27,8 @@ export interface AdaptConstraints {
   goal?: NutritionGoal;
   note?: string;
   lang?: "pt" | "en";
+  /** Quem disparou a adaptação — salvo nos créditos da variante. */
+  creator?: { userId: string; username: string };
 }
 
 function buildSystemPrompt(lang: "pt" | "en"): string {
@@ -144,6 +146,10 @@ export async function adaptRecipe(
       servings: anchor.servings,
     },
     adapted,
-    { source: "generated_pending" },
+    {
+      source: "generated_pending",
+      ...(anchor._id && { parentRecipeId: anchor._id }),
+      ...(constraints.creator && { createdBy: [constraints.creator] }),
+    },
   );
 }

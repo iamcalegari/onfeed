@@ -12,7 +12,15 @@ import { enqueueIngestJob } from "@/infra/queue/ingest-queue.js";
 import { getUserId, requireAuth } from "@/modules/auth/auth.guard.js";
 import { consumeDailyAdaptQuota } from "@/modules/usage/usage.repository.js";
 import { adaptRecipe } from "./recipe.generation.js";
-import { getRecipeById, setThumbnail } from "./recipe.repository.js";
+import {
+  getRecipeById,
+  getVariantCount,
+  getVariantsByParentId,
+  rejectVariant,
+  setThumbnail,
+  setTranslation,
+} from "./recipe.repository.js";
+import { translateRecipeToEnglish } from "./recipe.translation.js";
 
 const EquipmentEnum = Type.Union([
   Type.Literal("stovetop"),
@@ -32,6 +40,7 @@ const AdaptRequestSchema = Type.Object(
     ),
     note: Type.Optional(Type.String()),
     lang: Type.Optional(Type.Union([Type.Literal("pt"), Type.Literal("en")])),
+    username: Type.Optional(Type.String({ maxLength: 100 })),
   },
   { additionalProperties: false },
 );
@@ -110,11 +119,54 @@ export const recipeRoutes: FastifyPluginAsync = async (fastify) => {
       schema: {
         tags: ["recipes"],
         params: Type.Object({ id: Type.String() }),
+        querystring: Type.Object({
+          lang: Type.Optional(
+            Type.Union([Type.Literal("pt"), Type.Literal("en")]),
+          ),
+        }),
       },
     },
     async (request, reply) => {
       const recipe = await getRecipeById(request.params.id);
       if (!recipe) return reply.notFound("Receita não encontrada");
+
+      if (request.query.lang !== "en") return recipe;
+
+      // Tradução já existe → aplica overlay e retorna
+      if (recipe.introEn) {
+        return {
+          ...recipe,
+          intro: recipe.introEn,
+          steps: recipe.steps.map((s) => ({ ...s, text: s.textEn ?? s.text })),
+          ingredients: recipe.ingredients.map((i) => ({
+            ...i,
+            name: i.nameEn ?? i.name,
+          })),
+        };
+      }
+
+      // Tradução ainda não existe: chama Haiku (síncrono) e persiste
+      if (!translating.has(recipe._id!)) {
+        translating.add(recipe._id!);
+        try {
+          const { introEn, steps, ingredients } =
+            await translateRecipeToEnglish(recipe);
+          await setTranslation(recipe._id!, introEn, steps, ingredients);
+          return {
+            ...recipe,
+            intro: introEn,
+            steps: steps.map((s) => ({ ...s, text: s.textEn ?? s.text })),
+            ingredients: ingredients.map((i) => ({
+              ...i,
+              name: i.nameEn ?? i.name,
+            })),
+          };
+        } finally {
+          translating.delete(recipe._id!);
+        }
+      }
+
+      // Outra requisição já está traduzindo: devolve pt-BR enquanto isso
       return recipe;
     },
   );
@@ -145,6 +197,7 @@ export const recipeRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       try {
+        const userId = getUserId(request)!;
         const recipe = await adaptRecipe(request.params.id, {
           haveIds: body.haveIds,
           ...(body.equipment !== undefined && {
@@ -156,6 +209,7 @@ export const recipeRoutes: FastifyPluginAsync = async (fastify) => {
           ...(body.goal !== undefined && { goal: body.goal }),
           ...(body.note !== undefined && { note: body.note }),
           ...(body.lang !== undefined && { lang: body.lang }),
+          creator: { userId, username: body.username ?? userId },
         });
         if (!recipe) return reply.notFound("Receita base não encontrada");
         return recipe;
@@ -175,6 +229,10 @@ export const recipeRoutes: FastifyPluginAsync = async (fastify) => {
       }
     },
   );
+
+  // IDs cuja tradução EN está em andamento — evita chamar Haiku duas vezes se o
+  // usuário recarregar antes de terminar.
+  const translating = new Set<string>();
 
   // IDs em geração no momento — evita disparar Bedrock duas vezes para a mesma
   // receita se o usuário recarregar antes de terminar.
@@ -260,9 +318,90 @@ export const recipeRoutes: FastifyPluginAsync = async (fastify) => {
         request.body.contentType,
       );
       if (!out) return reply.serviceUnavailable("Imagens desabilitadas");
-      // set otimista: a URL passa a valer assim que o upload concluir
       await setThumbnail(request.params.id, out.publicUrl);
       return out;
+    },
+  );
+
+  // Variantes de uma receita — lista os filhos diretos (variant ou pending).
+  app.get(
+    "/recipes/:id/variants",
+    {
+      schema: {
+        tags: ["recipes"],
+        params: Type.Object({ id: Type.String() }),
+        response: {
+          200: Type.Object({
+            count: Type.Integer(),
+            variants: Type.Array(Type.Any()),
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
+      const recipe = await getRecipeById(request.params.id);
+      if (!recipe) return reply.notFound("Receita não encontrada");
+
+      const [variants, count] = await Promise.all([
+        getVariantsByParentId(request.params.id),
+        getVariantCount(request.params.id),
+      ]);
+
+      return { count, variants };
+    },
+  );
+
+  // Admin: promover generated_pending → variant manualmente (além do auto por likes).
+  app.post(
+    "/recipes/:id/promote",
+    {
+      preHandler: requireAuth,
+      schema: {
+        tags: ["recipes"],
+        params: Type.Object({ id: Type.String() }),
+        response: { 200: Type.Object({ ok: Type.Boolean() }) },
+      },
+    },
+    async (request, reply) => {
+      const userId = getUserId(request)!;
+      if (!env.variants.adminUserIds.includes(userId)) {
+        return reply.forbidden("Acesso restrito a administradores");
+      }
+
+      const recipe = await getRecipeById(request.params.id);
+      if (!recipe) return reply.notFound("Receita não encontrada");
+      if (recipe.source !== "generated_pending") {
+        return reply.badRequest("Receita não está em generated_pending");
+      }
+
+      const { promoteToVariant } = await import("./recipe.repository.js");
+      await promoteToVariant(request.params.id);
+      return { ok: true };
+    },
+  );
+
+  // Admin: rejeitar uma receita gerada.
+  app.post(
+    "/recipes/:id/reject",
+    {
+      preHandler: requireAuth,
+      schema: {
+        tags: ["recipes"],
+        params: Type.Object({ id: Type.String() }),
+        response: { 200: Type.Object({ ok: Type.Boolean() }) },
+      },
+    },
+    async (request, reply) => {
+      const userId = getUserId(request)!;
+      if (!env.variants.adminUserIds.includes(userId)) {
+        return reply.forbidden("Acesso restrito a administradores");
+      }
+
+      const recipe = await getRecipeById(request.params.id);
+      if (!recipe) return reply.notFound("Receita não encontrada");
+
+      await rejectVariant(request.params.id);
+      return { ok: true };
     },
   );
 };

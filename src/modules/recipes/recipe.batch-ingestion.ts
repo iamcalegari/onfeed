@@ -33,6 +33,8 @@ export interface BatchIngestionReport {
 
 export interface IngestOptionsWithCheckpoint extends IngestOptions {
   checkpointPath?: string;
+  onBatchCreated?: (index: number, total: number, batchId: string) => void;
+  onPollUpdate?: (ok: number, errored: number, processing: number, pendingBatches: number) => void;
 }
 
 interface BatchMeta {
@@ -183,7 +185,10 @@ async function collectAndPersistBatch(
 // Polling paralelo
 // ---------------------------------------------------------------------------
 
-async function pollUntilAllEnded(ids: string[]): Promise<void> {
+async function pollUntilAllEnded(
+  ids: string[],
+  onPollUpdate?: IngestOptionsWithCheckpoint["onPollUpdate"],
+): Promise<void> {
   if (ids.length === 0) return;
   const pending = new Set(ids);
   while (pending.size > 0) {
@@ -198,10 +203,14 @@ async function pollUntilAllEnded(ids: string[]): Promise<void> {
       processing += s.request_counts.processing;
       if (s.processing_status === "ended") pending.delete(id);
     }
-    console.log(
-      `[batch] ok:${succeeded} erro:${errored} processando:${processing}` +
-        ` (${pending.size}/${ids.length} batches ativos)`,
-    );
+    if (onPollUpdate) {
+      onPollUpdate(succeeded, errored, processing, pending.size);
+    } else {
+      console.log(
+        `[batch] ok:${succeeded} erro:${errored} processando:${processing}` +
+          ` (${pending.size}/${ids.length} batches ativos)`,
+      );
+    }
   }
 }
 
@@ -328,9 +337,13 @@ export async function runBatchIngestion(
         end: chunkStart + chunks[i]!.length - 1,
       });
       if (checkpointPath) saveCheckpoint(checkpointPath, checkpoint);
-      console.log(
-        `[batch] ${i + 1}/${chunks.length} criado: ${b.id} (${chunks[i]!.length} requests)`,
-      );
+      if (opts.onBatchCreated) {
+        opts.onBatchCreated(i + 1, chunks.length, b.id);
+      } else {
+        console.log(
+          `[batch] ${i + 1}/${chunks.length} criado: ${b.id} (${chunks[i]!.length} requests)`,
+        );
+      }
     } catch (err) {
       if (isCreditExhausted(err)) {
         if (checkpointPath) saveCheckpoint(checkpointPath, checkpoint);
@@ -362,7 +375,7 @@ export async function runBatchIngestion(
     .filter((b) => !checkpoint.persistedBatches.includes(b.id))
     .map((b) => b.id);
 
-  await pollUntilAllEnded(pending);
+  await pollUntilAllEnded(pending, opts.onPollUpdate);
 
   // Coleta e persiste os resultados restantes
   const allFailed: { customId: string; reason: string }[] = [];

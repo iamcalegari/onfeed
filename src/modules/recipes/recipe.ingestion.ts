@@ -25,12 +25,16 @@ export interface IngestRecipeInput extends RawRecipeInput {
   servings: number;
   /** vem do dataset quando disponível (ver dimensão N) */
   nutrition?: Nutrition;
+  /** ID original do dataset (ex: food.com id). Salvo para deduplicação. */
+  externalId?: string;
 }
 
 const DEFAULT_PREP_MIN = 30;
 
 export interface IngestOptions {
   source: RecipeSource;
+  parentRecipeId?: string;
+  createdBy?: import("./recipe.types.js").RecipeCreator[];
 }
 
 /**
@@ -125,7 +129,10 @@ export async function persistExtractedRecipe(
     equipment: extracted.equipment,
     ingredients,
     steps,
-    ...(input.nutrition && { nutrition: input.nutrition }),
+    ...((input.nutrition ?? extracted.nutrition ?? null) && { nutrition: input.nutrition ?? extracted.nutrition! }),
+    ...(input.externalId && { externalId: input.externalId }),
+    ...(opts.parentRecipeId && { parentRecipeId: opts.parentRecipeId }),
+    ...(opts.createdBy && { createdBy: opts.createdBy }),
     source: opts.source,
     embeddingText,
     embedding,
@@ -245,7 +252,8 @@ export async function persistExtractedRecipesBatch(
         equipment: b.extracted.equipment,
         ingredients: b.ingredients,
         steps,
-        ...(b.input.nutrition && { nutrition: b.input.nutrition }),
+        ...((b.input.nutrition ?? b.extracted.nutrition ?? null) && { nutrition: b.input.nutrition ?? b.extracted.nutrition! }),
+        ...(b.input.externalId && { externalId: b.input.externalId }),
         source: opts.source,
         embeddingText: b.embeddingText,
         embedding,

@@ -1,3 +1,8 @@
+---
+tags: [project, overview]
+updated: 2026-06-22
+---
+
 # onFeed 🍽️
 
 > Cozinhe com o que você tem.
@@ -122,3 +127,21 @@ Abra **http://localhost:3001**.
 - [ ] Fila de revisão dos ingredientes `pending`
 - [ ] Rating/feedback do usuário
 - [ ] Criação de receita pelo usuário (upload de imagem via URL pré-assinada — endpoint já existe)
+
+---
+
+## Documentação dos Módulos
+
+| Módulo | README |
+|---|---|
+| Recipes (core) | [[src/modules/recipes/README]] |
+| Ingredients (canonicalização) | [[src/modules/ingredients/README]] |
+| Search (busca híbrida) | [[src/modules/search/README]] |
+| Favorites | [[src/modules/favorites/README]] |
+| Pantry (despensa) | [[src/modules/pantry/README]] |
+| Likes | [[src/modules/likes/README]] |
+| Auth (Clerk) | [[src/modules/auth/README]] |
+| Image Service (Bedrock) | [[src/infra/images/README]] |
+| Database (mongoat) | [[src/infra/database/README]] |
+| Frontend (Next.js) | [[web/README]] |
+| Componentes React | [[web/components/README]] |

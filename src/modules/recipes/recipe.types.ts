@@ -1,8 +1,16 @@
 export type RecipeSource =
-  | "curated" // dataset público normalizado
-  | "generated_pending" // gerada por LLM, em quarentena
-  | "generated_validated" // gerada e aprovada/avaliada bem
-  | "user"; // submetida por usuário
+  | "curated"            // dataset público normalizado
+  | "generated_pending"  // gerada por LLM, aguardando likes/moderação
+  | "generated_validated"// (legado) gerada e aprovada
+  | "variant"            // promovida de pending após threshold de likes
+  | "rejected"           // rejeitada pelo admin
+  | "user";              // submetida diretamente por usuário
+
+/** Crédito de quem gerou uma receita variante. */
+export interface RecipeCreator {
+  userId: string;
+  username: string;
+}
 
 /** Equipamentos canônicos (dimensão E do I/E/T/N). */
 export type Equipment =
@@ -27,6 +35,7 @@ export interface RecipeIngredient {
   raw: string;
   canonicalId: string;
   name: string;
+  nameEn?: string;
   core: boolean;
   isStaple: boolean;
   quantity?: number;
@@ -36,6 +45,7 @@ export interface RecipeIngredient {
 /** Passo com tempo estimado — alimenta o timer por passo no Recipe Details. */
 export interface RecipeStep {
   text: string;
+  textEn?: string;
   minutes?: number;
 }
 
@@ -49,7 +59,15 @@ export interface Nutrition {
 
 export interface Recipe {
   _id?: string;
+  /** ID original do dataset de origem (ex: food.com recipe id). Sparse unique. */
+  externalId?: string;
+  /** Aponta para o pai imediato (pode ser base ou outra variante). */
+  parentRecipeId?: string;
+  /** Quem gerou esta receita (variantes podem ter múltiplos criadores). */
+  createdBy?: RecipeCreator[];
   title: string;
+  /** Tradução lazy do intro para inglês (gerada sob demanda na primeira request lang=en). */
+  introEn?: string;
   intro: string;
   country: string; // ISO 3166-1 alpha-2
   thumbnailUrl: string;
@@ -85,6 +103,9 @@ export interface RecipeSearchHit {
   thumbnailUrl: string;
   prepTimeMin: number;
   servings: number;
+  source: RecipeSource;
+  parentRecipeId?: string;
+  createdBy?: RecipeCreator[];
   /** 0..100 — o "Match Score" do círculo */
   matchScore: number;
   scores: DimensionScores;
@@ -92,4 +113,5 @@ export interface RecipeSearchHit {
   missing: { canonicalId: string; name: string; core: boolean }[];
   missingCoreCount: number;
   cookableNow: boolean;
+  nutrition?: Nutrition;
 }

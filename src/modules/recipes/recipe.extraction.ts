@@ -53,6 +53,15 @@ export const ExtractedRecipeSchema = z.object({
       }),
     )
     .describe("modo de preparo passo a passo, com tempo estimado por passo"),
+  nutrition: z
+    .object({
+      calories: z.number().describe("calorias totais por porção (kcal)"),
+      protein:  z.number().describe("proteínas por porção (g)"),
+      carbs:    z.number().describe("carboidratos por porção (g)"),
+      fat:      z.number().describe("gorduras totais por porção (g)"),
+    })
+    .nullable()
+    .describe("estimativa nutricional por porção; null se não for possível calcular com confiança"),
 });
 
 export type ExtractedRecipe = z.infer<typeof ExtractedRecipeSchema>;

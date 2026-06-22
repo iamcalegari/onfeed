@@ -15,6 +15,15 @@ export interface LoadOptions {
    * "primeiras N" são enviesadas. Lê o arquivo todo (streaming), mas só guarda N.
    */
   sample?: boolean;
+  /**
+   * Se fornecido, só inclui receitas cujo `id` esteja nesta lista. A ordem do
+   * array é preservada na saída — útil para ingerir receitas em ordem de ranking.
+   * O adapter precisa preencher `externalId` com `food-com:<id>` para que o
+   * filtro funcione; o campo `id` da linha é comparado diretamente aqui.
+   */
+  allowIds?: string[];
+  /** Chamado a cada 500 receitas encontradas com o total acumulado. */
+  onProgress?: (recipesFound: number) => void;
 }
 
 /**
@@ -38,6 +47,30 @@ export async function loadRecipesFromCsv(
     }),
   );
 
+  const { onProgress } = opts;
+
+  // Caminho ranking: preserva a ordem exata do allowIds (rank order)
+  if (opts.allowIds) {
+    const rankOrder = new Map(opts.allowIds.map((id, i) => [id, i]));
+    const byRank = new Map<number, IngestRecipeInput>();
+
+    for await (const row of parser as AsyncIterable<DatasetRow>) {
+      const id = row.id?.trim();
+      if (!id || !rankOrder.has(id)) continue;
+      const mapped = adapter(row);
+      if (!mapped) continue;
+      byRank.set(rankOrder.get(id)!, mapped);
+      if (byRank.size % 500 === 0) onProgress?.(byRank.size);
+    }
+
+    onProgress?.(byRank.size);
+    // reconstrói em ordem de ranking (Map preserva inserção, mas o CSV não vem ordenado)
+    return [...byRank.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([, r]) => r)
+      .slice(0, Number.isFinite(limit) ? limit : undefined);
+  }
+
   // amostragem distribuída (algoritmo R de reservoir sampling)
   if (opts.sample && Number.isFinite(limit)) {
     const reservoir: IngestRecipeInput[] = [];
@@ -52,7 +85,9 @@ export async function loadRecipesFromCsv(
         if (j < limit) reservoir[j] = mapped;
       }
       seen++;
+      if (seen % 500 === 0) onProgress?.(Math.min(reservoir.length, limit));
     }
+    onProgress?.(reservoir.length);
     return reservoir;
   }
 
@@ -60,11 +95,15 @@ export async function loadRecipesFromCsv(
   const out: IngestRecipeInput[] = [];
   for await (const row of parser as AsyncIterable<DatasetRow>) {
     const mapped = adapter(row);
-    if (mapped) out.push(mapped);
+    if (mapped) {
+      out.push(mapped);
+      if (out.length % 500 === 0) onProgress?.(out.length);
+    }
     if (out.length >= limit) {
       parser.destroy();
       break;
     }
   }
+  onProgress?.(out.length);
   return out;
 }

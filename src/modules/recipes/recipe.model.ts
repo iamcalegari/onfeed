@@ -11,6 +11,7 @@ const ingredientSchema: ModelValidationSchema = {
     raw: { bsonType: "string" },
     canonicalId: { bsonType: "string" },
     name: { bsonType: "string" },
+    nameEn: { bsonType: "string" },
     core: { bsonType: "bool" },
     isStaple: { bsonType: "bool" },
     // "number" cobre int e double — um número JS vira BSON double e "int" o rejeitaria
@@ -24,6 +25,7 @@ const stepSchema: ModelValidationSchema = {
   required: ["text"],
   properties: {
     text: { bsonType: "string" },
+    textEn: { bsonType: "string" },
     minutes: { bsonType: "number" },
   },
 };
@@ -36,6 +38,15 @@ const nutritionSchema: ModelValidationSchema = {
     protein: { bsonType: "number" },
     carbs: { bsonType: "number" },
     fat: { bsonType: "number" },
+  },
+};
+
+const creatorSchema: ModelValidationSchema = {
+  bsonType: "object",
+  required: ["userId", "username"],
+  properties: {
+    userId: { bsonType: "string" },
+    username: { bsonType: "string" },
   },
 };
 
@@ -60,7 +71,11 @@ const schema: ModelValidationSchema = {
     "updatedAt",
   ],
   properties: {
+    externalId: { bsonType: "string" },
+    parentRecipeId: { bsonType: "objectId" },
+    createdBy: { bsonType: "array", items: creatorSchema },
     title: { bsonType: "string" },
+    introEn: { bsonType: "string" },
     intro: { bsonType: "string" },
     country: { bsonType: "string", description: "ISO 3166-1 alpha-2" },
     thumbnailUrl: { bsonType: "string" },
@@ -76,11 +91,10 @@ const schema: ModelValidationSchema = {
     },
     ingredients: { bsonType: "array", items: ingredientSchema },
     steps: { bsonType: "array", items: stepSchema },
-    // opcional (não em required): nem todo dataset traz nutrição
     nutrition: nutritionSchema,
     source: {
       bsonType: "string",
-      enum: ["curated", "generated_pending", "generated_validated", "user"],
+      enum: ["curated", "generated_pending", "generated_validated", "variant", "rejected", "user"],
     },
     embeddingText: { bsonType: "string" },
     embedding: { bsonType: "array", items: { bsonType: "number" } },
@@ -112,5 +126,8 @@ export const RecipeModel = new Model<Recipe>({
   indexes: [
     { key: { source: 1 }, name: "source_lookup" },
     { key: { "ingredients.canonicalId": 1 }, name: "ingredient_lookup" },
+    { key: { externalId: 1 }, name: "external_id_unique", unique: true, sparse: true },
+    // sparse: receitas sem parentRecipeId (base/user) não entram no índice
+    { key: { parentRecipeId: 1 }, name: "parent_recipe_lookup", sparse: true },
   ],
 });

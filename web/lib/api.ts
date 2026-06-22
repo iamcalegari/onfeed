@@ -166,6 +166,19 @@ export async function searchIngredients(q: string): Promise<PantryIngredient[]> 
   return ((await res.json()) as { results: PantryIngredient[] }).results;
 }
 
+// --- variantes ---
+
+export async function getRecipeVariants(
+  recipeId: string,
+): Promise<{ count: number; variants: Recipe[] }> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/recipes/${encodeURIComponent(recipeId)}/variants`,
+    { cache: "no-store", headers: { ...(await authHeaders()) } },
+  );
+  if (!res.ok) return { count: 0, variants: [] };
+  return res.json() as Promise<{ count: number; variants: Recipe[] }>;
+}
+
 // --- likes (count público; toggle exige login) ---
 
 export async function getRecipeLikes(

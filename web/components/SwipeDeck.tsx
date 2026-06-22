@@ -8,7 +8,9 @@ import { addFavoriteAction } from "@/app/actions";
 import { flagEmoji, formatMinutes, recipeHref } from "@/lib/format";
 import type { SearchHit } from "@/lib/types";
 import { LazyThumbnail } from "./LazyThumbnail";
+import { MacroLine } from "./MacroLine";
 import { MatchScore } from "./MatchScore";
+import { NutritionBadge } from "./NutritionBadge";
 import type { Rank } from "./ResultCard";
 import { ScoreBars } from "./ScoreBars";
 
@@ -319,6 +321,14 @@ function RecipePreview({
             </span>
           )}
         </div>
+
+        {/* Nutrição */}
+        {hit.nutrition && (
+          <div className="flex items-center justify-between border-b border-areia/50 px-4 py-3">
+            <MacroLine nutrition={hit.nutrition} />
+            <NutritionBadge nutrition={hit.nutrition} />
+          </div>
+        )}
 
         {/* Ingredientes */}
         <div className="px-4 py-3">
@@ -984,12 +994,9 @@ function DeckCard({
 } & React.HTMLAttributes<HTMLDivElement>) {
   const medal = rank ? MEDAL[rank] : undefined;
   const isPerfect = hit.matchScore >= 85;
+  const isVariant = hit.source === "variant";
 
-  const medalClass = medal
-    ? rank === 1
-      ? "medal-gold"
-      : ""
-    : "";
+  const medalClass = medal ? (rank === 1 ? "medal-gold" : "") : isVariant ? "variant-glow" : "";
 
   const medalStyle: React.CSSProperties = {
     ...(medal?.staticShadow ? { boxShadow: medal.staticShadow } : {}),
@@ -1002,14 +1009,18 @@ function DeckCard({
       style={medalStyle}
       className={`absolute inset-0 flex touch-none flex-col overflow-hidden rounded-3xl border border-areia/80 bg-surface shadow-card ${medalClass} ${className}`}
     >
-      {/* Shimmer sweep (medalhas) */}
-      {medal && (
+      {/* Shimmer sweep — medalha ou variante */}
+      {(medal || isVariant) && (
         <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden rounded-3xl">
           <div
             className="absolute inset-y-0 w-[42%]"
             style={{
-              backgroundImage: `linear-gradient(to right, transparent, ${medal.shimmerColor}, transparent)`,
-              animation: `medal-shimmer ${medal.shimmerDuration} ease-in-out ${medal.shimmerDelay} infinite`,
+              backgroundImage: medal
+                ? `linear-gradient(to right, transparent, ${medal.shimmerColor}, transparent)`
+                : `linear-gradient(to right, transparent, rgba(200,165,80,0.18), transparent)`,
+              animation: medal
+                ? `medal-shimmer ${medal.shimmerDuration} ease-in-out ${medal.shimmerDelay} infinite`
+                : `variant-shimmer 5s ease-in-out 1s infinite`,
             }}
           />
         </div>
@@ -1034,6 +1045,16 @@ function DeckCard({
             }}
           >
             {medal.label}
+          </div>
+        )}
+
+        {/* Badge de variante */}
+        {isVariant && !medal && (
+          <div className="absolute left-3 top-3 z-30 flex items-center gap-1.5 rounded-full bg-carvao/70 px-2.5 py-1 backdrop-blur-sm">
+            <span className="text-[10px] text-amber-300">✦</span>
+            <span className="text-[10px] font-bold uppercase tracking-wide text-amber-200">
+              Variante
+            </span>
           </div>
         )}
 
@@ -1073,6 +1094,14 @@ function DeckCard({
           <span className="text-[11px] font-bold text-forest tracking-wide">
             Essa receita é perfeita pra você
           </span>
+        </div>
+      )}
+
+      {/* Nutrição */}
+      {hit.nutrition && (
+        <div className="flex items-center justify-between border-t border-areia/50 px-4 py-2">
+          <MacroLine nutrition={hit.nutrition} compact />
+          <NutritionBadge nutrition={hit.nutrition} />
         </div>
       )}
 

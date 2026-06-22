@@ -3,7 +3,9 @@ import Link from "next/link";
 import { flagEmoji, formatMinutes, recipeHref } from "@/lib/format";
 import type { SearchHit } from "@/lib/types";
 import { LazyThumbnail } from "./LazyThumbnail";
+import { MacroLine } from "./MacroLine";
 import { MatchScore } from "./MatchScore";
+import { NutritionBadge } from "./NutritionBadge";
 import { ScoreBars } from "./ScoreBars";
 
 export type Rank = 1 | 2 | 3;
@@ -58,6 +60,7 @@ export function ResultCard({
   const hasExtra = hit.missing.length > 0 || hit.cookableNow;
   const isPerfect = hit.matchScore >= 85;
   const medal = rank ? MEDAL[rank] : undefined;
+  const isVariant = hit.source === "variant";
 
   return (
     <Link
@@ -67,20 +70,26 @@ export function ResultCard({
           ? rank === 1
             ? "medal-gold shadow-lift"
             : "shadow-lift"
+          : isVariant
+          ? "variant-glow"
           : highlight
           ? "shadow-lift ring-1 ring-salvia/40"
           : "shadow-card ring-1 ring-areia/70 hover:shadow-lift"
       }`}
       style={medal?.staticShadow ? { boxShadow: medal.staticShadow } : undefined}
     >
-      {/* Reflexo / shimmer sweep */}
-      {medal && (
+      {/* Shimmer sweep — medalha ou variante */}
+      {(medal || isVariant) && (
         <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden rounded-2xl">
           <div
-            className="absolute inset-y-0 w-[42%] bg-gradient-to-r from-transparent to-transparent"
+            className="absolute inset-y-0 w-[42%]"
             style={{
-              backgroundImage: `linear-gradient(to right, transparent, ${medal.shimmerColor}, transparent)`,
-              animation: `medal-shimmer ${medal.shimmerDuration} ease-in-out ${medal.shimmerDelay} infinite`,
+              backgroundImage: medal
+                ? `linear-gradient(to right, transparent, ${medal.shimmerColor}, transparent)`
+                : `linear-gradient(to right, transparent, rgba(200,165,80,0.22), transparent)`,
+              animation: medal
+                ? `medal-shimmer ${medal.shimmerDuration} ease-in-out ${medal.shimmerDelay} infinite`
+                : `variant-shimmer 5s ease-in-out 1s infinite`,
             }}
           />
         </div>
@@ -88,7 +97,7 @@ export function ResultCard({
 
       {/* Corpo horizontal: thumbnail + conteúdo */}
       <div className="flex">
-        {/* Thumbnail com badge de medalha */}
+        {/* Thumbnail com badge de medalha ou variante */}
         <div className="relative shrink-0">
           <LazyThumbnail
             recipeId={hit._id}
@@ -108,6 +117,16 @@ export function ResultCard({
               }}
             >
               {medal.label}
+            </div>
+          )}
+
+          {/* Badge de variante */}
+          {isVariant && !medal && (
+            <div className="absolute left-2 top-2 z-30 flex items-center gap-1 rounded-full bg-carvao/75 px-2 py-0.5 backdrop-blur-sm">
+              <span className="text-[9px] text-amber-300">✦</span>
+              <span className="text-[9px] font-bold uppercase tracking-wide text-amber-200">
+                Variante
+              </span>
             </div>
           )}
         </div>
@@ -155,21 +174,31 @@ export function ResultCard({
         </div>
       )}
 
-      {/* Rodapé: ingredientes faltando / cookableNow */}
-      {hasExtra && (
-        <div className="flex flex-wrap items-center gap-2 border-t border-areia/50 px-3 py-2">
-          {hit.cookableNow && (
-            <span className="rounded-full bg-forest/8 px-2.5 py-0.5 text-[10px] font-semibold text-forest">
-              ✓ dá pra fazer agora
-            </span>
+      {/* Rodapé: macros + cookableNow + ingredientes faltando */}
+      {(hit.nutrition || hasExtra) && (
+        <div className="flex flex-col gap-1 border-t border-areia/50 px-3 py-2">
+          {hit.nutrition && (
+            <div className="flex items-center justify-between gap-2">
+              <MacroLine nutrition={hit.nutrition} compact />
+              <NutritionBadge nutrition={hit.nutrition} />
+            </div>
           )}
-          {hit.missing.length > 0 && (
-            <p className="truncate text-[10px] text-carvao/40">
-              Falta:{" "}
-              <span className="font-medium text-terracota/70">
-                {hit.missing.map((m) => m.name).join(", ")}
-              </span>
-            </p>
+          {hasExtra && (
+            <div className="flex flex-wrap items-center gap-2">
+              {hit.cookableNow && (
+                <span className="rounded-full bg-forest/8 px-2.5 py-0.5 text-[10px] font-semibold text-forest">
+                  ✓ dá pra fazer agora
+                </span>
+              )}
+              {hit.missing.length > 0 && (
+                <p className="truncate text-[10px] text-carvao/40">
+                  Falta:{" "}
+                  <span className="font-medium text-terracota/70">
+                    {hit.missing.map((m) => m.name).join(", ")}
+                  </span>
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}
