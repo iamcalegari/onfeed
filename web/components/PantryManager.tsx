@@ -6,6 +6,193 @@ import { useRouter } from "next/navigation";
 import { addToPantryAction, removeFromPantryAction } from "@/app/actions";
 import type { PantryIngredient } from "@/lib/types";
 
+/* ── Tipos da feature de NF ─────────────────────────────────── */
+
+interface ReceiptItem {
+  rawName: string;
+  quantity: string | null;
+  ingredientId: string | null;
+  displayName: string;
+  matched: boolean;
+}
+
+/* ── Comprime imagem via canvas antes de enviar ─────────────── */
+
+async function compressImage(file: File): Promise<{ base64: string; mimeType: string }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1600;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+      resolve({ base64: dataUrl.split(",")[1]!, mimeType: "image/jpeg" });
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+/* ── Bottom sheet de revisão dos itens da NF ────────────────── */
+
+function ReceiptReview({
+  items,
+  onConfirm,
+  onClose,
+}: {
+  items: ReceiptItem[];
+  onConfirm: (selected: ReceiptItem[]) => void;
+  onClose: () => void;
+}) {
+  const matched = items.filter((i) => i.matched);
+  const unmatched = items.filter((i) => !i.matched);
+  const [checked, setChecked] = useState(() => new Set(matched.map((i) => i.ingredientId!)));
+
+  function toggle(id: string) {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setChecked((prev) =>
+      prev.size === matched.length ? new Set() : new Set(matched.map((i) => i.ingredientId!)),
+    );
+  }
+
+  const selectedCount = checked.size;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-carvao/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col rounded-t-3xl bg-surface pb-safe shadow-lift animate-in slide-in-from-bottom duration-300">
+        {/* Handle */}
+        <div className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-areia" />
+
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between px-5 pt-4 pb-3">
+          <div>
+            <h2 className="text-base font-bold text-carvao">Ingredientes na nota</h2>
+            <p className="text-xs text-carvao/45">
+              {items.length === 0
+                ? "Nenhum ingrediente reconhecido"
+                : `${matched.length} reconhecido${matched.length !== 1 ? "s" : ""}${unmatched.length ? ` · ${unmatched.length} não identificado${unmatched.length !== 1 ? "s" : ""}` : ""}`}
+            </p>
+          </div>
+          {matched.length > 1 && (
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="text-xs font-semibold text-forest"
+            >
+              {checked.size === matched.length ? "Desmarcar todos" : "Marcar todos"}
+            </button>
+          )}
+        </div>
+
+        {/* Lista */}
+        <div className="flex-1 overflow-y-auto px-5 pb-2">
+          {items.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-12 text-center">
+              <span className="text-4xl">🧾</span>
+              <p className="text-sm text-carvao/55">
+                Não conseguimos identificar ingredientes nesta nota.
+              </p>
+              <p className="text-xs text-carvao/35">
+                Tente tirar a foto com mais luz e enquadrar bem os itens.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {matched.length > 0 && (
+                <section className="flex flex-col gap-1">
+                  {matched.map((item) => (
+                    <label
+                      key={item.ingredientId}
+                      className="flex cursor-pointer items-center gap-3 rounded-xl px-1 py-2.5 transition-colors hover:bg-forest/5"
+                    >
+                      <span
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                          checked.has(item.ingredientId!)
+                            ? "border-forest bg-forest"
+                            : "border-areia bg-surface"
+                        }`}
+                      >
+                        {checked.has(item.ingredientId!) && (
+                          <svg viewBox="0 0 10 10" className="h-2.5 w-2.5" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1.5 5l2.5 2.5 4.5-4.5" />
+                          </svg>
+                        )}
+                      </span>
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={checked.has(item.ingredientId!)}
+                        onChange={() => toggle(item.ingredientId!)}
+                      />
+                      <span className="flex-1 text-sm font-medium text-carvao">{item.displayName}</span>
+                      {item.quantity && (
+                        <span className="shrink-0 text-xs text-carvao/40">{item.quantity}</span>
+                      )}
+                    </label>
+                  ))}
+                </section>
+              )}
+
+              {unmatched.length > 0 && (
+                <section>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-carvao/35">
+                    Não identificados — adicione manualmente
+                  </p>
+                  <div className="flex flex-col gap-1">
+                    {unmatched.map((item, i) => (
+                      <div key={i} className="flex items-center gap-3 px-1 py-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-areia/60 text-[10px] text-carvao/30">?</span>
+                        <span className="flex-1 text-sm text-carvao/45">{item.rawName}</span>
+                        {item.quantity && (
+                          <span className="shrink-0 text-xs text-carvao/30">{item.quantity}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 border-t border-areia/60 px-5 pt-3 pb-5">
+          {selectedCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => onConfirm(matched.filter((i) => checked.has(i.ingredientId!)))}
+              className="w-full rounded-2xl bg-forest py-3.5 text-sm font-bold text-creme shadow-card transition-all hover:bg-forest/90 active:scale-[0.98]"
+            >
+              Adicionar {selectedCount} ingrediente{selectedCount !== 1 ? "s" : ""} à despensa
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full rounded-2xl border border-areia py-3.5 text-sm font-medium text-carvao/60"
+            >
+              Fechar
+            </button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 /* ── Types ─────────────────────────────────────────────────── */
 
 interface Shortcut {
@@ -230,8 +417,13 @@ export function PantryManager({ initial }: { initial: PantryIngredient[] }) {
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [, startTransition] = useTransition();
 
+  const [receiptItems,   setReceiptItems]   = useState<ReceiptItem[] | null>(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [receiptError,   setReceiptError]   = useState<string | null>(null);
+
   const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef         = useRef<HTMLInputElement>(null);
+  const fileInputRef     = useRef<HTMLInputElement>(null);
   // refs para cálculo de slot durante o drag
   const cardRefs         = useRef<(HTMLDivElement | null)[]>([]);
   const dragStartRef     = useRef<{ x: number; y: number } | null>(null);
@@ -267,6 +459,45 @@ export function PantryManager({ initial }: { initial: PantryIngredient[] }) {
   function handleRemoveItem(ingredientId: string) {
     setItems((p) => p.filter((i) => i.ingredientId !== ingredientId));
     startTransition(() => removeFromPantryAction(ingredientId));
+  }
+
+  async function handleReceiptFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setReceiptLoading(true);
+    setReceiptError(null);
+    try {
+      const { base64, mimeType } = await compressImage(file);
+      const res = await fetch("/api/v1/pantry/receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64, mimeType }),
+      });
+      if (!res.ok) throw new Error("Falha ao processar a nota");
+      const data = (await res.json()) as { items: ReceiptItem[] };
+      setReceiptItems(data.items);
+    } catch {
+      setReceiptError("Não foi possível ler a nota. Tente novamente com melhor iluminação.");
+    } finally {
+      setReceiptLoading(false);
+    }
+  }
+
+  function handleReceiptConfirm(selected: ReceiptItem[]) {
+    const alreadyIds = new Set(items.map((i) => i.ingredientId));
+    const toAdd = selected.filter((s) => s.ingredientId && !alreadyIds.has(s.ingredientId));
+    toAdd.forEach((s) => {
+      const ingredient: PantryIngredient = {
+        ingredientId: s.ingredientId!,
+        displayName: s.displayName,
+        category: "outros",
+      };
+      setItems((p) => [...p, ingredient]);
+      startTransition(() => addToPantryAction(s.ingredientId!));
+    });
+    setReceiptItems(null);
   }
 
   /* ── Atalhos ─────────────────────────────────────────────── */
@@ -555,10 +786,48 @@ export function PantryManager({ initial }: { initial: PantryIngredient[] }) {
 
         {/* ── Campo de busca para adicionar ingrediente ─────── */}
         <div className="relative flex flex-col gap-1.5">
-          <label className="flex items-center gap-2 text-sm font-semibold text-forest">
-            <LeafIcon />
-            Adicionar ingrediente
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 text-sm font-semibold text-forest">
+              <LeafIcon />
+              Adicionar ingrediente
+            </label>
+
+            {/* Botão PRO — Escanear NF */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={receiptLoading}
+              className="flex items-center gap-1.5 rounded-full border border-amber-300/60 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 transition-all hover:bg-amber-100 disabled:opacity-50"
+            >
+              {receiptLoading ? (
+                <>
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+                  Lendo…
+                </>
+              ) : (
+                <>
+                  <span>📷</span>
+                  Nota fiscal
+                  <span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                    PRO
+                  </span>
+                </>
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="sr-only"
+              onChange={handleReceiptFile}
+            />
+          </div>
+
+          {receiptError && (
+            <p className="text-xs text-terracota">{receiptError}</p>
+          )}
+
           <input
             ref={inputRef}
             value={query}
@@ -638,6 +907,15 @@ export function PantryManager({ initial }: { initial: PantryIngredient[] }) {
           shortcut={editorShortcut}
           onSave={handleEditorSave}
           onClose={handleEditorClose}
+        />
+      )}
+
+      {/* ── Revisão de nota fiscal ────────────────────────── */}
+      {receiptItems !== null && (
+        <ReceiptReview
+          items={receiptItems}
+          onConfirm={handleReceiptConfirm}
+          onClose={() => setReceiptItems(null)}
         />
       )}
     </>

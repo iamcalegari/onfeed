@@ -28,6 +28,15 @@ const GOAL_OPTIONS: { value: NutritionGoal | ""; label: string }[] = [
 
 const OCCASION_OPTIONS = ["tira-gosto", "brunch", "almoço", "sobremesa", "drinks"];
 
+const RESTRICTION_OPTIONS = [
+  { label: "Sem glúten",   value: "sem glúten"   },
+  { label: "Vegetariano",  value: "vegetariano"  },
+  { label: "Vegano",       value: "vegano"        },
+  { label: "Sem lactose",  value: "sem lactose"  },
+  { label: "Sem açúcar",   value: "sem açúcar"   },
+  { label: "Low-carb",     value: "low-carb"      },
+];
+
 export function SearchForm() {
   const router = useRouter();
   const [ingredients, setIngredients] = useState<string[]>([]);
@@ -36,6 +45,7 @@ export function SearchForm() {
   const [maxTime, setMaxTime] = useState(0);
   const [goal, setGoal] = useState<NutritionGoal | "">("");
   const [occasion, setOccasion] = useState("");
+  const [restrictions, setRestrictions] = useState<string[]>([]);
   const [history, setHistory] = useState<SearchHistoryEntry[]>([]);
   const [baseIngredients, setBaseIngredients] = useState<Set<string>>(new Set());
 
@@ -83,7 +93,8 @@ export function SearchForm() {
     if (equipment.length) qs.set("equipment", equipment.join(","));
     if (maxTime > 0) qs.set("maxPrepTimeMin", String(maxTime));
     if (goal) qs.set("goal", goal);
-    if (occasion) qs.set("occasions", occasion);
+    const allOccasions = [...(occasion ? [occasion] : []), ...restrictions];
+    if (allOccasions.length) qs.set("occasions", allOccasions.join(","));
     if (baseIngredients.size > 0)
       qs.set("base", [...baseIngredients].join(","));
     saveSearch(ingredients, qs);
@@ -250,6 +261,28 @@ export function SearchForm() {
               onClick={() => setOccasion((p) => (p === occ ? "" : occ))}
             >
               {occ}
+            </Chip>
+          ))}
+        </div>
+      </section>
+
+      {/* Restrições alimentares */}
+      <section className="flex flex-col gap-3">
+        <SectionLabel icon={<RestrictionIcon />} title="Restrições alimentares" />
+        <div className="flex flex-wrap gap-2">
+          {RESTRICTION_OPTIONS.map((r) => (
+            <Chip
+              key={r.value}
+              active={restrictions.includes(r.value)}
+              onClick={() =>
+                setRestrictions((prev) =>
+                  prev.includes(r.value)
+                    ? prev.filter((x) => x !== r.value)
+                    : [...prev, r.value],
+                )
+              }
+            >
+              {r.label}
             </Chip>
           ))}
         </div>
@@ -439,6 +472,15 @@ function OccasionIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 shrink-0">
       <path d="M8 3v4M16 3v4M3 9h18M5 21h14a2 2 0 0 0 2-2V9H3v10a2 2 0 0 0 2 2Z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function RestrictionIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 shrink-0">
+      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10Z" />
+      <path d="m4.93 4.93 14.14 14.14" strokeLinecap="round" />
     </svg>
   );
 }

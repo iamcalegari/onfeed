@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Páginas dinâmicas (auth/cookies) nunca servidas do cache client-side do router.
+  // Evita mostrar dados de outro usuário após logout sem reload.
+  experimental: {
+    staleTimes: { dynamic: 0 },
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version ?? "0.1.0",
   },

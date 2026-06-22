@@ -65,7 +65,7 @@ export function ResultsView({
                 text={query ? `Receitas para: ${query}` : "Resultados no onFeed"}
                 className="flex h-8 w-8 items-center justify-center rounded-full border border-areia bg-surface text-carvao/50 hover:text-carvao transition-colors"
               />
-              <Link href="/" className="text-sm font-medium text-terracota">
+              <Link href="/buscar" className="text-sm font-medium text-terracota">
                 nova busca
               </Link>
             </div>

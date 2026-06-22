@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { AdaptButton } from "@/components/AdaptButton";
+import { AddToPlanButton } from "@/components/AddToPlanButton";
 import { BackButton } from "@/components/BackButton";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { LikeButton } from "@/components/LikeButton";
@@ -251,6 +252,13 @@ export default async function RecipePage({
             title={recipe.title}
             nutrition={recipe.nutrition}
             servings={1}
+          />
+          <AddToPlanButton
+            recipeId={recipe._id}
+            title={recipe.title}
+            nutrition={recipe.nutrition}
+            prepTime={totalTime}
+            ingredients={recipe.ingredients.map(i => i.name)}
           />
         </section>
       )}

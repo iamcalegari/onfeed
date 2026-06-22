@@ -1,8 +1,9 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { DM_Serif_Display, Inter } from "next/font/google";
 import { cookies } from "next/headers";
 
+import { SessionRefresher } from "@/components/SessionRefresher";
 import { THEME_SCRIPT } from "@/lib/settings";
 import type { Theme } from "@/lib/settings";
 import "./globals.css";
@@ -13,10 +14,10 @@ const inter = Inter({
   display: "swap",
 });
 
-const playfair = Playfair_Display({
+const dmSerif = DM_Serif_Display({
   subsets: ["latin"],
-  variable: "--font-playfair",
-  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-dm-serif",
+  weight: ["400"],
   style: ["normal", "italic"],
   display: "swap",
 });
@@ -61,14 +62,17 @@ export default async function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${inter.variable} ${playfair.variable}${isDark ? " dark" : ""}`}
+      className={`${inter.variable} ${dmSerif.variable}${isDark ? " dark" : ""}`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="min-h-screen">
         {clerkEnabled ? (
-          <ClerkProvider>{children}</ClerkProvider>
+          <ClerkProvider afterSignOutUrl="/">
+            <SessionRefresher />
+            {children}
+          </ClerkProvider>
         ) : (
           children
         )}

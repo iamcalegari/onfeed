@@ -1,5 +1,5 @@
 import { BottomNav } from "@/components/BottomNav";
-import { Header } from "@/components/Header";
+import { TopBar } from "@/components/TopBar";
 
 export default function MainLayout({
   children,
@@ -10,7 +10,7 @@ export default function MainLayout({
 
   return (
     <>
-      <Header clerkEnabled={clerkEnabled} />
+      <TopBar clerkEnabled={clerkEnabled} />
       <main className="mx-auto w-full max-w-md px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4">
         {children}
       </main>

@@ -20,11 +20,18 @@
   --color-areia:     #e0c9a6;   /* bege-dourado — bordas e divisores       */
   --color-surface:   #ffffff;   /* branco puro — cards e inputs            */
 
+  /* ── Macros ─────────────────────────────────────────────── */
+  --color-protein:  #4a7fcb;   /* azul — proteína                         */
+  --color-carb:     #e8a020;   /* âmbar — carboidrato                     */
+  --color-fat:      #d4644a;   /* terracota (alias) — gordura              */
+  --color-kcal:     #162f25;   /* forest (alias) — calorias               */
+  --color-streak:   #f45d22;   /* laranja — gamificação / streak           */
+
   --shadow-card: 0 1px 3px -1px rgb(22 47 37 / 0.07), 0 4px 12px -2px rgb(22 47 37 / 0.08);
   --shadow-lift: 0 4px 16px -2px rgb(22 47 37 / 0.12), 0 8px 24px -4px rgb(22 47 37 / 0.09);
   --shadow-top:  0 -1px 0 0 rgb(224 201 166 / 0.6), 0 -4px 16px -4px rgb(22 47 37 / 0.06);
 
-  --font-display: var(--font-playfair), "Playfair Display", Georgia, serif;
+  --font-display: var(--font-dm-serif), "DM Serif Display", Georgia, serif;
   --font-sans:    var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -183,6 +190,21 @@ body {
 
 .variant-glow {
   animation: variant-glow 3s ease-in-out infinite;
+}
+
+/* ── MacroRing ─────────────────────────────────────────────── */
+@keyframes macro-ring-appear {
+  from { stroke-dashoffset: var(--ring-target-offset, 0) !important; stroke-dasharray: 0 9999 !important; }
+  to   { }
+}
+
+@keyframes macro-ring-fill {
+  from { stroke-dasharray: 0 var(--ring-circ, 502); }
+  to   { }
+}
+
+.macro-arc {
+  animation: macro-ring-fill 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 /* ── Safe-area utilities (iOS notch / Dynamic Island) ──────── */

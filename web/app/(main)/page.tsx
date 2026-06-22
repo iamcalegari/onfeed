@@ -1,5 +1,5 @@
-import { SearchForm } from "@/components/SearchForm";
+import { redirect } from "next/navigation";
 
-export default function HomePage() {
-  return <SearchForm />;
+export default function RootPage() {
+  redirect("/hoje");
 }
