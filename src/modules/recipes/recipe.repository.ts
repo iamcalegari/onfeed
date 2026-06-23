@@ -74,10 +74,12 @@ export async function hybridSearch(
   const limit = params.limit ?? DEFAULTS.limit;
   // pool de candidatos puxados do ANN p/ o re-rank (maior que o limit final)
   const poolSize = Math.max(limit * 3, 50);
-  // regra do Atlas: o `limit` do $vectorSearch tem que ser <= numCandidates
+  // regra do Atlas: o `limit` do $vectorSearch tem que ser <= numCandidates.
+  // Quanto mais candidatos o ANN avalia, melhor o recall do re-rank — folga
+  // generosa (5× o pool) sem custo proibitivo.
   const numCandidates = Math.max(
     params.numCandidates ?? DEFAULTS.numCandidates,
-    poolSize * 2,
+    poolSize * 5,
   );
   const haveIds = params.haveIds;
   const equip = params.availableEquipment;
@@ -86,11 +88,20 @@ export async function hybridSearch(
   const baseIds = params.baseIds ?? [];
   const hasBase = baseIds.length > 0;
   const occasions = params.occasions ?? [];
+  // "drinks" é categoria realmente distinta (bebida × comida) → continua filtro
+  // DURO. As demais ocasiões viram sinal SOFT (boost no score) pra não zerar o
+  // recall quando o tagueamento da receita diverge do filtro do usuário.
+  const isDrinks = occasions.includes("drinks");
+  const softOccasions = occasions.filter((o) => o !== "drinks");
+  const hasOcc = softOccasions.length > 0;
 
   // Com ingrediente base presente, redistribui pesos: -0.10 de semantic, -0.10 de i, +0.30 de b
-  const wSemantic = hasBase ? 0.15 : w.semantic;
+  let wSemantic   = hasBase ? 0.15 : w.semantic;
   const wI        = hasBase ? 0.35 : w.i;
   const wB        = hasBase ? 0.30 : 0;
+  // Ocasião (soft) entra como dimensão leve, deslocada do peso semântico.
+  const wOcc      = hasOcc ? 0.10 : 0;
+  wSemantic = Math.max(0.05, wSemantic - wOcc);
 
   // --- expressões dos sub-scores (construídas conforme os inputs presentes) ---
 
@@ -169,6 +180,22 @@ export async function hybridSearch(
     };
   }
 
+  // Ocasião (soft): 1 se a receita cobre QUALQUER ocasião pedida, senão 0.
+  const scoreOccasion: Document = hasOcc
+    ? {
+        $cond: [
+          {
+            $gt: [
+              { $size: { $setIntersection: ["$occasions", softOccasions] } },
+              0,
+            ],
+          },
+          1,
+          0,
+        ],
+      }
+    : { $literal: 0 };
+
   const pipeline: Document[] = [
     {
       $vectorSearch: {
@@ -179,7 +206,7 @@ export async function hybridSearch(
         limit: poolSize,
         filter: {
           source: { $in: params.sources ?? DEFAULTS.sources },
-          ...(occasions.length > 0 && { occasions: { $in: occasions } }),
+          ...(isDrinks && { occasions: "drinks" }),
         },
       },
     },
@@ -256,25 +283,21 @@ export async function hybridSearch(
         scoreE,
         scoreT,
         scoreN,
-        // B: 1 se TODOS os ingredientes base estão na receita, 0 caso contrário
+        ...(hasOcc && { scoreOccasion }),
+        // B: fração dos ingredientes base presentes na receita (proporcional —
+        // antes era tudo-ou-nada e zerava receitas com cobertura parcial)
         ...(hasBase && {
           scoreB: {
-            $cond: [
+            $divide: [
               {
-                $eq: [
-                  {
-                    $size: {
-                      $setIntersection: [
-                        { $map: { input: "$ingredients", as: "ing", in: "$$ing.canonicalId" } },
-                        baseIds,
-                      ],
-                    },
-                  },
-                  baseIds.length,
-                ],
+                $size: {
+                  $setIntersection: [
+                    { $map: { input: "$ingredients", as: "ing", in: "$$ing.canonicalId" } },
+                    baseIds,
+                  ],
+                },
               },
-              1,
-              0,
+              baseIds.length,
             ],
           },
         }),
@@ -295,6 +318,7 @@ export async function hybridSearch(
             { $multiply: [w.t, "$scoreT"] },
             { $multiply: [w.n, "$scoreN"] },
             ...(hasBase ? [{ $multiply: [wB, "$scoreB"] }] : []),
+            ...(hasOcc ? [{ $multiply: [wOcc, "$scoreOccasion"] }] : []),
           ],
         },
         cookableNow: { $eq: ["$missingCoreCount", 0] },

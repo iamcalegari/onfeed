@@ -237,15 +237,30 @@ export default function BuscarPage() {
     const eqList = EQUIP_DEFS.filter(e => equip[e.key]).map(e => e.api);
     if (eqList.length) qs.set("equipment", eqList.join(","));
 
-    if (tempo !== "qualquer") qs.set("maxPrepTimeMin", tempo === "30" ? "30" : "60");
+    // Tempo: o filtro Tempo define o teto; o Foco "< 30 min" reforça se vazio
+    let maxTime: number | null = tempo === "30" ? 30 : tempo === "1h" ? 60 : null;
+    if (maxTime === null && foco === "rapido") maxTime = 30;
+    if (maxTime !== null) qs.set("maxPrepTimeMin", String(maxTime));
 
-    const obj = OBJETIVO_DEFS.find(o => o.key === objetivo);
-    if (obj) qs.set("goal", obj.goal);
+    // Objetivo nutricional: vem do filtro Objetivo ou do Foco "Alta proteína"
+    let goal = OBJETIVO_DEFS.find(o => o.key === objetivo)?.goal ?? null;
+    if (!goal && foco === "proteina") goal = "macros";
+    if (goal) qs.set("goal", goal);
 
+    // Ocasião: só as ocasiões reais viram filtro (no backend, drinks é o único
+    // filtro duro; as demais entram como boost no score).
     const ocList = OCASIAO_DEFS.filter(o => ocasiao[o.key]).map(o => OC_API[o.key]);
-    const rList  = RESTRICAO_DEFS.filter(r => restricao[r.key]).map(r => RESTRICAO_LABEL[r.key]);
-    const allOc  = [...ocList, ...rList];
-    if (allOc.length) qs.set("occasions", allOc.join(","));
+    if (ocList.length) qs.set("occasions", ocList.join(","));
+
+    // Restrições alimentares + Foco low-carb → contexto SEMÂNTICO (note), não
+    // filtro: o backend ainda não tem tags dietéticas estruturadas, e mandá-las
+    // como "occasion" zerava a busca (nenhuma receita tem essas labels).
+    const rList = RESTRICAO_DEFS.filter(r => restricao[r.key]).map(r => RESTRICAO_LABEL[r.key]);
+    if (foco === "lowcarb" && !rList.includes("low-carb")) rList.push("low-carb");
+    if (rList.length) qs.set("note", `Restrições alimentares: ${rList.join(", ")}.`);
+
+    // Foco "Posso fazer": filtra no cliente só receitas cozinháveis com o que tem
+    if (foco === "fazer") qs.set("onlyCookable", "1");
 
     const base = ingredients.filter(g => g.base).map(g => g.name);
     if (base.length) qs.set("base", base.join(","));

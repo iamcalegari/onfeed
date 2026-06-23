@@ -38,8 +38,13 @@ export default async function ResultsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const req = parseParams(await searchParams);
+  const sp = await searchParams;
+  const req = parseParams(sp);
   const { results, unresolvedIngredients, haveIds } = await searchRecipes(req);
+
+  // Foco "Posso fazer" (onlyCookable): mostra só o que dá pra cozinhar já.
+  const onlyCookable = sp.onlyCookable === "1";
+  const shown = onlyCookable ? results.filter((r) => r.cookableNow) : results;
 
   let authenticated = false;
   try {
@@ -52,7 +57,7 @@ export default async function ResultsPage({
 
   return (
     <ResultsView
-      results={results}
+      results={shown}
       haveIds={haveIds}
       authenticated={authenticated}
       query={query}
