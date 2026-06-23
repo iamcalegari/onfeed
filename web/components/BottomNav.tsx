@@ -74,13 +74,15 @@ export function BottomNav() {
   return (
     <nav style={{
       position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 40,
-      height: 88,
       background: "rgba(255,255,255,.92)",
       backdropFilter: "blur(18px)",
       WebkitBackdropFilter: "blur(18px)",
       borderTop: "1px solid #efe4d3",
       display: "flex",
-      padding: "9px 8px 0",
+      paddingTop: 9,
+      paddingLeft: 8,
+      paddingRight: 8,
+      paddingBottom: "max(env(safe-area-inset-bottom), 10px)",
     }}>
       {ITEMS.map((item) => {
         const active = item.match(pathname);

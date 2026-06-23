@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { getGoals, type NutritionGoals } from "@/lib/nutritionPlan";
 import { getLatestWeight } from "@/lib/weightStorage";
+import { usePro } from "@/lib/usePro";
 
 const PROFILE_KEY = "onfeed:profile";
 
@@ -31,6 +32,7 @@ function initials(name: string): string {
 
 export default function PerfilPage() {
   const router = useRouter();
+  const pro = usePro();
   const { isSignedIn, isLoaded } = useAuth();
   const { user } = useUser();
   const [streak, setStreak]       = useState(0);
@@ -116,7 +118,7 @@ export default function PerfilPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-4 pb-4">
+    <div className="flex flex-col gap-4 pb-4" style={{ animation: "ofRise .28s ease both" }}>
 
       {/* ── Avatar + nome ─────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
@@ -161,12 +163,26 @@ export default function PerfilPage() {
               </button>
             </div>
           )}
-          {streak > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
-              <span style={{ fontSize: 13 }}>🔥</span>
-              <span style={{ fontSize: 13, color: "#f45d22", fontWeight: 700 }}>{streak} {streak === 1 ? "dia" : "dias"} de streak</span>
-            </div>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5, flexWrap: "wrap" }}>
+            <span
+              onClick={() => router.push("/progresso")}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                fontSize: 11, fontWeight: 800, letterSpacing: 0.4, borderRadius: 20, padding: "3px 9px", cursor: "pointer",
+                background: pro.isPro ? "#fbf1de" : "#f3ede1",
+                color:      pro.isPro ? "#a76a00" : "#7a8079",
+                border:     `1px solid ${pro.isPro ? "#eccf95" : "#e6ddcd"}`,
+              }}
+            >
+              {pro.isPro ? "✦ PRO" : "Plano grátis"}
+            </span>
+            {streak > 0 && (
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ fontSize: 13 }}>🔥</span>
+                <span style={{ fontSize: 13, color: "#f45d22", fontWeight: 700 }}>{streak} {streak === 1 ? "dia" : "dias"}</span>
+              </span>
+            )}
+          </div>
           {latestKg && (
             <div style={{ fontSize: 12, color: "#9aa39b", marginTop: 2 }}>
               Peso atual: {latestKg.kg.toLocaleString("pt-BR", { minimumFractionDigits: 1 })} kg

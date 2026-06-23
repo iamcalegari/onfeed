@@ -37,6 +37,7 @@ function SwipableRow({
     startYRef.current = e.clientY;
     lockedHRef.current = false;
     maxDxRef.current = 0;
+    e.currentTarget.setPointerCapture(e.pointerId);
   }
 
   function onPointerMove(e: React.PointerEvent) {

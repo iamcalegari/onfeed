@@ -324,13 +324,16 @@ export default function HojePage() {
           Próxima refeição · {nextSlot}
         </p>
 
-        <div
+        <button
+          type="button"
           onClick={() => suggestion ? router.push(`/recipe/${suggestion._id}`) : router.push("/buscar")}
           style={{
             borderRadius: 22, overflow: "hidden", background: "#fff",
             boxShadow: "0 8px 22px -12px rgba(22,47,37,.22)",
-            border: "1px solid #f2e6d6", cursor: "pointer",
+            border: "1px solid #f2e6d6", cursor: "pointer", width: "100%", textAlign: "left",
             transition: "transform .12s ease, box-shadow .12s ease",
+            padding: 0,
+            touchAction: "pan-y",
           }}
           onMouseDown={e => (e.currentTarget.style.transform = "scale(.985)")}
           onMouseUp={e => (e.currentTarget.style.transform = "")}
@@ -341,7 +344,7 @@ export default function HojePage() {
           <div style={{
             height: 142, position: "relative",
             background: suggestion?.thumbnailUrl
-              ? `url(${suggestion.thumbnailUrl}) center/cover`
+              ? `url(${suggestion.thumbnailUrl}) center/cover no-repeat`
               : "repeating-linear-gradient(135deg,#e9ddc7 0 11px,#e2d4ba 11px 22px)",
             display: "flex", alignItems: "flex-end",
           }}>
@@ -390,13 +393,14 @@ export default function HojePage() {
               </span>
             )}
           </div>
-        </div>
+        </button>
 
-        <p
+        <button
+          type="button"
           onClick={() => router.push("/buscar")}
-          style={{ textAlign: "center", marginTop: 11, fontSize: 13, fontWeight: 600, color: "#d4644a", cursor: "pointer" }}>
+          style={{ textAlign: "center", width: "100%", marginTop: 11, fontSize: 13, fontWeight: 600, color: "#d4644a", cursor: "pointer", background: "none", border: "none", padding: 0 }}>
           Ver outras opções →
-        </p>
+        </button>
       </div>
 
       {/* ── Refeições de hoje ──────────────────────────────── */}
@@ -412,14 +416,16 @@ export default function HojePage() {
             const c    = entry ? Math.round(entry.nutrition.carbs     * entry.servings) : 0;
             const f    = entry ? Math.round(entry.nutrition.fat       * entry.servings) : 0;
             return (
-              <div
+              <button
                 key={slot.label}
+                type="button"
                 onClick={() => handleSlotClick(slot.label, entry)}
                 style={{
                   background: "#fff", border: "1px solid #f2e6d6", borderRadius: 18,
                   padding: "14px 16px", display: "flex", alignItems: "center", gap: 13,
                   cursor: "pointer", boxShadow: "0 3px 10px -6px rgba(22,47,37,.12)",
                   transition: "transform .12s ease, box-shadow .12s ease",
+                  width: "100%", textAlign: "left", touchAction: "pan-y",
                 }}
                 onMouseDown={e => (e.currentTarget.style.transform = "scale(.985)")}
                 onMouseUp={e => (e.currentTarget.style.transform = "")}
@@ -457,7 +463,7 @@ export default function HojePage() {
                     <div style={{ fontSize: 13, fontWeight: 700, color: "#d4644a" }}>+ Registrar</div>
                   )}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

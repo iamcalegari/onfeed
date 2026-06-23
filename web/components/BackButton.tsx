@@ -1,25 +1,22 @@
 "use client";
 
+import type { CSSProperties, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
-/**
- * Volta para a página anterior pelo histórico (router.back), preservando o
- * estado dela — ex.: /results com os query params da busca. Um Link fixo para
- * "/results" perderia os params e refaria uma busca vazia.
- */
 export function BackButton({
   children,
   className,
+  style,
   fallbackHref = "/",
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
+  style?: CSSProperties;
   fallbackHref?: string;
 }) {
   const router = useRouter();
 
   function onClick() {
-    // sem histórico (ex.: link aberto direto) → vai pro fallback
     if (typeof window !== "undefined" && window.history.length <= 1) {
       router.push(fallbackHref);
     } else {
@@ -28,7 +25,7 @@ export function BackButton({
   }
 
   return (
-    <button type="button" onClick={onClick} className={className}>
+    <button type="button" onClick={onClick} className={className} style={style}>
       {children}
     </button>
   );

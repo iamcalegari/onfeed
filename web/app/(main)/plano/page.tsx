@@ -10,6 +10,8 @@ import {
   type PlannedMeal,
 } from "@/lib/planStorage";
 import { getGoals } from "@/lib/nutritionPlan";
+import { usePro } from "@/lib/usePro";
+import { showToast } from "@/lib/toast";
 
 /* ── Semana atual ────────────────────────────────────────────── */
 function buildWeek() {
@@ -36,6 +38,7 @@ const SLOTS = ["Café", "Almoço", "Lanche", "Jantar"];
 /* ── Page ─────────────────────────────────────────────────────── */
 export default function PlanoPage() {
   const router = useRouter();
+  const pro = usePro();
   const [dayIdx, setDayIdx] = useState(() => WEEK.findIndex(d => d.isToday) ?? 0);
   const [meals, setMeals]   = useState<PlannedMeal[]>([]);
   const [goalKcal, setGoalKcal] = useState(0);
@@ -74,7 +77,7 @@ export default function PlanoPage() {
   })();
 
   return (
-    <div className="flex flex-col gap-0 pb-4">
+    <div className="flex flex-col gap-0 pb-4" style={{ animation: "ofRise .28s ease both" }}>
 
       {/* ── Header ─────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 18 }}>
@@ -189,19 +192,30 @@ export default function PlanoPage() {
       </div>
 
       {/* ── PRO CTA ───────────────────────────────────────────── */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 10,
-        background: "linear-gradient(120deg,#1d3a2c,#2a5440)", borderRadius: 18,
-        padding: 16, marginTop: 18, cursor: "pointer",
-        boxShadow: "0 10px 24px -12px rgba(22,47,37,.5)",
-      }}>
+      <div
+        onClick={() => {
+          if (pro.isPro) showToast("Gerando seu plano da semana com IA…", "✨");
+          else { showToast("Planos com IA são exclusivos do PRO", "✨"); router.push("/progresso"); }
+        }}
+        className="ofcard"
+        style={{
+          display: "flex", alignItems: "center", gap: 10,
+          background: "linear-gradient(120deg,#1d3a2c,#2a5440)", borderRadius: 18,
+          padding: 16, marginTop: 18, cursor: "pointer",
+          boxShadow: "0 10px 24px -12px rgba(22,47,37,.5)",
+        }}
+      >
         <span style={{ fontSize: 20 }}>✨</span>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: "#faf4e8" }}>Gerar plano automático</div>
           <div style={{ fontSize: 12, color: "#9db8ad", marginTop: 1 }}>21 refeições com IA · onFeed Pro</div>
         </div>
-        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, background: "#e0c9a6", color: "#162f25", padding: "4px 8px", borderRadius: 8 }}>
-          PRO
+        <span style={{
+          fontSize: 10, fontWeight: 800, letterSpacing: 1, borderRadius: 8, padding: "4px 8px",
+          background: pro.isPro ? "#2d7d4e" : "#e0c9a6",
+          color:      pro.isPro ? "#faf4e8" : "#162f25",
+        }}>
+          {pro.isPro ? "ATIVO" : "PRO"}
         </span>
       </div>
 

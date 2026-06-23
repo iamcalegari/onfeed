@@ -11,6 +11,9 @@ import {
   weightSparklinePoints,
   type WeightEntry,
 } from "@/lib/weightStorage";
+import { PRO_FEATURES, PRO_PRICE, togglePro } from "@/lib/proStorage";
+import { usePro } from "@/lib/usePro";
+import { showToast } from "@/lib/toast";
 
 /* ── Achievements ────────────────────────────────────────────── */
 const ACHIEVEMENTS = [
@@ -20,6 +23,7 @@ const ACHIEVEMENTS = [
 ];
 
 export default function ProgressoPage() {
+  const pro = usePro();
   const [streak, setStreak]       = useState(0);
   const [macros, setMacros]       = useState<DayMacro[]>([]);
   const [goalKcal, setGoalKcal]   = useState(0);
@@ -81,7 +85,7 @@ export default function ProgressoPage() {
   });
 
   return (
-    <div className="flex flex-col gap-4 pb-4">
+    <div className="flex flex-col gap-4 pb-4" style={{ animation: "ofRise .28s ease both" }}>
 
       <h1 style={{ fontFamily: "var(--font-display)", fontSize: 25, color: "#162f25", marginBottom: 4 }}>
         Progresso
@@ -257,6 +261,52 @@ export default function ProgressoPage() {
           Registre suas refeições para desbloquear conquistas!
         </p>
       )}
+
+      {/* ── onFeed PRO ───────────────────────────────────────── */}
+      <div style={{
+        background: "linear-gradient(125deg,#d4644a,#e0865f)", borderRadius: 22, padding: 22,
+        marginTop: 6, color: "#fff", boxShadow: "0 12px 28px -12px rgba(212,100,74,.6)",
+      }}>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5 }}>✨ ONFEED PRO</div>
+        <div style={{ fontFamily: "var(--font-display)", fontSize: 21, marginTop: 8, lineHeight: 1.2 }}>
+          {pro.isPro ? "Você está no PRO ✦" : "Sem limites, sem anúncios"}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 15 }}>
+          {PRO_FEATURES.map(f => (
+            <div key={f.title} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <span style={{
+                width: 20, height: 20, borderRadius: "50%", background: "rgba(255,255,255,.22)",
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0, marginTop: 1,
+              }}>✓</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25 }}>{f.title}</div>
+                <div style={{ fontSize: 11.5, opacity: 0.82, marginTop: 1, lineHeight: 1.3 }}>{f.free}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 16 }}>
+          <span style={{ fontSize: 24, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{PRO_PRICE}</span>
+          <span style={{ fontSize: 13, opacity: 0.85 }}>/mês</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            const np = togglePro();
+            showToast(np ? "Modo PRO ativado ✨" : "Voltou para o plano grátis", np ? "✨" : "✅");
+          }}
+          style={{
+            width: "100%", background: "#fff", color: "#d4644a", border: "none",
+            borderRadius: 14, padding: 13, textAlign: "center", fontSize: 14, fontWeight: 800,
+            marginTop: 14, cursor: "pointer",
+          }}
+        >
+          {pro.isPro ? "Você é PRO ✓" : "Testar 7 dias grátis"}
+        </button>
+        <div style={{ fontSize: 10.5, opacity: 0.7, textAlign: "center", marginTop: 8 }}>
+          {pro.isPro ? "Demo: tocar para voltar ao plano grátis" : "Demo: tocar para simular o plano PRO"}
+        </div>
+      </div>
     </div>
   );
 }

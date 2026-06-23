@@ -7,6 +7,9 @@ import { useEffect, useRef, useState } from "react";
 import { clearHistory, getHistory, saveSearch } from "@/lib/searchHistory";
 import { getGoals, getTodayTotals } from "@/lib/nutritionPlan";
 import { clearPendingSlot, getPendingSlot, type PendingSlot } from "@/lib/planStorage";
+import { consumeSearch, SEARCH_FREE } from "@/lib/proStorage";
+import { usePro } from "@/lib/usePro";
+import { showToast } from "@/lib/toast";
 
 /* ── Types ────────────────────────────────────────────────────── */
 interface Ingredient { name: string; base: boolean }
@@ -107,6 +110,7 @@ function pillStyle(open: boolean, set: boolean) {
 /* ── Page ─────────────────────────────────────────────────────── */
 export default function BuscarPage() {
   const router = useRouter();
+  const pro = usePro();
 
   // modo: "ingredientes" (tenho na cozinha) ou "nome" (já sei o que fazer)
   const [mode, setMode] = useState<"ingredientes" | "nome">("ingredientes");
@@ -190,6 +194,13 @@ export default function BuscarPage() {
       const q = titleDraft.trim();
       if (!q) return;
       router.push(`/results?titleSearch=${encodeURIComponent(q)}`);
+      return;
+    }
+
+    // Quota FREE: busca sob medida (modo ingredientes) consome 1 por dia.
+    // Sem quota e sem PRO → "anúncio" e não prossegue (igual ao design).
+    if (!consumeSearch()) {
+      showToast("Assistindo anúncio para liberar a busca…", "▶");
       return;
     }
 
@@ -304,8 +315,44 @@ export default function BuscarPage() {
       <div style={{ fontFamily: "var(--font-display)", fontSize: 27, color: "#162f25", lineHeight: 1.08 }}>
         Bora cozinhar?
       </div>
-      <div style={{ fontSize: 13, color: "#7a9e94", fontWeight: 500, marginTop: 5, marginBottom: 18 }}>
+      <div style={{ fontSize: 13, color: "#7a9e94", fontWeight: 500, marginTop: 5, marginBottom: 16 }}>
         {recap}
+      </div>
+
+      {/* ── CheffIA (PRO) ──────────────────────────────────── */}
+      <div
+        onClick={() => {
+          if (pro.isPro) showToast("Abrindo CheffIA…", "👩‍🍳");
+          else { showToast("CheffIA é exclusivo do PRO", "✨"); router.push("/progresso"); }
+        }}
+        className="ofcard"
+        style={{
+          display: "flex", alignItems: "center", gap: 12,
+          background: "linear-gradient(120deg,#23402f,#37624a)",
+          borderRadius: 18, padding: "14px 15px", marginBottom: 18,
+          cursor: "pointer", boxShadow: "0 12px 26px -14px rgba(22,47,37,.5)",
+        }}
+      >
+        <span style={{
+          width: 42, height: 42, borderRadius: 13, background: "rgba(224,201,166,.16)",
+          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21, flexShrink: 0,
+        }}>👩‍🍳</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <span style={{ fontSize: 14.5, fontWeight: 800, color: "#faf4e8" }}>CheffIA</span>
+            <span style={{
+              fontSize: 9, fontWeight: 800, letterSpacing: 0.6, borderRadius: 7, padding: "2px 6px",
+              background: pro.isPro ? "#2d7d4e" : "#e0c9a6",
+              color:      pro.isPro ? "#faf4e8" : "#162f25",
+            }}>
+              {pro.isPro ? "ATIVO" : "PRO"}
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: "#9db8ad", marginTop: 2 }}>
+            Dúvidas de nutrição, troca de ingredientes e montagem de pratos
+          </div>
+        </div>
+        <span style={{ flexShrink: 0, color: "#e0c9a6", fontSize: 17 }}>→</span>
       </div>
 
       {/* ── Card principal (Tenho na cozinha / Já sei o que fazer) ── */}
@@ -439,7 +486,7 @@ export default function BuscarPage() {
       </div>
 
       {/* ── Refinar pills (apenas modo ingredientes) ───────── */}
-      {mode === "ingredientes" && <div style={{ display: "flex", gap: 8, overflowX: "auto", marginTop: 16, paddingBottom: 3 }}>
+      {mode === "ingredientes" && <div style={{ display: "flex", gap: 8, overflowX: "auto", marginTop: 16, paddingBottom: 3, scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
         {pills.map(p => {
           const s = pillStyle(openFilter === p.key, p.set);
           return (
@@ -528,6 +575,48 @@ export default function BuscarPage() {
         </div>
       )}
 
+      {/* ── Quota FREE · buscas sob medida (só modo ingredientes) ── */}
+      {mode === "ingredientes" && (() => {
+        const left      = pro.searchesLeft;
+        const quotaColor = pro.isPro ? "#2d7d4e" : left === 0 ? "#d4644a" : left <= 3 ? "#c27a00" : "#2d7d4e";
+        const quotaLabel = pro.isPro ? "ilimitado" : `${left}/${SEARCH_FREE} grátis hoje`;
+        const quotaPct   = pro.isPro ? "100%" : `${Math.round((left / SEARCH_FREE) * 100)}%`;
+        const quotaNote  = pro.isPro
+          ? "PRO · buscas sob medida ilimitadas, sem anúncios"
+          : left > 0
+            ? "No grátis: 10 buscas/dia · depois, 1 anúncio por busca"
+            : "Limite grátis atingido · assista a um anúncio ou vire PRO";
+        return (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 12, marginTop: 20,
+            background: "#fff", border: "1px solid #f0e4d2", borderRadius: 16, padding: "12px 14px",
+          }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: "#162f25" }}>Buscas sob medida</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: quotaColor, fontVariantNumeric: "tabular-nums" }}>{quotaLabel}</span>
+              </div>
+              <div style={{ height: 6, borderRadius: 4, background: "#efe7d8", overflow: "hidden", marginTop: 7 }}>
+                <div style={{ height: "100%", borderRadius: 4, width: quotaPct, background: quotaColor, transition: "width .3s ease" }} />
+              </div>
+              <div style={{ fontSize: 11, color: "#9aa39b", marginTop: 6, lineHeight: 1.35 }}>{quotaNote}</div>
+            </div>
+            {!pro.isPro && (
+              <div
+                onClick={() => router.push("/progresso")}
+                style={{
+                  flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 1,
+                  background: "#fbf1de", border: "1px solid #eccf95", borderRadius: 12, padding: "9px 12px", cursor: "pointer",
+                }}
+              >
+                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, color: "#a76a00" }}>PRO</span>
+                <span style={{ fontSize: 9.5, color: "#a76a00", fontWeight: 600 }}>ilimitado</span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* ── CTA ────────────────────────────────────────────── */}
       <div
         onClick={mode === "nome" && !titleDraft.trim() ? undefined : submit}
@@ -551,15 +640,17 @@ export default function BuscarPage() {
               : `${matchCount} receitas combinam ✨`}
           </div>
           <div style={{ fontSize: 12, color: "#9db8ad", marginTop: 1 }}>
-            {mode === "nome" ? "busca no catálogo completo" : "com o que você tem e seu plano"}
+            {mode === "nome"
+              ? "busca no catálogo completo"
+              : pro.isPro ? "PRO · sob medida ilimitado" : "com o que você tem e seu plano"}
           </div>
         </div>
         <div style={{
           display: "flex", alignItems: "center", gap: 6,
           background: "#e0c9a6", color: "#162f25", borderRadius: 12,
-          padding: "9px 14px", fontSize: 13, fontWeight: 800, flexShrink: 0,
+          padding: "9px 14px", fontSize: 13, fontWeight: 800, flexShrink: 0, whiteSpace: "nowrap",
         }}>
-          Buscar
+          {mode === "ingredientes" && !pro.isPro && pro.searchesLeft === 0 ? "▶ Anúncio" : "Buscar"}
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#162f25" strokeWidth="2.6">
             <path d="M6 12h12M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>

@@ -101,7 +101,7 @@ function PackOpener({
 
   return (
     <div
-      className={`fixed inset-0 z-100 flex items-center justify-center px-6 transition-opacity duration-300 ${
+      className={`fixed inset-0 z-[100] flex items-center justify-center px-6 transition-opacity duration-300 ${
         phase === "entering" ? "opacity-0" : "opacity-100"
       }`}
       onClick={handleOpen}
