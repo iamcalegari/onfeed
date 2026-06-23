@@ -18,6 +18,7 @@ function parseParams(
 
   const base = list("base");
   const titleSearch = str("titleSearch");
+  const note = str("note");
 
   return {
     ingredients: list("ingredients"),
@@ -28,6 +29,7 @@ function parseParams(
     limit: 75,
     ...(base.length > 0 && { baseIngredients: base }),
     ...(titleSearch && { titleSearch }),
+    ...(note && { note }),
   };
 }
 

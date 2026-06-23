@@ -72,27 +72,46 @@ const RESTRICAO_LABEL: Record<string, string> = {
 };
 
 /* ── Explore ──────────────────────────────────────────────────── */
-interface ExploreCategory { label: string; bg: string; fg: string; pool: string[]; fallback: string[] }
+interface ExploreCategory { label: string; bg: string; fg: string; pool: string[]; fallback: string[]; occasion?: string }
 const EXPLORE_CATEGORIES: ExploreCategory[] = [
   { label: "💪 Alta proteína",    bg: "#eef3fb", fg: "#2f4f7a",
     pool: ["frango","peito de frango","ovo","atum","salmão","carne","carne moída","queijo cottage","iogurte grego","grão-de-bico","lentilha","tofu","camarão","sardinha","tilápia","proteína"],
     fallback: ["frango","ovo","atum","grão-de-bico"] },
   { label: "🥗 Café da manhã fit", bg: "#e4f1e9", fg: "#2d6b48",
     pool: ["aveia","ovo","banana","iogurte","granola","linhaça","chia","mel","mamão","morango","abacate","queijo","tapioca","açaí","whey"],
-    fallback: ["aveia","ovo","banana","iogurte"] },
+    fallback: ["aveia","ovo","banana","iogurte"],
+    occasion: "café" },
   { label: "🌿 Low-carb",          bg: "#f0f7ee", fg: "#3a6b30",
     pool: ["frango","azeite","ovo","abacate","brócolis","espinafre","queijo","salmão","couve-flor","abobrinha","pepino","tomate","alface","cogumelo","ricota"],
     fallback: ["frango","azeite","ovo","brócolis"] },
   { label: "🍹 Drinks fit",         bg: "#fbeae6", fg: "#a8543c",
     pool: ["limão","gengibre","menta","hortelã","pepino","maracujá","abacaxi","morango","kiwi","laranja","beterraba","cenoura","açaí","manga"],
-    fallback: ["limão","gengibre","menta","maracujá"] },
+    fallback: ["limão","gengibre","menta","maracujá"],
+    occasion: "drinks" },
   { label: "⚡ Pós-treino",         bg: "#fff8e6", fg: "#8a6200",
     pool: ["banana","aveia","ovo","iogurte","frango","batata doce","arroz","mel","whey","amendoim","pasta de amendoim","granola","proteína"],
     fallback: ["banana","aveia","ovo","batata doce"] },
 ];
-function buildExploreQuery(cat: ExploreCategory, pantry: string[]): string {
-  const m = cat.pool.filter(item => pantry.some(p => p.includes(item.split(" ")[0]) || item.includes(p.split(" ")[0])));
-  return (m.length >= 2 ? m.slice(0, 5) : cat.fallback).join(",");
+
+/**
+ * Monta a URL de resultados para uma categoria do Explorar.
+ * - `ingredients`: somente o que o usuário REALMENTE tem na despensa (garante score correto)
+ * - `note`: fallback da categoria passado apenas como contexto semântico quando o usuário
+ *   tem < 2 matches — influencia o vetor de busca sem inflar o scoreI
+ * - `occasions`: filtro duro de ocasião quando a categoria mapeia para uma
+ */
+function buildExploreUrl(cat: ExploreCategory, pantry: string[]): string {
+  const matched = cat.pool.filter(item =>
+    pantry.some(p => p.includes(item.split(" ")[0]) || item.includes(p.split(" ")[0]))
+  );
+
+  const qs = new URLSearchParams();
+  if (matched.length > 0) qs.set("ingredients", matched.slice(0, 5).join(","));
+  if (cat.occasion) qs.set("occasions", cat.occasion);
+  // Se o usuário tem < 2 itens da categoria, usa o fallback só como dica semântica
+  if (matched.length < 2) qs.set("note", cat.fallback.join(", "));
+
+  return `/results?${qs.toString()}`;
 }
 
 /* ── Helpers ──────────────────────────────────────────────────── */
@@ -739,7 +758,7 @@ export default function BuscarPage() {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
           {EXPLORE_CATEGORIES.map(cat => {
-            const q = buildExploreQuery(cat, pantry);
+            const exploreUrl = buildExploreUrl(cat, pantry);
             const fromPantry = pantry.filter(p =>
               cat.pool.some(item => p.includes(item.split(" ")[0]) || item.includes(p.split(" ")[0]))
             ).slice(0, 3);
@@ -747,7 +766,7 @@ export default function BuscarPage() {
               <button
                 key={cat.label}
                 type="button"
-                onClick={() => router.push(`/results?ingredients=${encodeURIComponent(q)}`)}
+                onClick={() => router.push(exploreUrl)}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   background: cat.bg, borderRadius: 16, padding: "14px 16px",

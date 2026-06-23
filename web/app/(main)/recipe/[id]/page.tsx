@@ -83,6 +83,7 @@ export default async function RecipePage({
 
   const totalTime  = recipe.prepTimeMin || recipe.steps.reduce((a, s) => a + (s.minutes ?? 0), 0);
   const nut        = recipe.nutrition;
+  const hasBanner  = Boolean(adapted) || isVariant;
 
   return (
     <article style={{ display: "flex", flexDirection: "column", animation: "ofRise .28s ease both" }}>
@@ -135,8 +136,8 @@ export default async function RecipePage({
         </div>
       </div>
 
-      {/* ── Conteúdo (sobrepõe hero -26px) ───────────────────── */}
-      <div style={{ marginTop: -26, paddingBottom: 80 }}>
+      {/* ── Conteúdo (sobrepõe hero -26px, exceto quando há banner) ── */}
+      <div style={{ marginTop: hasBanner ? 14 : -26, paddingBottom: 80 }}>
 
         {/* Banners (adapted / variant) */}
         {adapted && (
