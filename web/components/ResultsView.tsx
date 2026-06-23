@@ -54,7 +54,7 @@ export function ResultsView({
       )}
 
       {/* Tabs — pill style */}
-      <div style={{ display: "flex", gap: 8, background: "#f1e7d6", padding: 5, borderRadius: 16 }}>
+      <div style={{ display: "flex", gap: 8, background: "var(--t-bg-section)", padding: 5, borderRadius: 16 }}>
         {[
           { id: "list",  icon: "📋", label: "Lista"  },
           { id: "packs", icon: "🧩", label: "Packs"  },
@@ -68,8 +68,8 @@ export function ResultsView({
               style={{
                 flex: 1, textAlign: "center", padding: "11px 0",
                 borderRadius: 12, fontSize: 14, fontWeight: 700,
-                background: on ? "#fff" : "transparent",
-                color: on ? "#162f25" : "#9aa39b",
+                background: on ? "var(--t-bg-card)" : "transparent",
+                color: on ? "var(--t-text-title)" : "var(--t-text-muted)",
                 boxShadow: on ? "0 2px 8px -3px rgba(22,47,37,.2)" : "none",
                 cursor: "pointer", border: "none",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
@@ -86,11 +86,11 @@ export function ResultsView({
       {!isPacks && (
         <>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop: 6 }}>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "#162f25" }}>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "var(--t-text-title)" }}>
               Combinam com você
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 12.5, color: "#7a9e94", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+              <span style={{ fontSize: 12.5, color: "var(--t-text-secondary)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
                 {results.length} receita{results.length === 1 ? "" : "s"} · ordenadas por match
               </span>
               <ShareButton
@@ -102,13 +102,13 @@ export function ResultsView({
           </div>
 
           {/* Legenda */}
-          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", fontSize: 11.5, color: "#9aa39b", fontWeight: 600 }}>
-            <span style={{ color: "#7a9e94" }}>O que o match considera:</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", fontSize: 11.5, color: "var(--t-text-muted)", fontWeight: 600 }}>
+            <span style={{ color: "var(--t-text-secondary)" }}>O que o match considera:</span>
             {[
-              { label: "Ingredientes", color: "#2d7d4e" },
-              { label: "Equipamento",  color: "#7a9e94" },
-              { label: "Tempo",        color: "#c27a00" },
-              { label: "Nutrição",     color: "#4a7fcb" },
+              { label: "Ingredientes", color: "var(--t-success)" },
+              { label: "Equipamento",  color: "var(--t-text-secondary)" },
+              { label: "Tempo",        color: "var(--t-carb-fg)" },
+              { label: "Nutrição",     color: "var(--t-protein-fg)" },
             ].map(l => (
               <span key={l.label} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                 <span style={{ width: 8, height: 8, borderRadius: 2, background: l.color, display: "inline-block" }} />

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   try {
     const { results } = await searchRecipes({
       ingredients: ["frango", "ovo", "azeite"],
-      limit: 8,
+      limit: 12,
     });
 
     const hits = results
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
         if (a.fits !== null && b.fits !== null) return (b.fits ? 1 : 0) - (a.fits ? 1 : 0) || b.score - a.score;
         return b.score - a.score;
       })
-      .slice(0, 4);
+      .slice(0, 5);
 
     return NextResponse.json(hits);
   } catch {

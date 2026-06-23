@@ -36,10 +36,10 @@ export function AdaptButton({
   const adaptTag = pro.isPro ? "PRO" : aLeft > 0 ? `${aLeft} grátis` : "▶ Anúncio";
 
   const tagStyle = pro.isPro
-    ? { bg: "#fbf1de", fg: "#a76a00", bd: "#eccf95" }
+    ? { bg: "var(--t-carb-bg)", fg: "var(--t-pro-chip-fg)", bd: "var(--t-pro-chip-bd)" }
     : aLeft > 0
-      ? { bg: "#e4f1e9", fg: "#2d7d4e", bd: "#c2e0ce" }
-      : { bg: "#fbeae6", fg: "#c25a3c", bd: "#eccabe" };
+      ? { bg: "#e4f1e9", fg: "var(--t-success)", bd: "#c2e0ce" }
+      : { bg: "var(--t-fat-bg)", fg: "#c25a3c", bd: "#eccabe" };
 
   function run() {
     // Quota: PRO ignora; FREE consome 1, e sem saldo cai no "anúncio".
@@ -66,18 +66,18 @@ export function AdaptButton({
         className="ofcard"
         style={{
           display: "flex", alignItems: "center", gap: 12,
-          background: "#fff", border: "1px solid #ecdcc4", borderRadius: 18,
+          background: "var(--t-bg-card)", border: "1px solid var(--t-bd-strong)", borderRadius: 18,
           padding: "15px 16px", cursor: pending ? "default" : "pointer",
           opacity: pending ? 0.6 : 1,
         }}
       >
         <span style={{
-          width: 38, height: 38, borderRadius: 11, background: "#fbf1de",
+          width: 38, height: 38, borderRadius: 11, background: "var(--t-carb-bg)",
           display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0,
         }}>✨</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 700, color: "#232320" }}>Adaptar aos meus macros</div>
-          <div style={{ fontSize: 12, color: "#9aa39b", fontWeight: 500, marginTop: 1 }}>{adaptNote}</div>
+          <div style={{ fontSize: 14.5, fontWeight: 700, color: "var(--t-text-primary)" }}>Adaptar aos meus macros</div>
+          <div style={{ fontSize: 12, color: "var(--t-text-muted)", fontWeight: 500, marginTop: 1 }}>{adaptNote}</div>
         </div>
         <span style={{
           flexShrink: 0, fontSize: 11, fontWeight: 800, letterSpacing: 0.4,
@@ -113,7 +113,7 @@ function AdaptLoader() {
 
       {/* Texto */}
       <div className="flex flex-col items-center gap-1 text-center">
-        <p className="font-display text-xl font-bold" style={{ color: "#162f25" }}>
+        <p className="font-display text-xl font-bold" style={{ color: "var(--t-text-title)" }}>
           Adaptando sua receita
         </p>
         <p className="text-sm" style={{ color: "rgba(35,35,32,0.50)" }}>

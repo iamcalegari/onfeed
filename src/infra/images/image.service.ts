@@ -29,7 +29,7 @@ async function toThumbnail(input: Buffer): Promise<Buffer> {
 export const imagesEnabled = env.images.enabled;
 
 /** Prompt de foto a partir dos ingredientes core da receita (sem usar o título). */
-function buildPrompt(recipe: Pick<Recipe, "title" | "ingredients">): { prompt: string; negativePrompt: string } {
+function buildPrompt(recipe: Pick<Recipe, "title" | "ingredients" | "occasions">): { prompt: string; negativePrompt: string } {
   // Prefere ingredientes marcados como core (os essenciais da receita).
   // Fallback: qualquer não-staple, caso não haja cores.
   const candidates = recipe.ingredients.filter((i) => i.core && !i.isStaple);
@@ -41,11 +41,32 @@ function buildPrompt(recipe: Pick<Recipe, "title" | "ingredients">): { prompt: s
   // Não inclui recipe.title no prompt: títulos traduzidos literalmente
   // (ex: "souris d'agneau" → "mice") causam hallucinations no modelo.
   const ingList = ings.join(", ");
-  const subject = ingList
-    ? `a plated dish made with ${ingList}`
-    : "a plated homemade dish";
+  const isDrink = recipe.occasions?.includes("drinks");
 
-  const prompt = `appetizing realistic food photography, ${subject}, natural light, top-down view, neutral linen background, editorial food styling`;
+  let subject: string;
+  let prompt: string;
+
+  if (isDrink) {
+    // Detecta bebidas quentes pelo título para escolher o enquadramento certo.
+    const hotKeywords = /\b(chá|cha\b|tea\b|café|cafe\b|coffee|latte|cappuccino|expresso|espresso|quentinho|quente|warm|hot\b|caldo|soup)\b/i;
+    const isHot = hotKeywords.test(recipe.title);
+    if (isHot) {
+      subject = ingList
+        ? `a hot drink in a mug or cup, made with ${ingList}`
+        : "a cozy hot beverage in a ceramic mug";
+      prompt = `appetizing realistic beverage photography, ${subject}, steam rising, natural light, 3/4 angle view, warm neutral background, editorial food styling`;
+    } else {
+      subject = ingList
+        ? `a refreshing cold drink in a glass, made with ${ingList}`
+        : "a refreshing homemade cold drink in a glass";
+      prompt = `appetizing realistic beverage photography, ${subject}, condensation on glass, natural light, 3/4 angle view, neutral marble or linen background, editorial food styling`;
+    }
+  } else {
+    subject = ingList
+      ? `a plated dish made with ${ingList}`
+      : "a plated homemade dish";
+    prompt = `appetizing realistic food photography, ${subject}, natural light, top-down view, neutral linen background, editorial food styling`;
+  }
 
   const negativePrompt =
     "animals, mice, rats, insects, people, faces, cartoon, illustration, text, watermark, logo, blurry, raw uncooked meat, unrelated ingredients, random garnish";
@@ -63,7 +84,7 @@ function buildPrompt(recipe: Pick<Recipe, "title" | "ingredients">): { prompt: s
  * dependência do model.
  */
 export async function ensureThumbnail(
-  recipe: Pick<Recipe, "_id" | "title" | "ingredients" | "thumbnailUrl">,
+  recipe: Pick<Recipe, "_id" | "title" | "ingredients" | "thumbnailUrl" | "occasions">,
 ): Promise<string | null> {
   if (recipe.thumbnailUrl) return recipe.thumbnailUrl;
   if (!imagesEnabled || !recipe._id) return null;

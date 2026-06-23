@@ -1,5 +1,6 @@
-const PLAN_KEY    = "onfeed:plan";
-const PENDING_KEY = "onfeed:pending_plan";
+const PLAN_KEY     = "onfeed:plan";
+const PENDING_KEY  = "onfeed:pending_plan";
+const SHOPPING_KEY = "onfeed:shopping";
 
 /* ── Types ───────────────────────────────────────────────────── */
 
@@ -80,6 +81,54 @@ export function getWeekIngredients(): string[] {
     }
   }
   return all;
+}
+
+/* ── Lista de compras direta (ingredientes faltantes de receitas) */
+
+export interface ShoppingItem {
+  name:        string;
+  recipeId:    string;
+  recipeTitle: string;
+}
+
+export function getDirectShoppingList(): ShoppingItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(SHOPPING_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown[];
+    // suporta formato legado (array de string) e novo (array de ShoppingItem)
+    return parsed.map(item =>
+      typeof item === "string"
+        ? { name: item, recipeId: "", recipeTitle: "" }
+        : (item as ShoppingItem)
+    );
+  } catch { return []; }
+}
+
+export function addToShoppingList(
+  names: string[],
+  recipe: { id: string; title: string },
+): void {
+  const current = getDirectShoppingList();
+  const seen = new Set(current.map(n => n.name.toLowerCase()));
+  const merged = [...current];
+  for (const n of names) {
+    if (!seen.has(n.toLowerCase())) {
+      merged.push({ name: n, recipeId: recipe.id, recipeTitle: recipe.title });
+      seen.add(n.toLowerCase());
+    }
+  }
+  try { localStorage.setItem(SHOPPING_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
+}
+
+export function removeFromShoppingList(name: string): void {
+  const filtered = getDirectShoppingList().filter(n => n.name.toLowerCase() !== name.toLowerCase());
+  try { localStorage.setItem(SHOPPING_KEY, JSON.stringify(filtered)); } catch { /* ignore */ }
+}
+
+export function clearDirectShoppingList(): void {
+  try { localStorage.removeItem(SHOPPING_KEY); } catch { /* ignore */ }
 }
 
 /* ── Pending slot (para o fluxo Plano → Buscar → Receita) ────── */

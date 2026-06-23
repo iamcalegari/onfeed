@@ -54,8 +54,8 @@ export function AddToPlanButton({ recipeId, title, nutrition, prepTime, ingredie
         onClick={handleAdd}
         disabled={done}
         style={{
-          width: "100%", background: done ? "#2d7d4e" : "#162f25",
-          color: "#faf4e8", borderRadius: 18, padding: "17px 16px",
+          width: "100%", background: done ? "var(--t-success)" : "var(--t-bg-cta)",
+          color: "var(--t-hero-fg)", borderRadius: 18, padding: "17px 16px",
           textAlign: "center", fontSize: 15, fontWeight: 700,
           cursor: done ? "default" : "pointer", border: "none",
           boxShadow: "0 10px 24px -10px rgba(22,47,37,.5)",

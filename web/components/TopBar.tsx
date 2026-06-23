@@ -36,16 +36,16 @@ export function TopBar({ clerkEnabled }: { clerkEnabled: boolean }) {
   /* Barra mínima de auth — sem título, fundo transparente */
   if (isSelfTitled || isRecipe) {
     return (
-      <div className="fixed top-0 right-0 z-50 flex items-center gap-2 p-3 pt-safe">
+      <div className="fixed right-0 z-50 flex items-center gap-2 p-3" style={{ top: "env(safe-area-inset-top)" }}>
         {clerkEnabled && (
           <>
             <Show when="signed-out">
               <SignInButton mode="modal">
                 <button
                   style={{
-                    fontSize: 12, fontWeight: 700, color: "#162f25",
-                    background: "rgba(255,255,255,.85)", backdropFilter: "blur(8px)",
-                    border: "1px solid #f0e4d2", borderRadius: 20,
+                    fontSize: 12, fontWeight: 700, color: "var(--t-text-title)",
+                    background: "var(--t-bg-card)", backdropFilter: "blur(8px)",
+                    border: "1px solid var(--t-bd-soft)", borderRadius: 20,
                     padding: "6px 12px", cursor: "pointer",
                   }}
                 >
@@ -66,16 +66,15 @@ export function TopBar({ clerkEnabled }: { clerkEnabled: boolean }) {
   return (
     <header
       style={{
-        position: "sticky", top: 0, zIndex: 30,
-        background: "rgba(250,244,232,.92)",
+        position: "sticky", top: "env(safe-area-inset-top)", zIndex: 30,
+        background: "var(--t-bg-tab-bar)",
         backdropFilter: "blur(12px)",
-        borderBottom: "1px solid rgba(224,201,166,.5)",
+        borderBottom: "1px solid var(--t-bd-card)",
       }}
-      className="pt-safe"
     >
       <div className="mx-auto flex w-full max-w-md items-center justify-between px-4 py-3">
         {title ? (
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, color: "#162f25", margin: 0 }}>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, color: "var(--t-text-title)", margin: 0 }}>
             {title}
           </h1>
         ) : (
@@ -88,7 +87,7 @@ export function TopBar({ clerkEnabled }: { clerkEnabled: boolean }) {
               <SignInButton mode="modal">
                 <button
                   style={{
-                    fontSize: 13, fontWeight: 700, color: "#162f25",
+                    fontSize: 13, fontWeight: 700, color: "var(--t-text-title)",
                     background: "none", border: "none", cursor: "pointer",
                   }}
                 >
@@ -98,7 +97,7 @@ export function TopBar({ clerkEnabled }: { clerkEnabled: boolean }) {
               <SignUpButton mode="modal">
                 <button
                   style={{
-                    background: "#162f25", color: "#faf4e8",
+                    background: "var(--t-bg-hero)", color: "var(--t-hero-fg)",
                     borderRadius: 20, padding: "6px 14px",
                     fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer",
                   }}

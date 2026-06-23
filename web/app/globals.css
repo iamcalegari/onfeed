@@ -41,13 +41,14 @@
   Tailwind adaptam automaticamente. Forest vira sage-verde muted (não neon).
 */
 .dark {
-  --color-forest:    #5a9d8c;   /* verde-salvia legível no escuro            */
-  --color-terracota: #c4573e;   /* terracota muted                           */
+  /* alinhado à paleta dark do design (onFeed Dark): verde-floresta profundo */
+  --color-forest:    #6b9278;   /* salvia-verde legível (textSecondary)      */
+  --color-terracota: #d86858;   /* terracota dark (fatFg)                     */
   --color-salvia:    #507870;   /* salvia escura                             */
-  --color-creme:     #100f0c;   /* fundo escuro quente                       */
-  --color-carvao:    #dbd4c8;   /* texto creme quente                        */
-  --color-areia:     #26211a;   /* bordas escuras douradas                   */
-  --color-surface:   #1c1812;   /* cards e inputs escuros                    */
+  --color-creme:     #0e1812;   /* fundo dark verde (bgScreen)               */
+  --color-carvao:    #d8d0bc;   /* texto creme quente (textPrimary)          */
+  --color-areia:     #1e2e24;   /* bordas dark (bdCard)                      */
+  --color-surface:   #162018;   /* cards e inputs dark (bgCard)              */
 
   --shadow-card: 0 1px 4px -1px rgb(0 0 0 / 0.35), 0 4px 14px -2px rgb(0 0 0 / 0.3);
   --shadow-lift: 0 4px 18px -2px rgb(0 0 0 / 0.4), 0 8px 28px -4px rgb(0 0 0 / 0.28);
@@ -56,15 +57,166 @@
   color-scheme: dark;
 }
 
+/* ── Tokens semânticos onFeed (espelham LIGHT/DARK do design) ──── */
+/*
+  Os valores em :root são idênticos aos hexes hardcoded usados nas telas
+  (light não muda). O bloco .dark abaixo troca todos de uma vez. Componentes
+  usam var(--t-…) por PAPEL semântico — a mesma cor light pode virar valores
+  dark diferentes conforme o papel (título vs. fundo de hero vs. CTA).
+*/
+:root {
+  --t-bg-screen: #faf4e8;
+  --t-bg-card: #ffffff;
+  --t-bd-card: #f2e6d6;
+  --t-bd-strong: #ecdcc4;
+  --t-bd-row: #f0e8da;
+  --t-bd-soft: #f0e4d2;
+  --t-bd-input: #efe2cd;
+
+  --t-text-title: #162f25;
+  --t-text-primary: #232320;
+  --t-text-body: #3a3a36;
+  --t-text-secondary: #7a9e94;
+  --t-text-muted: #9aa39b;
+  --t-text-hint: #b4b9ad;
+  --t-text-mono: #9c8a68;
+
+  --t-bg-hero: #162f25;
+  --t-hero-shadow: 0 16px 36px -14px rgba(22,47,37,.5);
+  --t-hero-fg: #faf4e8;
+  --t-hero-fg2: #9db8ad;
+
+  --t-bg-cta: #162f25;
+  --t-cta-fg: #faf4e8;
+
+  --t-bg-icon-slot: #f3ede1;
+  --t-bg-section: #f3ede1;
+  --t-bg-input: #faf6ee;
+  --t-bg-tray: #fbf7ef;
+
+  --t-card-shadow: 0 3px 10px -6px rgba(22,47,37,.12);
+  --t-card-shadow-md: 0 8px 22px -12px rgba(22,47,37,.22);
+
+  --t-bg-chef: linear-gradient(120deg,#23402f,#37624a);
+  --t-bg-match-bar: linear-gradient(120deg,#1d3a2c,#2a5440);
+  --t-bg-mode-switch: #f3ede1;
+  --t-mode-switch-active: #ffffff;
+  --t-mode-switch-shadow: 0 1px 3px rgba(22,47,37,.18);
+  --t-progress-track: #efe7d8;
+
+  --t-photo-fade: linear-gradient(to top,rgba(250,244,232,1),transparent);
+  --t-photo-sm: repeating-linear-gradient(135deg,#e9ddc7 0 11px,#e2d4ba 11px 22px);
+  --t-photo-card: repeating-linear-gradient(135deg,#e9ddc7 0 9px,#e2d4ba 9px 18px);
+  --t-photo-lg: repeating-linear-gradient(135deg,#e9ddc7 0 13px,#e2d4ba 13px 26px);
+  --t-avatar: repeating-linear-gradient(135deg,#e9ddc7 0 7px,#dccaa9 7px 14px);
+
+  --t-back-btn-bg: rgba(255,255,255,.92);
+  --t-back-btn-icon: #162f25;
+
+  --t-protein-bg: #eef3fb; --t-protein-fg: #4a7fcb; --t-protein-lbl: #7a8ba8;
+  --t-carb-bg: #fbf1de;    --t-carb-fg: #c27a00;    --t-carb-lbl: #a98a4e;
+  --t-fat-bg: #fbeae6;     --t-fat-fg: #d4644a;     --t-fat-lbl: #b06a55;
+
+  --t-pro-chip-bg: #fbf1de; --t-pro-chip-bd: #eccf95; --t-pro-chip-fg: #a76a00;
+  --t-success: #2d7d4e;
+  --t-ok-bg: #e4f1e9;   --t-ok-fg: #2d6b48;
+  --t-warn-bg: #fff8e6; --t-warn-fg: #8a6200;
+
+  --t-chip-on-bg: #162f25;  --t-chip-on-fg: #faf4e8;  --t-chip-on-bd: #162f25;
+  --t-chip-off-bg: #ffffff; --t-chip-off-fg: #3a3a36; --t-chip-off-bd: #e6d8c2;
+  --t-chip-fg: #5c5c57;     --t-chip-bg: #ffffff;     --t-chip-bd: #f0e4d2;
+
+  --t-week-on-bg: #162f25;  --t-week-on-bd: #162f25;  --t-week-on-fg: #faf4e8; --t-week-on-fg2: #9db8ad;
+  --t-week-off-bg: #ffffff; --t-week-off-bd: #f0e4d2; --t-week-off-fg: #232320; --t-week-off-fg2: #9aa39b;
+
+  --t-tab-on: #162f25; --t-tab-off: #a9b5ac;
+  --t-bg-tab-bar: rgba(255,255,255,.92); --t-bd-tab-bar: #efe4d3;
+  --t-bg-toast: #162f25;
+  --t-ring-track: rgba(224,201,166,.16);
+}
+
+.dark {
+  --t-bg-screen: #0e1812;
+  --t-bg-card: #162018;
+  --t-bd-card: #1e2e24;
+  --t-bd-strong: #1e2e24;
+  --t-bd-row: #162018;
+  --t-bd-soft: #1e2e24;
+  --t-bd-input: #1e2e24;
+
+  --t-text-title: #eee6d2;
+  --t-text-primary: #d8d0bc;
+  --t-text-body: #b0a890;
+  --t-text-secondary: #6b9278;
+  --t-text-muted: #455a4a;
+  --t-text-hint: #334038;
+  --t-text-mono: #4a6455;
+
+  --t-bg-hero: linear-gradient(140deg,#112618,#182e22);
+  --t-hero-shadow: 0 16px 44px -14px rgba(0,0,0,.78);
+  --t-hero-fg: #eee6d2;
+  --t-hero-fg2: #90b8a0;
+
+  --t-bg-cta: #2d7d4e;
+  --t-cta-fg: #d8f0e0;
+
+  --t-bg-icon-slot: #182818;
+  --t-bg-section: #0f1810;
+  --t-bg-input: #0f1810;
+  --t-bg-tray: #0f1810;
+
+  --t-card-shadow: 0 3px 16px -4px rgba(0,0,0,.5);
+  --t-card-shadow-md: 0 8px 30px -10px rgba(0,0,0,.6);
+
+  --t-bg-chef: linear-gradient(120deg,#142a1c,#1c3e28);
+  --t-bg-match-bar: linear-gradient(120deg,#112618,#1a3828);
+  --t-bg-mode-switch: #0f1810;
+  --t-mode-switch-active: #1e2e24;
+  --t-mode-switch-shadow: 0 1px 4px rgba(0,0,0,.4);
+  --t-progress-track: #142018;
+
+  --t-photo-fade: linear-gradient(to top,rgba(14,24,18,1),transparent);
+  --t-photo-sm: repeating-linear-gradient(135deg,#162018 0 11px,#121c14 11px 22px);
+  --t-photo-card: repeating-linear-gradient(135deg,#162018 0 9px,#121c14 9px 18px);
+  --t-photo-lg: repeating-linear-gradient(135deg,#162018 0 13px,#121c14 13px 26px);
+  --t-avatar: repeating-linear-gradient(135deg,#182018 0 7px,#142018 7px 14px);
+
+  --t-back-btn-bg: rgba(14,24,18,.90);
+  --t-back-btn-icon: #d8d0bc;
+
+  --t-protein-bg: #0e1824; --t-protein-fg: #6898d0; --t-protein-lbl: #3a5268;
+  --t-carb-bg: #1c1606;    --t-carb-fg: #cc9020;    --t-carb-lbl: #584018;
+  --t-fat-bg: #1e1008;     --t-fat-fg: #d86858;     --t-fat-lbl: #623430;
+
+  --t-pro-chip-bg: #1c1808; --t-pro-chip-bd: #382e10; --t-pro-chip-fg: #c09028;
+  --t-success: #58b878;
+  --t-ok-bg: #10241a;   --t-ok-fg: #6fbf8e;
+  --t-warn-bg: #221a08; --t-warn-fg: #cc9020;
+
+  --t-chip-on-bg: #2d7d4e;  --t-chip-on-fg: #d8f0e0;  --t-chip-on-bd: #2d7d4e;
+  --t-chip-off-bg: #162018; --t-chip-off-fg: #98b8a0; --t-chip-off-bd: #1e2e24;
+  --t-chip-fg: #88a898;     --t-chip-bg: #162018;     --t-chip-bd: #1e2e24;
+
+  --t-week-on-bg: #2d7d4e;  --t-week-on-bd: #2d7d4e;  --t-week-on-fg: #d8f0e0; --t-week-on-fg2: #90b8a0;
+  --t-week-off-bg: #162018; --t-week-off-bd: #1e2e24; --t-week-off-fg: #d8d0bc; --t-week-off-fg2: #455a4a;
+
+  --t-tab-on: #78c898; --t-tab-off: #3a5048;
+  --t-bg-tab-bar: rgba(10,18,12,.96); --t-bd-tab-bar: rgba(255,255,255,.05);
+  --t-bg-toast: #182e22;
+  --t-ring-track: rgba(255,255,255,.08);
+}
+
 /* ── Base ──────────────────────────────────────────────────── */
 html { color-scheme: light; }
 
 body {
-  background:              var(--color-creme);
-  color:                   var(--color-carvao);
+  background:              var(--t-bg-screen);
+  color:                   var(--t-text-primary);
   font-family:             var(--font-sans);
   -webkit-font-smoothing:  antialiased;
   -moz-osx-font-smoothing: grayscale;
+  padding-top:             env(safe-area-inset-top);
+  transition:              background .3s ease, color .3s ease;
 }
 
 ::selection {

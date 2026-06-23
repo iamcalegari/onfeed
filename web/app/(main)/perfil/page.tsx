@@ -83,24 +83,24 @@ export default function PerfilPage() {
   if (!isSignedIn) {
     return (
       <div className="flex flex-col items-center gap-5 py-16 text-center">
-        <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#f2e6d6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>
+        <div style={{ width: 72, height: 72, borderRadius: "50%", background: "var(--t-bd-card)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>
           👤
         </div>
         <div>
-          <p style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "#162f25" }}>Bem-vindo ao onFeed</p>
-          <p style={{ fontSize: 13, color: "#9aa39b", marginTop: 6 }}>Entre para salvar seu perfil, metas e favoritos.</p>
+          <p style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "var(--t-text-title)" }}>Bem-vindo ao onFeed</p>
+          <p style={{ fontSize: 13, color: "var(--t-text-muted)", marginTop: 6 }}>Entre para salvar seu perfil, metas e favoritos.</p>
         </div>
         <button
           type="button"
           onClick={() => router.push("/sign-in")}
-          style={{ background: "#162f25", color: "#faf4e8", borderRadius: 14, padding: "13px 32px", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer" }}
+          style={{ background: "var(--t-bg-hero)", color: "var(--t-hero-fg)", borderRadius: 14, padding: "13px 32px", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer" }}
         >
           Entrar na conta
         </button>
         <button
           type="button"
           onClick={() => router.push("/sign-up")}
-          style={{ fontSize: 13, color: "#9aa39b", background: "none", border: "none", cursor: "pointer" }}
+          style={{ fontSize: 13, color: "var(--t-text-muted)", background: "none", border: "none", cursor: "pointer" }}
         >
           Criar conta grátis
         </button>
@@ -128,7 +128,7 @@ export default function PerfilPage() {
           display: "flex", alignItems: "center", justifyContent: "center",
           fontFamily: profileName ? "var(--font-display)" : "Inter,sans-serif",
           fontSize: profileName ? 24 : 28,
-          color: "#162f25", flexShrink: 0,
+          color: "var(--t-text-title)", flexShrink: 0,
         }}>
           {ini}
         </div>
@@ -142,23 +142,23 @@ export default function PerfilPage() {
                 onKeyDown={e => e.key === "Enter" && saveName()}
                 placeholder="Seu nome"
                 style={{
-                  flex: 1, fontSize: 16, color: "#162f25", background: "#fff",
-                  border: "1px solid #ecdcc4", borderRadius: 10, padding: "6px 10px",
+                  flex: 1, fontSize: 16, color: "var(--t-text-title)", background: "var(--t-bg-card)",
+                  border: "1px solid var(--t-bd-strong)", borderRadius: 10, padding: "6px 10px",
                   outline: "none",
                 }}
               />
               <button type="button" onClick={saveName}
-                style={{ background: "#162f25", color: "#faf4e8", borderRadius: 10, padding: "6px 12px", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                style={{ background: "var(--t-bg-hero)", color: "var(--t-hero-fg)", borderRadius: 10, padding: "6px 12px", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer" }}>
                 OK
               </button>
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 23, color: "#162f25" }}>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 23, color: "var(--t-text-title)" }}>
                 {displayName}
               </div>
               <button type="button" onClick={() => { setDraftName(profileName); setEditingName(true); }}
-                style={{ fontSize: 12, color: "#9aa39b", background: "none", border: "none", cursor: "pointer" }}>
+                style={{ fontSize: 12, color: "var(--t-text-muted)", background: "none", border: "none", cursor: "pointer" }}>
                 ✏️
               </button>
             </div>
@@ -169,9 +169,9 @@ export default function PerfilPage() {
               style={{
                 display: "inline-flex", alignItems: "center", gap: 5,
                 fontSize: 11, fontWeight: 800, letterSpacing: 0.4, borderRadius: 20, padding: "3px 9px", cursor: "pointer",
-                background: pro.isPro ? "#fbf1de" : "#f3ede1",
-                color:      pro.isPro ? "#a76a00" : "#7a8079",
-                border:     `1px solid ${pro.isPro ? "#eccf95" : "#e6ddcd"}`,
+                background: pro.isPro ? "var(--t-carb-bg)" : "var(--t-bg-section)",
+                color:      pro.isPro ? "var(--t-pro-chip-fg)" : "var(--t-text-muted)",
+                border:     `1px solid ${pro.isPro ? "var(--t-pro-chip-bd)" : "var(--t-bd-soft)"}`,
               }}
             >
               {pro.isPro ? "✦ PRO" : "Plano grátis"}
@@ -184,7 +184,7 @@ export default function PerfilPage() {
             )}
           </div>
           {latestKg && (
-            <div style={{ fontSize: 12, color: "#9aa39b", marginTop: 2 }}>
+            <div style={{ fontSize: 12, color: "var(--t-text-muted)", marginTop: 2 }}>
               Peso atual: {latestKg.kg.toLocaleString("pt-BR", { minimumFractionDigits: 1 })} kg
             </div>
           )}
@@ -193,9 +193,9 @@ export default function PerfilPage() {
 
       {/* ── Minha meta (dark card) ─────────────────────────────── */}
       {mounted && (
-        <div style={{ background: "#162f25", borderRadius: 22, padding: 20, color: "#faf4e8" }}>
+        <div style={{ background: "var(--t-bg-hero)", borderRadius: 22, padding: 20, color: "var(--t-hero-fg)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "#9db8ad" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "var(--t-hero-fg2)" }}>
               Minha meta
             </span>
             <button
@@ -209,14 +209,14 @@ export default function PerfilPage() {
 
           {goals ? (
             <>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#9db8ad", marginTop: 10 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--t-hero-fg2)", marginTop: 10 }}>
                 {goals.calories >= 1800 ? "Manutenção de peso" : "Perda de peso"} · {goals.calories} kcal/dia
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 6 }}>
                 <span style={{ fontFamily: "var(--font-display)", fontSize: 30, fontVariantNumeric: "tabular-nums" }}>
                   {goals.calories.toLocaleString("pt-BR")}
                 </span>
-                <span style={{ fontSize: 13, color: "#9db8ad" }}>kcal / dia</span>
+                <span style={{ fontSize: 13, color: "var(--t-hero-fg2)" }}>kcal / dia</span>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
                 <MacroChip value={goals.protein} label="Proteína" color="#9cc0f0" bg="rgba(74,127,203,.18)" />
@@ -226,11 +226,11 @@ export default function PerfilPage() {
             </>
           ) : (
             <div style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 14, color: "#9db8ad" }}>Sem meta configurada.</div>
+              <div style={{ fontSize: 14, color: "var(--t-hero-fg2)" }}>Sem meta configurada.</div>
               <button
                 type="button"
                 onClick={() => router.push("/onboarding")}
-                style={{ marginTop: 12, background: "#e0c9a6", color: "#162f25", borderRadius: 12, padding: "10px 16px", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer" }}
+                style={{ marginTop: 12, background: "#e0c9a6", color: "var(--t-text-title)", borderRadius: 12, padding: "10px 16px", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer" }}
               >
                 Configurar metas →
               </button>
@@ -246,16 +246,16 @@ export default function PerfilPage() {
             key={s.title}
             type="button"
             onClick={() => router.push(s.href)}
-            style={{ background: "#fff", border: "1px solid #f2e6d6", borderRadius: 16, padding: "15px 16px", display: "flex", alignItems: "center", gap: 13, cursor: "pointer", textAlign: "left" }}
+            style={{ background: "var(--t-bg-card)", border: "1px solid var(--t-bd-card)", borderRadius: 16, padding: "15px 16px", display: "flex", alignItems: "center", gap: 13, cursor: "pointer", textAlign: "left" }}
           >
-            <span style={{ width: 38, height: 38, borderRadius: 11, background: "#f3ede1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
+            <span style={{ width: 38, height: 38, borderRadius: 11, background: "var(--t-bg-section)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
               {s.icon}
             </span>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#232320" }}>{s.title}</div>
-              <div style={{ fontSize: 12, color: "#9aa39b", fontWeight: 500, marginTop: 1 }}>{s.sub}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--t-text-primary)" }}>{s.title}</div>
+              <div style={{ fontSize: 12, color: "var(--t-text-muted)", fontWeight: 500, marginTop: 1 }}>{s.sub}</div>
             </div>
-            <span style={{ color: "#c4cabf", fontSize: 18 }}>›</span>
+            <span style={{ color: "var(--t-text-hint)", fontSize: 18 }}>›</span>
           </button>
         ))}
       </div>
@@ -272,7 +272,7 @@ export default function PerfilPage() {
         </div>
         <button
           type="button"
-          style={{ background: "#fff", color: "#d4644a", borderRadius: 14, padding: 13, textAlign: "center", fontSize: 14, fontWeight: 800, marginTop: 14, cursor: "pointer", border: "none", width: "100%" }}
+          style={{ background: "var(--t-bg-card)", color: "#d4644a", borderRadius: 14, padding: 13, textAlign: "center", fontSize: 14, fontWeight: 800, marginTop: 14, cursor: "pointer", border: "none", width: "100%" }}
         >
           Testar 7 dias grátis
         </button>
@@ -285,7 +285,7 @@ function MacroChip({ value, label, color, bg }: { value: number; label: string; 
   return (
     <div style={{ flex: 1, background: bg, borderRadius: 12, padding: 10, textAlign: "center" }}>
       <div style={{ fontSize: 15, fontWeight: 800, color, fontVariantNumeric: "tabular-nums" }}>{value}g</div>
-      <div style={{ fontSize: 10, color: "#9db8ad", marginTop: 2 }}>{label}</div>
+      <div style={{ fontSize: 10, color: "var(--t-hero-fg2)", marginTop: 2 }}>{label}</div>
     </div>
   );
 }

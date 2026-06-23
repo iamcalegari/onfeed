@@ -64,6 +64,7 @@ export interface AdaptBody {
   goal?: NutritionGoal;
   note?: string;
   lang?: "pt" | "en";
+  username?: string;
 }
 
 /** Dispara geração em background (retorna imediatamente com 202). */

@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { currentUser } from "@clerk/nextjs/server";
 
 import {
   adaptRecipe,
@@ -27,7 +28,9 @@ export async function adaptRecipeAction(
   try {
     const cookieStore = await cookies();
     const lang = (cookieStore.get("lang")?.value ?? "pt") as "pt" | "en";
-    const recipe = await adaptRecipe(id, { haveIds, lang });
+    const user = await currentUser().catch(() => null);
+    const username = user?.username ?? user?.firstName ?? user?.id ?? undefined;
+    const recipe = await adaptRecipe(id, { haveIds, lang, ...(username && { username }) });
     return { ok: true, id: recipe._id };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Falha na adaptação" };

@@ -8,9 +8,9 @@ export type Rank = 1 | 2 | 3;
 
 /* ── Tier (score → cor + label) ─────────────────────────────── */
 function tierOf(score: number): { color: string; tier: string } {
-  if (score >= 80) return { color: "#2d7d4e", tier: "ótimo" };
+  if (score >= 80) return { color: "var(--t-success)", tier: "ótimo" };
   if (score >= 72) return { color: "#7a9e3a", tier: "bom" };
-  if (score >= 60) return { color: "#c27a00", tier: "ok" };
+  if (score >= 60) return { color: "var(--t-carb-fg)", tier: "ok" };
   return { color: "#d4644a", tier: "fraco" };
 }
 
@@ -27,7 +27,7 @@ function ScoreGauge({ score }: { score: number }) {
     <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
       <div style={{ position: "relative", width: size, height: size }}>
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f0eadd" strokeWidth={stroke} />
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--t-bg-section)" strokeWidth={stroke} />
           <circle
             cx={cx} cy={cy} r={r} fill="none"
             stroke={color} strokeWidth={stroke}
@@ -61,10 +61,10 @@ function ScoreGauge({ score }: { score: number }) {
 
 /* ── Match Breakdown (2×2 grid de barrinhas pontuadas) ───────── */
 const FACTORS: { label: string; key: keyof DimensionScores; color: string }[] = [
-  { label: "Ingredientes", key: "i", color: "#2d7d4e" },
-  { label: "Equipamento",  key: "e", color: "#7a9e94" },
-  { label: "Tempo",        key: "t", color: "#c27a00" },
-  { label: "Nutrição",     key: "n", color: "#4a7fcb" },
+  { label: "Ingredientes", key: "i", color: "var(--t-success)" },
+  { label: "Equipamento",  key: "e", color: "var(--t-text-secondary)" },
+  { label: "Tempo",        key: "t", color: "var(--t-carb-fg)" },
+  { label: "Nutrição",     key: "n", color: "var(--t-protein-fg)" },
 ];
 
 function MatchBreakdown({ scores }: { scores: DimensionScores }) {
@@ -75,7 +75,7 @@ function MatchBreakdown({ scores }: { scores: DimensionScores }) {
         return (
           <div key={f.key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: "#5c5c57" }}>{f.label}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--t-text-body)" }}>{f.label}</span>
               <span style={{ fontSize: 10, fontWeight: 700, color: f.color, fontVariantNumeric: "tabular-nums" }}>
                 {val}/5
               </span>
@@ -86,7 +86,7 @@ function MatchBreakdown({ scores }: { scores: DimensionScores }) {
                   key={seg}
                   style={{
                     flex: 1, height: 5, borderRadius: 3,
-                    background: seg < val ? f.color : "#efe7d8",
+                    background: seg < val ? f.color : "var(--t-progress-track)",
                   }}
                 />
               ))}
@@ -100,9 +100,9 @@ function MatchBreakdown({ scores }: { scores: DimensionScores }) {
 
 /* ── Rank badge configs ──────────────────────────────────────── */
 const RANK_CONFIG: Record<Rank, { icon: string; bg: string; fg: string }> = {
-  1: { icon: "🥇", bg: "#fdf0d2", fg: "#9a6b00" },
-  2: { icon: "🥈", bg: "#eef0f2", fg: "#5c6770" },
-  3: { icon: "🥉", bg: "#f6e4d6", fg: "#9a5a32" },
+  1: { icon: "🥇", bg: "var(--t-carb-bg)", fg: "#9a6b00" },
+  2: { icon: "🥈", bg: "var(--t-protein-bg)", fg: "var(--t-text-muted)" },
+  3: { icon: "🥉", bg: "var(--t-fat-bg)", fg: "#9a5a32" },
 };
 
 /* ── ResultCard ──────────────────────────────────────────────── */
@@ -127,8 +127,8 @@ export function ResultCard({
     <Link
       href={recipeHref(hit._id, haveIds, baseIngredients.length ? baseIngredients : undefined)}
       style={{
-        background: "#fff",
-        border: "1px solid #f0e4d2",
+        background: "var(--t-bg-card)",
+        border: "1px solid var(--t-bd-soft)",
         borderRadius: 20,
         overflow: "hidden",
         display: "flex",
@@ -177,12 +177,12 @@ export function ResultCard({
         {/* Título + gauge */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12, color: "#7a9e94", fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ fontSize: 12, color: "var(--t-text-secondary)", fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
               {flag} {hit.country}
             </div>
             <div style={{
               fontFamily: "var(--font-display)", fontSize: 18.5,
-              color: "#162f25", lineHeight: 1.18, marginTop: 3,
+              color: "var(--t-text-title)", lineHeight: 1.18, marginTop: 3,
             }}>
               {hit.title}
             </div>
@@ -192,7 +192,7 @@ export function ResultCard({
 
         {/* Descrição */}
         <div style={{
-          fontSize: 12.5, color: "#6c726a", lineHeight: 1.45, marginTop: 8,
+          fontSize: 12.5, color: "var(--t-text-body)", lineHeight: 1.45, marginTop: 8,
           display: "-webkit-box",
           WebkitLineClamp: 2,
           WebkitBoxOrient: "vertical",
@@ -210,19 +210,19 @@ export function ResultCard({
         <div style={{
           marginTop: 13, paddingTop: 12,
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
-          borderTop: "1px solid #f3ece0",
+          borderTop: "1px solid var(--t-bg-section)",
         }}>
           <div style={{
-            fontSize: 11.5, color: "#9aa39b", fontWeight: 500,
+            fontSize: 11.5, color: "var(--t-text-muted)", fontWeight: 500,
             minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
             {hasFalta
-              ? <><span style={{ color: "#b06a55", fontWeight: 700 }}>Falta:</span> {missing}</>
-              : <span style={{ color: "#2d7d4e", fontWeight: 700 }}>✓ Você tem tudo</span>
+              ? <><span style={{ color: "var(--t-fat-lbl)", fontWeight: 700 }}>Falta:</span> {missing}</>
+              : <span style={{ color: "var(--t-success)", fontWeight: 700 }}>✓ Você tem tudo</span>
             }
           </div>
           <span style={{
-            flexShrink: 0, fontSize: 12, color: "#7a9e94",
+            flexShrink: 0, fontSize: 12, color: "var(--t-text-secondary)",
             fontWeight: 700, fontVariantNumeric: "tabular-nums",
           }}>
             ⏱ {formatMinutes(hit.prepTimeMin)}

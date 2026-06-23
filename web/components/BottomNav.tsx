@@ -74,10 +74,10 @@ export function BottomNav() {
   return (
     <nav style={{
       position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 40,
-      background: "rgba(255,255,255,.92)",
+      background: "var(--t-bg-tab-bar)",
       backdropFilter: "blur(18px)",
       WebkitBackdropFilter: "blur(18px)",
-      borderTop: "1px solid #efe4d3",
+      borderTop: "1px solid var(--t-bd-tab-bar)",
       display: "flex",
       paddingTop: 9,
       paddingLeft: 8,
@@ -98,7 +98,7 @@ export function BottomNav() {
               gap: 4,
               paddingTop: 5,
               textDecoration: "none",
-              color: active ? "#162f25" : "#a9b5ac",
+              color: active ? "var(--t-tab-on)" : "var(--t-tab-off)",
             }}
           >
             <svg
@@ -115,7 +115,7 @@ export function BottomNav() {
             <span style={{
               fontSize: 10.5,
               fontWeight: 600,
-              color: active ? "#162f25" : "#a9b5ac",
+              color: active ? "var(--t-tab-on)" : "var(--t-tab-off)",
             }}>
               {item.label}
             </span>

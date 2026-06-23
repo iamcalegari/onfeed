@@ -81,10 +81,10 @@ export default function PlanoPage() {
 
       {/* ── Header ─────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 18 }}>
-        <h1 style={{ fontFamily: "var(--font-display)", fontSize: 25, color: "#162f25" }}>
+        <h1 style={{ fontFamily: "var(--font-display)", fontSize: 25, color: "var(--t-text-title)" }}>
           Seu plano
         </h1>
-        <span style={{ fontSize: 13, color: "#7a9e94", fontWeight: 600 }}>{dateRange}</span>
+        <span style={{ fontSize: 13, color: "var(--t-text-secondary)", fontWeight: 600 }}>{dateRange}</span>
       </div>
 
       {/* ── Calendar ─────────────────────────────────────────── */}
@@ -98,15 +98,15 @@ export default function PlanoPage() {
               onClick={() => setDayIdx(i)}
               style={{
                 flex: 1, textAlign: "center", padding: "11px 0", borderRadius: 14,
-                background: on ? "#162f25" : "#fff",
-                border: `1px solid ${on ? "#162f25" : "#f0e4d2"}`,
+                background: on ? "var(--t-week-on-bg)" : "var(--t-week-off-bg)",
+                border: `1px solid ${on ? "var(--t-week-on-bd)" : "var(--t-week-off-bd)"}`,
                 cursor: "pointer",
               }}
             >
-              <div style={{ fontSize: 11, fontWeight: 600, color: on ? "#9db8ad" : "#9aa39b" }}>{d.dow}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: on ? "var(--t-hero-fg2)" : "var(--t-text-muted)" }}>{d.dow}</div>
               <div style={{
                 fontSize: 15, fontWeight: 700,
-                color: on ? "#faf4e8" : d.isToday ? "#162f25" : "#232320",
+                color: on ? "var(--t-week-on-fg)" : d.isToday ? "var(--t-text-title)" : "var(--t-text-primary)",
                 marginTop: 3, fontVariantNumeric: "tabular-nums",
               }}>
                 {d.num}
@@ -117,7 +117,7 @@ export default function PlanoPage() {
       </div>
 
       {/* ── Day label ─────────────────────────────────────────── */}
-      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.1, textTransform: "uppercase", color: "#7a9e94", marginTop: 24, marginBottom: 13 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.1, textTransform: "uppercase", color: "var(--t-text-secondary)", marginTop: 24, marginBottom: 13 }}>
         {selectedDay.dow}, {selectedDay.num} de {monthName}
       </div>
 
@@ -129,19 +129,19 @@ export default function PlanoPage() {
             <div
               key={slot}
               style={{
-                background: "#fff", border: "1px solid #f2e6d6", borderRadius: 18,
+                background: "var(--t-bg-card)", border: "1px solid var(--t-bd-card)", borderRadius: 18,
                 padding: 15, boxShadow: "0 4px 12px -8px rgba(22,47,37,.14)",
               }}
             >
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#7a9e94", textTransform: "uppercase", letterSpacing: .8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--t-text-secondary)", textTransform: "uppercase", letterSpacing: .8 }}>
                 {slot}
               </div>
               {meal ? (
                 <div>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginTop: 5 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: "#232320" }}>{meal.name}</div>
-                      <div style={{ fontSize: 12.5, color: "#7a9e94", fontWeight: 600, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "var(--t-text-primary)" }}>{meal.name}</div>
+                      <div style={{ fontSize: 12.5, color: "var(--t-text-secondary)", fontWeight: 600, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>
                         {meal.kcal} kcal · P {meal.protein}g · C {meal.carbs}g · G {meal.fat}g
                       </div>
                     </div>
@@ -156,7 +156,7 @@ export default function PlanoPage() {
                   <button
                     type="button"
                     onClick={() => router.push(`/recipe/${meal.recipeId}`)}
-                    style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: "#162f25", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                    style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: "var(--t-text-title)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
                   >
                     Ver receita →
                   </button>
@@ -177,14 +177,14 @@ export default function PlanoPage() {
 
       {/* ── Day total ─────────────────────────────────────────── */}
       <div style={{
-        background: "#f3ede1", borderRadius: 16, padding: "15px 17px",
+        background: "var(--t-bg-section)", borderRadius: 16, padding: "15px 17px",
         marginTop: 18, display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        <span style={{ fontSize: 13, color: "#5c5c57", fontWeight: 600 }}>Total do dia</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: "#162f25", fontVariantNumeric: "tabular-nums" }}>
+        <span style={{ fontSize: 13, color: "var(--t-text-body)", fontWeight: 600 }}>Total do dia</span>
+        <span style={{ fontSize: 15, fontWeight: 800, color: "var(--t-text-title)", fontVariantNumeric: "tabular-nums" }}>
           {filledKcal.toLocaleString("pt-BR")}{" "}
           {goalKcal > 0 && (
-            <span style={{ fontSize: 12, color: "#9aa39b", fontWeight: 600 }}>
+            <span style={{ fontSize: 12, color: "var(--t-text-muted)", fontWeight: 600 }}>
               / {goalKcal.toLocaleString("pt-BR")} kcal
             </span>
           )}
@@ -200,20 +200,20 @@ export default function PlanoPage() {
         className="ofcard"
         style={{
           display: "flex", alignItems: "center", gap: 10,
-          background: "linear-gradient(120deg,#1d3a2c,#2a5440)", borderRadius: 18,
+          background: "var(--t-bg-match-bar)", borderRadius: 18,
           padding: 16, marginTop: 18, cursor: "pointer",
           boxShadow: "0 10px 24px -12px rgba(22,47,37,.5)",
         }}
       >
         <span style={{ fontSize: 20 }}>✨</span>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#faf4e8" }}>Gerar plano automático</div>
-          <div style={{ fontSize: 12, color: "#9db8ad", marginTop: 1 }}>21 refeições com IA · onFeed Pro</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--t-hero-fg)" }}>Gerar plano automático</div>
+          <div style={{ fontSize: 12, color: "var(--t-hero-fg2)", marginTop: 1 }}>21 refeições com IA · onFeed Pro</div>
         </div>
         <span style={{
           fontSize: 10, fontWeight: 800, letterSpacing: 1, borderRadius: 8, padding: "4px 8px",
-          background: pro.isPro ? "#2d7d4e" : "#e0c9a6",
-          color:      pro.isPro ? "#faf4e8" : "#162f25",
+          background: pro.isPro ? "var(--t-success)" : "#e0c9a6",
+          color:      pro.isPro ? "var(--t-cta-fg)" : "#162f25",
         }}>
           {pro.isPro ? "ATIVO" : "PRO"}
         </span>
@@ -225,12 +225,12 @@ export default function PlanoPage() {
         onClick={() => router.push("/compras")}
         style={{
           display: "flex", alignItems: "center", gap: 10,
-          background: "#fff", border: "1px solid #ecdcc4", borderRadius: 18,
+          background: "var(--t-bg-card)", border: "1px solid var(--t-bd-strong)", borderRadius: 18,
           padding: 16, marginTop: 11, cursor: "pointer", width: "100%", textAlign: "left",
         }}
       >
         <span style={{ fontSize: 19 }}>🛒</span>
-        <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: "#232320" }}>Gerar lista de compras</span>
+        <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: "var(--t-text-primary)" }}>Gerar lista de compras</span>
         <span style={{ color: "#d4644a", fontSize: 16 }}>→</span>
       </button>
     </div>
