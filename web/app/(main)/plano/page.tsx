@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import {
+  applyGeneratedPlan,
   getDayMeals,
   removeMealFromPlan,
   setPendingSlot,
@@ -42,6 +43,7 @@ export default function PlanoPage() {
   const [dayIdx, setDayIdx] = useState(() => WEEK.findIndex(d => d.isToday) ?? 0);
   const [meals, setMeals]   = useState<PlannedMeal[]>([]);
   const [goalKcal, setGoalKcal] = useState(0);
+  const [generating, setGenerating] = useState(false);
 
   const selectedDay = WEEK[dayIdx];
 
@@ -63,6 +65,44 @@ export default function PlanoPage() {
   function handleRemove(slot: string) {
     removeMealFromPlan(selectedDay.date, slot);
     refresh();
+  }
+
+  async function handleGenerate() {
+    if (!pro.isPro) {
+      showToast("Planos com IA são exclusivos do PRO", "✨");
+      router.push("/progresso");
+      return;
+    }
+    if (generating) return;
+    const goals = getGoals();
+    if (!goals) {
+      showToast("Configure suas metas primeiro", "🎯");
+      router.push("/onboarding");
+      return;
+    }
+    setGenerating(true);
+    showToast("Gerando seu plano da semana com IA…", "✨");
+    try {
+      const res = await fetch("/api/mealplan", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          days: 7,
+          slots: ["breakfast", "lunch", "snack", "dinner"],
+          goals,
+          usePantry: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Falha ao gerar o plano");
+      applyGeneratedPlan(data);
+      refresh();
+      showToast("Plano da semana pronto!", "✅");
+    } catch (e) {
+      showToast((e as Error).message || "Não foi possível gerar agora", "⚠️");
+    } finally {
+      setGenerating(false);
+    }
   }
 
   const filledKcal = meals.reduce((s, m) => s + m.kcal, 0);
@@ -193,10 +233,7 @@ export default function PlanoPage() {
 
       {/* ── PRO CTA ───────────────────────────────────────────── */}
       <div
-        onClick={() => {
-          if (pro.isPro) showToast("Gerando seu plano da semana com IA…", "✨");
-          else { showToast("Planos com IA são exclusivos do PRO", "✨"); router.push("/progresso"); }
-        }}
+        onClick={handleGenerate}
         className="ofcard"
         style={{
           display: "flex", alignItems: "center", gap: 10,
@@ -207,8 +244,10 @@ export default function PlanoPage() {
       >
         <span style={{ fontSize: 20 }}>✨</span>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--t-hero-fg)" }}>Gerar plano automático</div>
-          <div style={{ fontSize: 12, color: "var(--t-hero-fg2)", marginTop: 1 }}>21 refeições com IA · onFeed Pro</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--t-hero-fg)" }}>
+            {generating ? "Gerando seu plano…" : "Gerar plano automático"}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--t-hero-fg2)", marginTop: 1 }}>28 refeições com IA · onFeed Pro</div>
         </div>
         <span style={{
           fontSize: 10, fontWeight: 800, letterSpacing: 1, borderRadius: 8, padding: "4px 8px",

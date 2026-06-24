@@ -184,7 +184,7 @@ export default function HojePage() {
     const totals = getTodayTotals();
     const consumed = totals.protein * 4 + totals.carbs * 4 + totals.fat * 9;
     const remaining = Math.max(0, Math.round(g.calories - consumed));
-    fetch(`/api/suggest?kcal=${remaining}`)
+    fetch(`/api/suggest?kcal=${remaining}&slot=${encodeURIComponent(nextMealSlot())}`)
       .then(r => r.json())
       .then(d => Array.isArray(d) ? setSuggestions(d.slice(0, 5)) : null)
       .catch(() => null);
@@ -425,6 +425,7 @@ function SuggestionCarousel({
   const [dragX, setDragX]     = useState(0);
 
   const touchActiveRef  = useRef(false);
+  const hoverRef        = useRef(false);
   const idleTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rafRef          = useRef<number | null>(null);
   const progressStartRef = useRef(0);
@@ -441,13 +442,13 @@ function SuggestionCarousel({
 
   function startAuto() {
     stopAuto();
-    if (count <= 1 || touchActiveRef.current) return;
+    if (count <= 1 || touchActiveRef.current || hoverRef.current) return;
     idleTimerRef.current = setTimeout(() => {
       idleTimerRef.current = null;
-      if (touchActiveRef.current) return;
+      if (touchActiveRef.current || hoverRef.current) return;
       progressStartRef.current = Date.now();
       function tick() {
-        if (touchActiveRef.current) return;
+        if (touchActiveRef.current || hoverRef.current) return;
         const p = Math.min(1, (Date.now() - progressStartRef.current) / 4000);
         setProgress(p);
         if (p < 1) {
@@ -534,6 +535,8 @@ function SuggestionCarousel({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
+        onMouseEnter={() => { hoverRef.current = true;  stopAuto(); }}
+        onMouseLeave={() => { hoverRef.current = false; startAuto(); }}
         style={{
           borderRadius: 22, overflow: "hidden", background: "var(--t-bg-card)",
           boxShadow: "0 8px 22px -12px rgba(22,47,37,.22)",

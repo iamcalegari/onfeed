@@ -10,6 +10,7 @@ import {
 } from "@/infra/images/image.service.js";
 import { enqueueIngestJob } from "@/infra/queue/ingest-queue.js";
 import { getUserId, requireAuth } from "@/modules/auth/auth.guard.js";
+import { isProUser } from "@/modules/billing/entitlement.repository.js";
 import { consumeDailyAdaptQuota } from "@/modules/usage/usage.repository.js";
 import { adaptRecipe } from "./recipe.generation.js";
 import {
@@ -185,19 +186,25 @@ export const recipeRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       const body = request.body;
+      const userId = getUserId(request)!;
 
-      const quota = await consumeDailyAdaptQuota(
-        getUserId(request)!,
-        env.anthropic.adaptDailyLimit,
-      );
+      // Gate de custo: o limite depende do plano (fonte de verdade no módulo
+      // billing). PRO tem teto alto só como guarda anti-abuso; free bate cedo
+      // porque cada adaptação é uma chamada paga de LLM.
+      const pro = await isProUser(userId);
+      const limit = pro
+        ? env.anthropic.adaptDailyLimitPro
+        : env.anthropic.adaptDailyLimitFree;
+      const quota = await consumeDailyAdaptQuota(userId, limit);
       if (!quota.allowed) {
         return reply.tooManyRequests(
-          `Limite diário de adaptações atingido (${quota.limit}/dia). Tente amanhã.`,
+          pro
+            ? `Limite diário de adaptações atingido (${quota.limit}/dia). Tente amanhã.`
+            : `Você usou suas ${quota.limit} adaptações grátis de hoje. Assine o onFeed Pro para adaptações ilimitadas.`,
         );
       }
 
       try {
-        const userId = getUserId(request)!;
         const recipe = await adaptRecipe(request.params.id, {
           haveIds: body.haveIds,
           ...(body.equipment !== undefined && {

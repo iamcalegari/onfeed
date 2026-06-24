@@ -47,7 +47,12 @@ export const env = {
   anthropic: {
     apiKey: required("ANTHROPIC_API_KEY"),
     model: optional("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
-    adaptDailyLimit: Number(optional("ADAPT_DAILY_LIMIT", "10")),
+    // Gate de custo de IA por plano (ver módulo billing). Free bate cedo porque
+    // cada adaptação custa uma chamada de LLM; PRO tem teto alto anti-abuso.
+    adaptDailyLimitFree: Number(optional("ADAPT_DAILY_LIMIT_FREE", "3")),
+    adaptDailyLimitPro: Number(optional("ADAPT_DAILY_LIMIT_PRO", "100")),
+    // Teto mensal de geração de plano (PRO). Anti-abuso da feature mais cara.
+    planMonthlyLimitPro: Number(optional("PLAN_MONTHLY_LIMIT_PRO", "30")),
   },
 
   variants: {

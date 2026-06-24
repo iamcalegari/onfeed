@@ -10,3 +10,5 @@ import "@/modules/usage/usage.model.js";
 import "@/modules/pantry/pantry.model.js";
 import "@/modules/likes/like.model.js";
 import "@/modules/ratings/rating.model.js";
+import "@/modules/billing/entitlement.model.js";
+import "@/modules/mealplan/mealplan.model.js";

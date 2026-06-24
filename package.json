@@ -1,6 +1,6 @@
 {
   "name": "recipes-on-demand",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -16,6 +16,7 @@
     "seed:recipes": "tsx --env-file=.env src/scripts/seed-recipes.ts",
     "db:status": "tsx --env-file=.env src/scripts/db-status.ts",
     "reconcile:ingredients": "tsx --env-file=.env src/scripts/reconcile-ingredients.ts",
+    "reconcile:llm": "tsx --env-file=.env src/scripts/reconcile-pendings-llm.ts",
     "migrate:quantities": "tsx --env-file=.env src/scripts/migrate-ingredient-quantities.ts",
     "migrate:drinks": "tsx --env-file=.env src/scripts/migrate-drinks-occasion.ts",
     "migrate:thumbnails": "tsx --env-file=.env src/scripts/migrate-thumbnail-urls.ts",

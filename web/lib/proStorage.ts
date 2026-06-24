@@ -103,6 +103,31 @@ export function setPro(value: boolean): void {
 }
 
 /**
+ * Hidrata o estado PRO a partir do servidor — a autoridade do entitlement é o
+ * backend (/api/me), não o localStorage. Atualiza isPro e o uso real de adapt,
+ * preservando o contador local de buscas. write() dispara "onfeed:pro:change".
+ */
+export async function hydrateProFromServer(): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const res = await fetch("/api/me", { cache: "no-store" });
+    if (!res.ok) return;
+    const me = (await res.json()) as {
+      isPro?: boolean;
+      usage?: { adaptUsed?: number };
+    };
+    const s = read();
+    write({
+      ...s,
+      isPro: Boolean(me.isPro),
+      adaptUsed: me.usage?.adaptUsed ?? s.adaptUsed,
+    });
+  } catch {
+    /* offline ou sem sessão → mantém o estado local */
+  }
+}
+
+/**
  * Consome uma busca sob medida. PRO nunca consome.
  * Retorna true se a busca pode prosseguir sem anúncio.
  */

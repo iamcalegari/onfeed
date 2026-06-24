@@ -1,3 +1,5 @@
+import type { GeneratedPlan } from "./types";
+
 const PLAN_KEY     = "onfeed:plan";
 const PENDING_KEY  = "onfeed:pending_plan";
 const SHOPPING_KEY = "onfeed:shopping";
@@ -147,4 +149,53 @@ export function getPendingSlot(): PendingSlot | null {
 
 export function clearPendingSlot(): void {
   try { localStorage.removeItem(PENDING_KEY); } catch { /* ignore */ }
+}
+
+/* ── Plano gerado por IA (CheffIA) → hidrata os slots da semana ──── */
+
+const SLOT_PT: Record<string, string> = {
+  breakfast: "Café",
+  lunch:     "Almoço",
+  snack:     "Lanche",
+  dinner:    "Jantar",
+};
+
+/**
+ * Aplica um plano gerado pelo backend: preenche os dias da semana atual no mesmo
+ * store que a UI já consome e popula a lista de compras. dayIndex 0 = segunda.
+ */
+export function applyGeneratedPlan(plan: GeneratedPlan): void {
+  const today  = new Date();
+  const dow    = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((dow + 6) % 7));
+
+  const store = load();
+  for (const day of plan.days) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + day.dayIndex);
+    const date = d.toISOString().slice(0, 10);
+    store[date] = day.slots
+      .map(s => ({
+        slot:        SLOT_PT[s.slot] ?? s.slot,
+        recipeId:    s.recipe._id,
+        name:        s.recipe.title,
+        kcal:        s.recipe.nutrition.calories,
+        protein:     s.recipe.nutrition.protein,
+        carbs:       s.recipe.nutrition.carbs,
+        fat:         s.recipe.nutrition.fat,
+        prepTime:    s.recipe.prepTimeMin,
+        ingredients: [] as string[],
+      }))
+      .sort((a, b) => SLOT_ORDER.indexOf(a.slot) - SLOT_ORDER.indexOf(b.slot));
+  }
+  persist(store);
+
+  // Lista de compras do plano (o backend já descontou a despensa).
+  try {
+    const items = plan.shoppingList.map(i => ({
+      name: i.name, recipeId: "", recipeTitle: "Plano da semana",
+    }));
+    localStorage.setItem(SHOPPING_KEY, JSON.stringify(items));
+  } catch { /* ignore */ }
 }

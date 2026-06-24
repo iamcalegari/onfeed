@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { getProState, type ProSnapshot } from "./proStorage";
+import { getProState, hydrateProFromServer, type ProSnapshot } from "./proStorage";
 
 const EMPTY: ProSnapshot = {
   isPro: false,
@@ -25,6 +25,9 @@ export function usePro(): ProSnapshot {
   useEffect(() => {
     const sync = () => setSnap(getProState());
     sync();
+    // A autoridade do entitlement é o servidor; hidrata e o write() interno
+    // dispara "onfeed:pro:change", que re-renderiza via o listener abaixo.
+    void hydrateProFromServer();
     window.addEventListener("onfeed:pro:change", sync);
     window.addEventListener("storage", sync);
     window.addEventListener("focus", sync);

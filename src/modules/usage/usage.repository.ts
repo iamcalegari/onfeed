@@ -29,3 +29,10 @@ export async function consumeDailyAdaptQuota(
   const count = doc?.count ?? 1;
   return { allowed: count <= limit, count, limit };
 }
+
+/** Lê (sem incrementar) quantas adaptações o usuário já fez hoje — para o /me. */
+export async function getDailyAdaptCount(userId: string): Promise<number> {
+  const day = new Date().toISOString().slice(0, 10);
+  const doc = (await AdaptUsageModel.find({ userId, day })) as { count?: number } | null;
+  return doc?.count ?? 0;
+}

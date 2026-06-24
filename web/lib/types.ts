@@ -134,3 +134,43 @@ export interface Recipe {
   parentRecipeId?: string;
   createdBy?: RecipeCreator[];
 }
+
+/* ── Plano alimentar (CheffIA) ─────────────────────────────── */
+
+export type MealSlot = "breakfast" | "lunch" | "snack" | "dinner";
+
+export interface PlanMealItem {
+  slot: MealSlot;
+  recipe: {
+    _id: string;
+    title: string;
+    thumbnailUrl: string;
+    prepTimeMin: number;
+    country: string;
+    nutrition: Nutrition;
+  };
+  servings: number;
+  why?: string;
+}
+
+export interface PlanDay {
+  dayIndex: number;
+  slots: PlanMealItem[];
+  totals: Nutrition;
+}
+
+export interface GeneratedPlan {
+  days: PlanDay[];
+  shoppingList: { name: string; haveInPantry: boolean }[];
+  summary: { avgDailyCalories: number; targetCalories: number; fitsGoal: boolean };
+}
+
+export interface GeneratePlanRequest {
+  days: number;
+  slots: MealSlot[];
+  goals: { calories: number; protein: number; carbs: number; fat: number };
+  usePantry?: boolean;
+  dietaryTags?: string[];
+  maxPrepTimeMin?: number;
+  note?: string;
+}

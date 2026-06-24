@@ -5,6 +5,8 @@ import { auth } from "@clerk/nextjs/server";
 import type {
   Equipment,
   FavoriteRecipe,
+  GeneratedPlan,
+  GeneratePlanRequest,
   NutritionGoal,
   PantryIngredient,
   RatingStats,
@@ -255,4 +257,53 @@ export async function adaptRecipe(id: string, body: AdaptBody): Promise<Recipe> 
     throw new Error(msg);
   }
   return res.json() as Promise<Recipe>;
+}
+
+// --- sessão / entitlement (fonte de verdade do PRO) ---
+
+export interface MeResponse {
+  userId: string | null;
+  authenticated: boolean;
+  plan: "free" | "pro";
+  isPro: boolean;
+  currentPeriodEnd?: string | null;
+  limits?: { adaptDaily: number };
+  usage?: { adaptUsed: number; adaptLeft: number };
+}
+
+/** Entitlement + uso do dia, direto do backend. */
+export async function getMe(): Promise<MeResponse> {
+  const res = await fetch(`${API_BASE}/api/v1/me`, {
+    cache: "no-store",
+    headers: { ...(await authHeaders()) },
+  });
+  if (!res.ok) {
+    return { userId: null, authenticated: false, plan: "free", isPro: false };
+  }
+  return res.json() as Promise<MeResponse>;
+}
+
+// --- CheffIA: geração de plano (PRO) ---
+
+/** Gera o plano da semana. Lança Error com a mensagem do backend (403/429/503). */
+export async function generateMealPlan(
+  body: GeneratePlanRequest,
+): Promise<GeneratedPlan> {
+  const res = await fetch(`${API_BASE}/api/v1/mealplan/generate`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    let msg = `Geração de plano falhou (${res.status})`;
+    try {
+      const j = (await res.json()) as { message?: string };
+      if (j?.message) msg = j.message;
+    } catch {
+      /* corpo não-JSON */
+    }
+    throw new Error(msg);
+  }
+  return res.json() as Promise<GeneratedPlan>;
 }

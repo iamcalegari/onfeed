@@ -3,16 +3,22 @@
  *
  * Pendings nascem quando o fallback semântico da canonicalização não roda na
  * ingestão (tipicamente o vector index ainda "building"). Resultado: duplicatas
- * de nome composto como `macarrao_espaguete` ("macarrão espaguete") em vez de
- * casar com `macarrao`.
+ * como `alho_picado` ("alho picado") em vez de casar com `alho`.
  *
- * O match aqui é DETERMINÍSTICO por token, não por embedding: o embedding não
- * separa bem os casos (matches certos ~0.75 ficam abaixo de falsos positivos
- * ~0.76). Em vez disso, tokenizamos o nome do pending e vemos quais sinônimos
- * canônicos ele contém. Só mesclamos quando os tokens apontam para EXATAMENTE
- * UM canônico — assim "macarrão espaguete"→macarrao casa, mas "sal e pimenta"
- * (aponta p/ sal E pimenta) e "banana"/"presunto" (apontam p/ nada) ficam
- * pending para revisão.
+ * MATCH SEGURO POR NÚCLEO: remove qualificadores de preparo/pontuação/conectores
+ * do nome do pending e só mescla quando o NÚCLEO INTEIRO casa, como string, com
+ * o displayName ou um sinônimo de um canônico real (curado). Exemplos:
+ *
+ *   "alho picado"     → núcleo "alho"            → casa com canônico `alho`   ✓
+ *   "abacaxi em cubos"→ núcleo "abacaxi"         → casa com `abacaxi`         ✓
+ *   "sopa de cogumelo"→ núcleo "sopa cogumelo"   → não casa nada → pending    ✓
+ *   "tomate seco"     → núcleo "tomate seco"     → não casa nada → pending    ✓
+ *
+ * NÃO faz match por token solto: tokenizar e casar palavra a palavra contra
+ * sinônimos (poluídos na ingestão) fundia coisas erradas — "sorvete"→suco,
+ * "tofu"→coco, "damasco seco"→manga. Produtos derivados/compostos contêm o
+ * token de um ingrediente base mas são OUTRA compra; só curadoria/LLM separa
+ * esses com segurança, então ficam pending para revisão.
  *
  *   npm run reconcile:ingredients            (aplica)
  *   npm run reconcile:ingredients -- --dry   (só mostra o que faria)
@@ -28,70 +34,78 @@ import "@/modules/index.js";
 import { IngredientModel } from "@/modules/ingredients/ingredient.model.js";
 import type { CanonicalIngredient } from "@/modules/ingredients/ingredient.types.js";
 
-/** Quebra um nome em tokens normalizados (palavras), p/ casar com sinônimos. */
-function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
+const normalize = (text: string): string => text.toLowerCase().trim();
+
+/**
+ * Qualificadores de PREPARO físico — não mudam o ingrediente que se COMPRA
+ * ("alho picado" e "alho" são a mesma compra). Deliberadamente NÃO inclui
+ * "seco", "desidratado", "em pó", "defumado", "assado", "cozido", "congelado",
+ * "fresco" — esses geram um produto diferente na prateleira.
+ */
+const PREP_WORDS = new Set([
+  "picado", "picada", "picados", "picadas", "picadinho", "picadinha",
+  "moido", "moida", "moidos", "moidas", "moído", "moída",
+  "ralado", "ralada", "ralados", "raladas",
+  "fatiado", "fatiada", "fatiados", "fatiadas", "fatias", "fatia",
+  "triturado", "triturada", "amassado", "amassada",
+  "cortado", "cortada", "cortados", "cortadas", "esmagado", "esmagada",
+]);
+const PREP_PHRASES = [
+  "em cubos", "em rodelas", "em tiras", "em pedacos", "em pedaços",
+  "em fatias", "cortado em", "picado em",
+];
+// conectores que sobram ao remover o preparo ("dente de alho" → "dente alho")
+const STOP_WORDS = new Set(["de", "do", "da", "e", "em"]);
+
+/** Remove qualificadores de preparo do nome; devolve o núcleo normalizado. */
+function stripPrep(name: string): string {
+  let s = normalize(name);
+  for (const ph of PREP_PHRASES) s = s.split(ph).join(" ");
+  const words = s
     .split(/[^\p{L}\p{N}]+/u)
-    .filter((t) => t.length >= 3); // descarta "e", "de", "ao"...
+    .filter((w) => w.length > 0 && !PREP_WORDS.has(w) && !STOP_WORDS.has(w));
+  return words.join(" ").trim();
 }
 
 async function main(): Promise<void> {
-  const dry = process.argv.includes("--dry");
+  const dry = process.argv.includes("--dry") || process.argv.includes("--dry-run");
   await connectDatabase();
 
   const recipes = database.getCollection("recipes");
+  const ingredientsCol = database.getCollection("ingredients");
   const all = (await IngredientModel.findMany({})) as CanonicalIngredient[];
   const canon = all.filter((i) => !i.pending);
   const pendings = all.filter((i) => i.pending);
 
-  // sinônimo (normalizado) -> canônico não-pending
+  // displayName/sinônimo (normalizado) -> canônico não-pending
   const synToCanon = new Map<string, CanonicalIngredient>();
+  const canonByDisplay = new Map<string, CanonicalIngredient>();
   for (const c of canon) {
-    for (const syn of c.synonyms) synToCanon.set(syn.toLowerCase().trim(), c);
+    canonByDisplay.set(normalize(c.displayName), c);
+    for (const syn of c.synonyms) synToCanon.set(normalize(syn), c);
   }
+  const lookupCanon = (key: string): CanonicalIngredient | undefined =>
+    canonByDisplay.get(key) ?? synToCanon.get(key);
 
   console.log(`${pendings.length} pendings${dry ? " (dry-run)" : ""}\n`);
 
-  let merged = 0;
-  for (const p of pendings) {
-    // Nome composto ("sal e pimenta") = vários ingredientes num só — não dá pra
-    // mesclar num único canônico sem perder os outros. Fica pending p/ revisão.
-    if (/\b(e|com|and|&)\b|,/.test(p.displayName.toLowerCase())) {
-      console.log(`  mantém pending: ${p._id} — composto (vários ingredientes)`);
-      continue;
-    }
-
-    // tokens do nome + sinônimos do pending que batem com algum sinônimo canônico
-    const tokens = new Set([
-      ...tokenize(p.displayName),
-      ...p.synonyms.flatMap(tokenize),
-    ]);
-    const targets = new Map<string, CanonicalIngredient>();
-    for (const tok of tokens) {
-      const hit = synToCanon.get(tok);
-      if (hit && hit._id !== p._id) targets.set(hit._id, hit);
-    }
-
-    if (targets.size !== 1) {
-      const why = targets.size === 0 ? "sem canônico" : `ambíguo (${[...targets.keys()].join(", ")})`;
-      console.log(`  mantém pending: ${p._id} — ${why}`);
-      continue;
-    }
-
-    const near = [...targets.values()][0]!;
+  /** Mescla um pending no canônico `near`. Captura recipes/dry do escopo. */
+  async function merge(
+    p: CanonicalIngredient,
+    near: CanonicalIngredient,
+  ): Promise<boolean> {
     console.log(`  mesclar: ${p._id} → ${near._id}`);
-    if (dry) continue;
+    if (dry) return false;
 
-    // 1. sinônimos do pending vão para o canônico
+    // 1. sinônimos + o próprio nome do pending vão para o canônico (casa direto
+    //    em ingestões futuras, sem recair em pending).
     await IngredientModel.update(
       { _id: near._id },
       {
-        $addToSet: { synonyms: { $each: p.synonyms } },
+        $addToSet: { synonyms: { $each: [...p.synonyms, p.displayName] } },
         $set: { updatedAt: new Date() },
       },
     );
-
     // 2. receitas que referenciam o pending passam a apontar para o canônico
     const res = await recipes?.updateMany(
       { "ingredients.canonicalId": p._id },
@@ -104,13 +118,25 @@ async function main(): Promise<void> {
       { arrayFilters: [{ "e.canonicalId": p._id }] },
     );
     console.log(`      receitas atualizadas: ${res?.modifiedCount ?? 0}`);
-
-    // 3. remove o pending duplicado
-    await IngredientModel.delete({ _id: p._id });
-    merged++;
+    // 3. remove o pending duplicado (collection nativa: DELETE não está nos
+    //    allowedMethods do Model)
+    await ingredientsCol?.deleteOne({ _id: p._id } as never);
+    return true;
   }
 
-  console.log(`\nconcluído: ${merged} mesclados, ${pendings.length - merged} mantidos.`);
+  let merged = 0;
+  let kept = 0;
+  for (const p of pendings) {
+    const core = stripPrep(p.displayName);
+    const hit = core ? lookupCanon(core) : undefined;
+    if (hit && hit._id !== p._id) {
+      if (await merge(p, hit)) merged++;
+    } else {
+      kept++;
+    }
+  }
+
+  console.log(`\nconcluído: ${merged} mesclados, ${kept} mantidos para revisão.`);
   await disconnectDatabase();
 }
 
