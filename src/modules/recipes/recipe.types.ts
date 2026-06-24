@@ -57,6 +57,17 @@ export interface Nutrition {
   fat: number; // g
 }
 
+export const DIETARY_TAGS = [
+  "vegetarian",
+  "vegan",
+  "gluten_free",
+  "lactose_free",
+  "sugar_free",
+  "low_carb",
+] as const;
+
+export type DietaryTag = (typeof DIETARY_TAGS)[number];
+
 export interface Recipe {
   _id?: string;
   /** ID original do dataset de origem (ex: food.com recipe id). Sparse unique. */
@@ -65,6 +76,12 @@ export interface Recipe {
   parentRecipeId?: string;
   /** Quem gerou esta receita (variantes podem ter múltiplos criadores). */
   createdBy?: RecipeCreator[];
+  /** Tags dietéticas inferidas na ingestão: filtra hard na busca. */
+  dietaryTags?: DietaryTag[];
+  /** Média de avaliações pós-cozinha (1–5). Desnormalizado do collection ratings. */
+  avgRating?: number;
+  /** Total de avaliações. */
+  ratingCount?: number;
   title: string;
   /** Tradução lazy do intro para inglês (gerada sob demanda na primeira request lang=en). */
   introEn?: string;
@@ -114,4 +131,6 @@ export interface RecipeSearchHit {
   missingCoreCount: number;
   cookableNow: boolean;
   nutrition?: Nutrition;
+  avgRating?: number;
+  ratingCount?: number;
 }

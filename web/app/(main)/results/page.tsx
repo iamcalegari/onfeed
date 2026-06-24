@@ -30,6 +30,7 @@ function parseParams(
     ...(base.length > 0 && { baseIngredients: base }),
     ...(titleSearch && { titleSearch }),
     ...(note && { note }),
+    ...(list("dietaryTags").length > 0 && { dietaryTags: list("dietaryTags") }),
   };
 }
 

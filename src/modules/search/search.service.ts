@@ -72,6 +72,7 @@ export async function searchRecipes(req: SearchRequest): Promise<SearchOutcome> 
     ...(req.limit !== undefined && { limit: req.limit }),
     ...(baseIds.length > 0 && { baseIds }),
     ...(req.occasions?.length && { occasions: req.occasions }),
+    ...(req.dietaryTags?.length && { dietaryTags: req.dietaryTags }),
   });
 
   return { results, unresolvedIngredients: unresolved, haveIds };

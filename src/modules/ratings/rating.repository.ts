@@ -1,3 +1,6 @@
+import { ObjectId } from "mongodb";
+
+import { RecipeModel } from "../recipes/recipe.model.js";
 import { RatingModel } from "./rating.model.js";
 
 export interface RatingStats {
@@ -35,7 +38,12 @@ export async function rateRecipe(
     });
   }
 
-  return getRatingStats(recipeId, userId);
+  const stats = await getRatingStats(recipeId, userId);
+  await RecipeModel.update(
+    { _id: new ObjectId(recipeId) } as never,
+    { $set: { avgRating: stats.avg, ratingCount: stats.count, updatedAt: new Date() } },
+  );
+  return stats;
 }
 
 /** Média + contagem da receita (e a nota do usuário, se informado). */

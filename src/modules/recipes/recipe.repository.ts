@@ -29,6 +29,7 @@ export interface HybridSearchParams {
   baseIds?: string[]; // canonicalIds marcados como base (dimensão B)
   sources?: RecipeSource[];
   occasions?: string[]; // filtro duro por ocasião (ex: ["drinks"])
+  dietaryTags?: string[]; // filtro duro de restrições alimentares (ex: ["gluten_free"])
   weights?: Partial<DimensionWeights>;
   numCandidates?: number;
   limit?: number;
@@ -37,9 +38,12 @@ export interface HybridSearchParams {
 const CORE_WEIGHT = 3;
 const NONCORE_WEIGHT = 1;
 
+// wRating=0.05 é deslocado do peso semântico para manter soma=1 no caso base.
+const wRating = 0.05;
+
 const DEFAULT_WEIGHTS: DimensionWeights = {
-  semantic: 0.25,
-  i: 0.45, // ingredientes são o sinal mais forte do match — pesam mais
+  semantic: 0.20, // reduzido de 0.25 para acomodar wRating
+  i: 0.45,
   e: 0.1,
   t: 0.1,
   n: 0.1,
@@ -88,6 +92,7 @@ export async function hybridSearch(
   const baseIds = params.baseIds ?? [];
   const hasBase = baseIds.length > 0;
   const occasions = params.occasions ?? [];
+  const dietaryTags = params.dietaryTags ?? [];
   // "drinks" é categoria realmente distinta (bebida × comida) → continua filtro
   // DURO. As demais ocasiões viram sinal SOFT (boost no score) pra não zerar o
   // recall quando o tagueamento da receita diverge do filtro do usuário.
@@ -180,6 +185,16 @@ export async function hybridSearch(
     };
   }
 
+  // R: boost para receitas bem avaliadas. Receitas com < 3 avaliações ficam neutras (0.5)
+  // para não penalizar receitas novas antes de acumular feedback.
+  const scoreRating: Document = {
+    $cond: [
+      { $and: [{ $ifNull: ["$avgRating", false] }, { $gte: ["$ratingCount", 3] }] },
+      { $divide: ["$avgRating", 5] },
+      0.5,
+    ],
+  };
+
   // Ocasião (soft): 1 se a receita cobre QUALQUER ocasião pedida, senão 0.
   const scoreOccasion: Document = hasOcc
     ? {
@@ -211,6 +226,11 @@ export async function hybridSearch(
       },
     },
     { $addFields: { vectorScore: { $meta: "vectorSearchScore" } } },
+    // Filtro duro de restrições dietéticas — só ativo quando o usuário informou tags.
+    // Receitas sem dietaryTags são excluídas quando o filtro está ativo.
+    ...(dietaryTags.length > 0
+      ? [{ $match: { dietaryTags: { $all: dietaryTags } } }]
+      : []),
 
     // --- dimensão I: cobertura ponderada de ingredientes ---
     {
@@ -283,6 +303,7 @@ export async function hybridSearch(
         scoreE,
         scoreT,
         scoreN,
+        scoreRating,
         ...(hasOcc && { scoreOccasion }),
         // B: fração dos ingredientes base presentes na receita (proporcional —
         // antes era tudo-ou-nada e zerava receitas com cobertura parcial)
@@ -317,6 +338,7 @@ export async function hybridSearch(
             { $multiply: [w.e, "$scoreE"] },
             { $multiply: [w.t, "$scoreT"] },
             { $multiply: [w.n, "$scoreN"] },
+            { $multiply: [wRating, "$scoreRating"] },
             ...(hasBase ? [{ $multiply: [wB, "$scoreB"] }] : []),
             ...(hasOcc ? [{ $multiply: [wOcc, "$scoreOccasion"] }] : []),
           ],
@@ -349,6 +371,8 @@ export async function hybridSearch(
         missingCoreCount: 1,
         cookableNow: 1,
         nutrition: 1,
+        avgRating: 1,
+        ratingCount: 1,
       },
     },
   ];

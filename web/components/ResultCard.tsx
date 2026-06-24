@@ -221,12 +221,23 @@ export function ResultCard({
               : <span style={{ color: "var(--t-success)", fontWeight: 700 }}>✓ Você tem tudo</span>
             }
           </div>
-          <span style={{
-            flexShrink: 0, fontSize: 12, color: "var(--t-text-secondary)",
-            fontWeight: 700, fontVariantNumeric: "tabular-nums",
-          }}>
-            ⏱ {formatMinutes(hit.prepTimeMin)}
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            {hit.avgRating !== undefined && hit.ratingCount !== undefined && hit.ratingCount > 0 && (
+              <span style={{
+                fontSize: 11.5, fontWeight: 700, color: "#c9973b",
+                fontVariantNumeric: "tabular-nums",
+              }}>
+                ★ {hit.avgRating.toFixed(1)}
+                <span style={{ color: "var(--t-text-muted)", fontWeight: 600 }}> · {hit.ratingCount}</span>
+              </span>
+            )}
+            <span style={{
+              fontSize: 12, color: "var(--t-text-secondary)",
+              fontWeight: 700, fontVariantNumeric: "tabular-nums",
+            }}>
+              ⏱ {formatMinutes(hit.prepTimeMin)}
+            </span>
+          </div>
         </div>
       </div>
     </Link>

@@ -82,6 +82,9 @@ const schema: ModelValidationSchema = {
     prepTimeMin: { bsonType: "number" },
     servings: { bsonType: "number" },
     occasions: { bsonType: "array", items: { bsonType: "string" } },
+    dietaryTags: { bsonType: "array", items: { bsonType: "string" } },
+    avgRating:   { bsonType: "number" },
+    ratingCount: { bsonType: "number" },
     equipment: {
       bsonType: "array",
       items: {
@@ -129,5 +132,6 @@ export const RecipeModel = new Model<Recipe>({
     { key: { externalId: 1 }, name: "external_id_unique", unique: true, sparse: true },
     // sparse: receitas sem parentRecipeId (base/user) não entram no índice
     { key: { parentRecipeId: 1 }, name: "parent_recipe_lookup", sparse: true },
+    { key: { dietaryTags: 1 }, name: "dietary_tags_lookup", sparse: true },
   ],
 });

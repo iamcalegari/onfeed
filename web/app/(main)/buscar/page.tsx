@@ -70,6 +70,15 @@ const RESTRICAO_LABEL: Record<string, string> = {
   semgluten: "sem glúten", vegetariano: "vegetariano", vegano: "vegano",
   semlactose: "sem lactose", semacucar: "sem açúcar", lowcarb: "low-carb",
 };
+// Mapeamento para tags estruturadas (filtro hard no backend após migração)
+const RESTRICAO_TAG: Record<string, string> = {
+  semgluten:    "gluten_free",
+  vegetariano:  "vegetarian",
+  vegano:       "vegan",
+  semlactose:   "lactose_free",
+  semacucar:    "sugar_free",
+  lowcarb:      "low_carb",
+};
 
 /* ── Explore ──────────────────────────────────────────────────── */
 interface ExploreCategory { label: string; bg: string; fg: string; pool: string[]; fallback: string[]; occasion?: string }
@@ -252,12 +261,16 @@ export default function BuscarPage() {
     const ocList = OCASIAO_DEFS.filter(o => ocasiao[o.key]).map(o => OC_API[o.key]);
     if (ocList.length) qs.set("occasions", ocList.join(","));
 
-    // Restrições alimentares + Foco low-carb → contexto SEMÂNTICO (note), não
-    // filtro: o backend ainda não tem tags dietéticas estruturadas, e mandá-las
-    // como "occasion" zerava a busca (nenhuma receita tem essas labels).
-    const rList = RESTRICAO_DEFS.filter(r => restricao[r.key]).map(r => RESTRICAO_LABEL[r.key]);
-    if (foco === "lowcarb" && !rList.includes("low-carb")) rList.push("low-carb");
-    if (rList.length) qs.set("note", `Restrições alimentares: ${rList.join(", ")}.`);
+    // Restrições alimentares: dietaryTags = filtro hard estruturado (pós-migração)
+    // + note = contexto semântico como fallback para receitas ainda sem tags.
+    const rKeys = RESTRICAO_DEFS.filter(r => restricao[r.key]).map(r => r.key);
+    if (foco === "lowcarb" && !rKeys.includes("lowcarb")) rKeys.push("lowcarb");
+    if (rKeys.length) {
+      const tags = rKeys.map(k => RESTRICAO_TAG[k]).filter(Boolean);
+      if (tags.length) qs.set("dietaryTags", tags.join(","));
+      const labels = rKeys.map(k => RESTRICAO_LABEL[k]);
+      qs.set("note", `Restrições alimentares: ${labels.join(", ")}.`);
+    }
 
     // Foco "Posso fazer": filtra no cliente só receitas cozinháveis com o que tem
     if (foco === "fazer") qs.set("onlyCookable", "1");

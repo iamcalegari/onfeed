@@ -15,6 +15,7 @@ export interface SearchRequest {
   lang?: "pt" | "en";
   baseIngredients?: string[];
   titleSearch?: string;
+  dietaryTags?: string[];
 }
 
 export interface DimensionScores {
@@ -60,6 +61,8 @@ export interface SearchHit {
   missingCoreCount: number;
   cookableNow: boolean;
   nutrition?: Nutrition;
+  avgRating?: number;
+  ratingCount?: number;
 }
 
 export interface SearchResponse {

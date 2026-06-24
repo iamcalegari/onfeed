@@ -488,12 +488,17 @@ export default async function RecipePage({
           recipeId={recipe._id}
           recipeTitle={recipe.title}
           haveCount={haveCount}
+          originalServings={recipe.servings}
+          unitSystem={unitSystem}
+          lang={lang}
           ingredients={recipe.ingredients.map(ing => ({
-            name: ing.name,
-            got:  hasIt(ing.canonicalId, ing.isStaple),
-            base: isBaseIng(ing.name),
-            core: ing.core ?? false,
-            qty:  formatQtyForSystem(ing.quantity, translateUnit(ing.unit, lang), unitSystem),
+            name:        ing.name,
+            got:         hasIt(ing.canonicalId, ing.isStaple),
+            base:        isBaseIng(ing.name),
+            core:        ing.core ?? false,
+            qty:         formatQtyForSystem(ing.quantity, translateUnit(ing.unit, lang), unitSystem),
+            quantityRaw: ing.quantity,
+            unitRaw:     ing.unit,
           }))}
         />
 

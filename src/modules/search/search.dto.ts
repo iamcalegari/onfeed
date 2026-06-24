@@ -35,6 +35,8 @@ export const SearchRequestSchema = Type.Object(
     baseIngredients: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { maxItems: 5 })),
     // busca por nome da receita (modo "já sei o que fazer") — ignora ingredientes
     titleSearch: Type.Optional(Type.String({ minLength: 1, maxLength: 120 })),
+    // filtro duro de restrições dietéticas (ex: ["gluten_free", "vegetarian"])
+    dietaryTags: Type.Optional(Type.Array(Type.String())),
   },
   { additionalProperties: false },
 );
