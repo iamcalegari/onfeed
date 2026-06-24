@@ -18,6 +18,7 @@ import {
   getFavoriteIds,
   getRecipe,
   getRecipeLikes,
+  getRecipeRating,
   getRecipeVariants,
 } from "@/lib/api";
 import { flagEmoji, formatMinutes, recipeHref } from "@/lib/format";
@@ -94,16 +95,18 @@ export default async function RecipePage({
 
   const isVariant = recipe.source === "variant";
 
-  const [favorited, likes, variantData, parentRecipe] = await Promise.all([
-    userId ? getFavoriteIds().then((ids) => ids.includes(recipe._id)) : false,
-    getRecipeLikes(recipe._id),
-    isVariant
-      ? Promise.resolve({ count: 0, variants: [] })
-      : getRecipeVariants(recipe._id),
-    isVariant && recipe.parentRecipeId
-      ? getRecipe(recipe.parentRecipeId)
-      : Promise.resolve(null),
-  ]);
+  const [favorited, likes, variantData, parentRecipe, rating] =
+    await Promise.all([
+      userId ? getFavoriteIds().then((ids) => ids.includes(recipe._id)) : false,
+      getRecipeLikes(recipe._id),
+      isVariant
+        ? Promise.resolve({ count: 0, variants: [] })
+        : getRecipeVariants(recipe._id),
+      isVariant && recipe.parentRecipeId
+        ? getRecipe(recipe.parentRecipeId)
+        : Promise.resolve(null),
+      getRecipeRating(recipe._id),
+    ]);
 
   const haveSet = new Set((have ?? "").split(",").filter(Boolean));
   const hasIt = (canonicalId: string, isStaple: boolean) =>
@@ -339,6 +342,14 @@ export default async function RecipePage({
         >
           <span>⏱ {formatMinutes(totalTime)}</span>
           <span>🍽 {recipe.servings} porções</span>
+          {rating.count > 0 && (
+            <span style={{ color: "#c9973b", fontWeight: 700 }}>
+              ★ {rating.avg.toFixed(1)}{" "}
+              <span style={{ color: "var(--t-text-muted)", fontWeight: 600 }}>
+                ({rating.count})
+              </span>
+            </span>
+          )}
           <span>
             {flagEmoji(recipe.country)} {recipe.country}
           </span>

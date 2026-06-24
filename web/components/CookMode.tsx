@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { Recipe, RecipeIngredient } from "@/lib/types";
+import { CookRating } from "./CookRating";
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 
@@ -45,7 +46,7 @@ function fmt(seconds: number) {
 
 /* ── Componente principal ────────────────────────────────────── */
 
-export function CookMode({ recipe }: { recipe: Recipe }) {
+export function CookMode({ recipe, canRate }: { recipe: Recipe; canRate: boolean }) {
   const router = useRouter();
 
   const [stepIdx,       setStepIdx]       = useState(0);
@@ -136,6 +137,9 @@ export function CookMode({ recipe }: { recipe: Recipe }) {
         <p className="text-sm text-carvao/60">
           Bom apetite. Esperamos que tenha ficado uma delícia.
         </p>
+
+        <CookRating recipeId={recipe._id} canRate={canRate} />
+
         <button
           type="button"
           onClick={() => router.back()}

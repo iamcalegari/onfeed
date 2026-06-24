@@ -68,6 +68,14 @@ export interface SearchResponse {
   haveIds: string[];
 }
 
+export interface RatingStats {
+  /** média 0..5 (0 = sem avaliações) */
+  avg: number;
+  count: number;
+  /** nota do usuário atual, ou null se não avaliou / anônimo */
+  mine: number | null;
+}
+
 export interface RecipeIngredient {
   raw: string;
   canonicalId: string;

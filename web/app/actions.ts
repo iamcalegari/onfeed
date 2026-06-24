@@ -10,12 +10,13 @@ import {
   getThumbnailUrl,
   getPantry,
   getRecipeLikes,
+  rateRecipe,
   removeFavorite,
   removeFromPantry,
   toggleLike,
   triggerThumbnail,
 } from "@/lib/api";
-import type { PantryIngredient } from "@/lib/types";
+import type { PantryIngredient, RatingStats } from "@/lib/types";
 
 /**
  * Server action da geração híbrida — roda no servidor do Next, chama o backend
@@ -79,4 +80,12 @@ export async function toggleLikeAction(
   recipeId: string,
 ): Promise<{ liked: boolean; count: number }> {
   return toggleLike(recipeId);
+}
+
+/** Avaliação pós-cozinha (1–5) — upsert por usuário. */
+export async function rateRecipeAction(
+  recipeId: string,
+  rating: number,
+): Promise<RatingStats> {
+  return rateRecipe(recipeId, rating);
 }

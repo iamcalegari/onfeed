@@ -7,6 +7,7 @@ import type {
   FavoriteRecipe,
   NutritionGoal,
   PantryIngredient,
+  RatingStats,
   Recipe,
   SearchRequest,
   SearchResponse,
@@ -202,6 +203,34 @@ export async function toggleLike(
   );
   if (!res.ok) throw new Error(`Toggle like falhou: ${res.status}`);
   return res.json() as Promise<{ liked: boolean; count: number }>;
+}
+
+// --- avaliações pós-cozinha (count/avg público; avaliar exige login) ---
+
+export async function getRecipeRating(recipeId: string): Promise<RatingStats> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/recipes/${encodeURIComponent(recipeId)}/rating`,
+    { cache: "no-store", headers: { ...(await authHeaders()) } },
+  );
+  if (!res.ok) return { avg: 0, count: 0, mine: null };
+  return res.json() as Promise<RatingStats>;
+}
+
+export async function rateRecipe(
+  recipeId: string,
+  rating: number,
+): Promise<RatingStats> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/recipes/${encodeURIComponent(recipeId)}/rate`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(await authHeaders()) },
+      body: JSON.stringify({ rating }),
+      cache: "no-store",
+    },
+  );
+  if (!res.ok) throw new Error(`Avaliar falhou: ${res.status}`);
+  return res.json() as Promise<RatingStats>;
 }
 
 export async function adaptRecipe(id: string, body: AdaptBody): Promise<Recipe> {

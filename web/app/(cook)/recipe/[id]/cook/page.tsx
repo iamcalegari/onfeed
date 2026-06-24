@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 
 import { CookMode } from "@/components/CookMode";
@@ -11,5 +12,13 @@ export default async function CookPage({
   const { id } = await params;
   const recipe = await getRecipe(id);
   if (!recipe) notFound();
-  return <CookMode recipe={recipe} />;
+
+  let canRate = false;
+  try {
+    canRate = (await auth()).userId !== null;
+  } catch {
+    canRate = false;
+  }
+
+  return <CookMode recipe={recipe} canRate={canRate} />;
 }
