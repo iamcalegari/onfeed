@@ -55,6 +55,21 @@ export const env = {
     planMonthlyLimitPro: Number(optional("PLAN_MONTHLY_LIMIT_PRO", "30")),
   },
 
+  // Mercado Pago — assinatura PRO. Sem MP_ACCESS_TOKEN, billing fica desabilitado
+  // (o endpoint /billing/subscribe responde 503).
+  mp: {
+    enabled: Boolean(process.env.MP_ACCESS_TOKEN),
+    accessToken: optional("MP_ACCESS_TOKEN", ""),
+    // Secret da assinatura do webhook (painel MP > Webhooks). Valida x-signature.
+    webhookSecret: optional("MP_WEBHOOK_SECRET", ""),
+    proPrice: Number(optional("MP_PRO_PRICE", "19.90")),
+  },
+
+  // URL pública do front (back_url do checkout do MP).
+  app: {
+    url: optional("APP_URL", "http://localhost:3001"),
+  },
+
   variants: {
     promoteThreshold: Number(optional("VARIANT_PROMOTE_THRESHOLD", "5")),
     // Clerk userIds autorizados a moderar variantes (separados por vírgula)

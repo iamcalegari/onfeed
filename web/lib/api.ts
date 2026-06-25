@@ -307,3 +307,28 @@ export async function generateMealPlan(
   }
   return res.json() as Promise<GeneratedPlan>;
 }
+
+// --- assinatura PRO (Mercado Pago) ---
+
+/** Inicia a assinatura PRO e devolve o checkout do MP (init_point). */
+export async function subscribePro(
+  email: string,
+): Promise<{ initPoint: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/billing/subscribe`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ email }),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    let msg = `Não foi possível iniciar a assinatura (${res.status})`;
+    try {
+      const j = (await res.json()) as { message?: string };
+      if (j?.message) msg = j.message;
+    } catch {
+      /* não-JSON */
+    }
+    throw new Error(msg);
+  }
+  return res.json() as Promise<{ initPoint: string }>;
+}

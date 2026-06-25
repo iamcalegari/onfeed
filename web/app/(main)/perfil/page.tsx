@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { getGoals, type NutritionGoals } from "@/lib/nutritionPlan";
 import { getLatestWeight } from "@/lib/weightStorage";
 import { usePro } from "@/lib/usePro";
+import { showToast } from "@/lib/toast";
 
 const PROFILE_KEY = "onfeed:profile";
 
@@ -42,6 +43,7 @@ export default function PerfilPage() {
   const [draftName, setDraftName]  = useState("");
   const [latestKg, setLatestKg]   = useState<{ kg: number } | null>(null);
   const [mounted, setMounted]     = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
 
   // Preenche o nome com o do Clerk se ainda não tiver nome salvo
   useEffect(() => {
@@ -74,6 +76,27 @@ export default function PerfilPage() {
     setProfileName(trimmed);
     saveProfile({ name: trimmed });
     setEditingName(false);
+  }
+
+  async function handleSubscribe() {
+    if (subscribing) return;
+    if (pro.isPro) { showToast("Você já é PRO ✨", "✅"); return; }
+    const email = user?.primaryEmailAddress?.emailAddress;
+    if (!email) { showToast("Não foi possível obter seu e-mail", "⚠️"); return; }
+    setSubscribing(true);
+    try {
+      const res = await fetch("/api/billing/subscribe", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Falha ao iniciar a assinatura");
+      window.location.href = data.initPoint as string;
+    } catch (e) {
+      showToast((e as Error).message || "Não foi possível assinar agora", "⚠️");
+      setSubscribing(false);
+    }
   }
 
   // Aguarda Clerk carregar para não piscar o conteúdo errado
@@ -260,7 +283,8 @@ export default function PerfilPage() {
         ))}
       </div>
 
-      {/* ── Pro upsell ────────────────────────────────────────── */}
+      {/* ── Pro upsell (some quando já é PRO) ───────────────────── */}
+      {!pro.isPro && (
       <div style={{ background: "linear-gradient(125deg,#d4644a,#e0865f)", borderRadius: 22, padding: 22, color: "#fff", boxShadow: "0 12px 28px -12px rgba(212,100,74,.6)" }}>
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5 }}>✨ ONFEED PRO</div>
         <div style={{ fontFamily: "var(--font-display)", fontSize: 21, marginTop: 8, lineHeight: 1.2 }}>
@@ -272,11 +296,14 @@ export default function PerfilPage() {
         </div>
         <button
           type="button"
-          style={{ background: "var(--t-bg-card)", color: "#d4644a", borderRadius: 14, padding: 13, textAlign: "center", fontSize: 14, fontWeight: 800, marginTop: 14, cursor: "pointer", border: "none", width: "100%" }}
+          onClick={handleSubscribe}
+          disabled={subscribing}
+          style={{ background: "var(--t-bg-card)", color: "#d4644a", borderRadius: 14, padding: 13, textAlign: "center", fontSize: 14, fontWeight: 800, marginTop: 14, cursor: subscribing ? "default" : "pointer", border: "none", width: "100%", opacity: subscribing ? 0.7 : 1 }}
         >
-          Testar 7 dias grátis
+          {subscribing ? "Redirecionando…" : "Testar 7 dias grátis"}
         </button>
       </div>
+      )}
     </div>
   );
 }
