@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useUser } from "@clerk/nextjs";
 
 import { getMacroHistory, getGoals, type DayMacro } from "@/lib/nutritionPlan";
 import {
@@ -11,7 +12,7 @@ import {
   weightSparklinePoints,
   type WeightEntry,
 } from "@/lib/weightStorage";
-import { PRO_FEATURES, PRO_PRICE, togglePro } from "@/lib/proStorage";
+import { PRO_FEATURES, PRO_PRICE } from "@/lib/proStorage";
 import { usePro } from "@/lib/usePro";
 import { showToast } from "@/lib/toast";
 
@@ -24,6 +25,8 @@ const ACHIEVEMENTS = [
 
 export default function ProgressoPage() {
   const pro = usePro();
+  const { user } = useUser();
+  const [subscribing, setSubscribing] = useState(false);
   const [streak, setStreak]       = useState(0);
   const [macros, setMacros]       = useState<DayMacro[]>([]);
   const [goalKcal, setGoalKcal]   = useState(0);
@@ -289,23 +292,39 @@ export default function ProgressoPage() {
           <span style={{ fontSize: 24, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{PRO_PRICE}</span>
           <span style={{ fontSize: 13, opacity: 0.85 }}>/mês</span>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            const np = togglePro();
-            showToast(np ? "Modo PRO ativado ✨" : "Voltou para o plano grátis", np ? "✨" : "✅");
-          }}
-          style={{
-            width: "100%", background: "var(--t-bg-card)", color: "#d4644a", border: "none",
-            borderRadius: 14, padding: 13, textAlign: "center", fontSize: 14, fontWeight: 800,
-            marginTop: 14, cursor: "pointer",
-          }}
-        >
-          {pro.isPro ? "Você é PRO ✓" : "Testar 7 dias grátis"}
-        </button>
-        <div style={{ fontSize: 10.5, opacity: 0.7, textAlign: "center", marginTop: 8 }}>
-          {pro.isPro ? "Demo: tocar para voltar ao plano grátis" : "Demo: tocar para simular o plano PRO"}
-        </div>
+        {!pro.isPro && (
+          <button
+            type="button"
+            disabled={subscribing}
+            onClick={async () => {
+              if (subscribing) return;
+              const email = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses?.[0]?.emailAddress;
+              if (!email) { showToast("Não foi possível obter seu e-mail", "⚠️"); return; }
+              setSubscribing(true);
+              try {
+                const res = await fetch("/api/billing/subscribe", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ email }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data?.error ?? "Falha ao iniciar a assinatura");
+                window.open(data.initPoint as string, "_blank", "noopener");
+              } catch (e) {
+                showToast((e as Error).message || "Não foi possível assinar agora", "⚠️");
+              } finally {
+                setSubscribing(false);
+              }
+            }}
+            style={{
+              width: "100%", background: "var(--t-bg-card)", color: "#d4644a", border: "none",
+              borderRadius: 14, padding: 13, textAlign: "center", fontSize: 14, fontWeight: 800,
+              marginTop: 14, cursor: subscribing ? "default" : "pointer", opacity: subscribing ? 0.7 : 1,
+            }}
+          >
+            {subscribing ? "Redirecionando…" : "Testar 7 dias grátis"}
+          </button>
+        )}
       </div>
     </div>
   );
