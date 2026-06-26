@@ -60,9 +60,10 @@ export const env = {
   mp: {
     enabled: Boolean(process.env.MP_ACCESS_TOKEN),
     accessToken: optional("MP_ACCESS_TOKEN", ""),
-    // Secret da assinatura do webhook (painel MP > Webhooks). Valida x-signature.
     webhookSecret: optional("MP_WEBHOOK_SECRET", ""),
     proPrice: Number(optional("MP_PRO_PRICE", "19.90")),
+    // Email de comprador de teste (MP sandbox exige payer real ou test — ambos do mesmo tipo).
+    testPayerEmail: optional("MP_TEST_PAYER_EMAIL", ""),
   },
 
   // URL pública do front (back_url do checkout do MP).

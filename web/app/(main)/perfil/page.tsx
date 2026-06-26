@@ -81,8 +81,15 @@ export default function PerfilPage() {
   async function handleSubscribe() {
     if (subscribing) return;
     if (pro.isPro) { showToast("Você já é PRO ✨", "✅"); return; }
-    const email = user?.primaryEmailAddress?.emailAddress;
-    if (!email) { showToast("Não foi possível obter seu e-mail", "⚠️"); return; }
+    const email =
+      user?.primaryEmailAddress?.emailAddress ??
+      user?.emailAddresses?.[0]?.emailAddress;
+    console.log("[subscribe] user:", user?.id, "email:", email);
+    if (!email) {
+      console.error("[subscribe] sem email — user:", user);
+      showToast("Não foi possível obter seu e-mail", "⚠️");
+      return;
+    }
     setSubscribing(true);
     try {
       const res = await fetch("/api/billing/subscribe", {
@@ -91,9 +98,12 @@ export default function PerfilPage() {
         body: JSON.stringify({ email }),
       });
       const data = await res.json();
+      console.log("[subscribe] resposta:", res.status, data);
       if (!res.ok) throw new Error(data?.error ?? "Falha ao iniciar a assinatura");
-      window.location.href = data.initPoint as string;
+      window.open(data.initPoint as string, "_blank", "noopener");
+      setSubscribing(false);
     } catch (e) {
+      console.error("[subscribe] erro:", e);
       showToast((e as Error).message || "Não foi possível assinar agora", "⚠️");
       setSubscribing(false);
     }

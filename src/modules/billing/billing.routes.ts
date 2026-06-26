@@ -88,7 +88,8 @@ export const billingRoutes: FastifyPluginAsync = async (app) => {
       try {
         const pre = await createPreapproval({
           userId,
-          payerEmail: request.body.email,
+          // Em prod usa o email real do usuário; em dev usa o test payer do MP sandbox.
+          payerEmail: env.isProd ? request.body.email : (env.mp.testPayerEmail || request.body.email),
           reason: "onFeed Pro",
           amount: env.mp.proPrice,
           backUrl: `${env.app.url}/perfil?assinatura=ok`,

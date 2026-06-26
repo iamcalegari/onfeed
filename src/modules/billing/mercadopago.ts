@@ -15,31 +15,32 @@ export interface Preapproval {
 /** Cria uma assinatura (preapproval) e devolve o checkout do MP (init_point). */
 export async function createPreapproval(params: {
   userId: string;
-  payerEmail: string;
+  payerEmail?: string;
   reason: string;
   amount: number;
   backUrl: string;
 }): Promise<Preapproval> {
+  const body = {
+    reason: params.reason,
+    external_reference: params.userId,
+    ...(params.payerEmail ? { payer_email: params.payerEmail } : {}),
+    back_url: params.backUrl,
+    auto_recurring: {
+      frequency: 1,
+      frequency_type: "months",
+      transaction_amount: params.amount,
+      currency_id: "BRL",
+    },
+    status: "pending",
+  };
+  console.log("[MP] createPreapproval body:", JSON.stringify(body));
   const res = await fetch(`${MP_API}/preapproval`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${env.mp.accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      reason: params.reason,
-      external_reference: params.userId, // mapeia a assinatura -> usuário (Clerk)
-      payer_email: params.payerEmail,
-      back_url: params.backUrl,
-      auto_recurring: {
-        frequency: 1,
-        frequency_type: "months",
-        transaction_amount: params.amount,
-        currency_id: "BRL",
-        free_trial: { frequency: 7, frequency_type: "days" },
-      },
-      status: "pending",
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     throw new Error(`MP preapproval ${res.status}: ${await res.text()}`);
