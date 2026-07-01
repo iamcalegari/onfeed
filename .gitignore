@@ -7,3 +7,10 @@ dist/
 
 # dataset bruto (grande demais p/ git)
 data/archive/
+
+# Obsidian: config pessoal do vault + chave privada RSA/API key do plugin local-rest-api
+.obsidian/
+.notes/
+
+# GSD research websearch cache
+.planning/research/.cache/
