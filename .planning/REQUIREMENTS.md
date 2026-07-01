@@ -104,25 +104,48 @@ Deferidos para logo após validar o núcleo. Rastreados, fora do roadmap atual.
 
 ## Traceability
 
-Preenchida na criação do roadmap. Mapeamento provisório às fases sugeridas pela pesquisa:
+Mapeamento confirmado pelo roadmapper em `.planning/ROADMAP.md` (2026-07-01).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PIPE-01..07 | Phase 1 (Video Pipeline Foundation) | Pending |
-| CAP-02 | Phase 1 | Pending |
-| EXT-01..05 | Phase 2 (Structured Extraction) | Pending |
-| CAP-01 | Phase 3 (Capture & Review) | Pending |
-| REV-01..04 | Phase 3 | Pending |
-| CAP-03 | Phase 4 (Cost/Quota & Dedup) | Pending |
-| COST-01..03 | Phase 4 | Pending |
-| SOC-01..05 | Phase 5 (Publish, Promotion & Citizenship) | Pending |
-| RCP-01..04 | Phase 5 | Pending |
+| PIPE-01 | Phase 1 (Video Pipeline Foundation) | Pending |
+| PIPE-02 | Phase 1 (Video Pipeline Foundation) | Pending |
+| PIPE-03 | Phase 1 (Video Pipeline Foundation) | Pending |
+| PIPE-04 | Phase 1 (Video Pipeline Foundation) | Pending |
+| PIPE-05 | Phase 1 (Video Pipeline Foundation) | Pending |
+| PIPE-06 | Phase 1 (Video Pipeline Foundation) | Pending |
+| PIPE-07 | Phase 1 (Video Pipeline Foundation) | Pending |
+| CAP-02 | Phase 1 (Video Pipeline Foundation) | Pending |
+| EXT-01 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
+| EXT-02 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
+| EXT-03 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
+| EXT-04 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
+| EXT-05 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
+| CAP-01 | Phase 3 (Capture & Mandatory Review UI) | Pending |
+| REV-01 | Phase 3 (Capture & Mandatory Review UI) | Pending |
+| REV-02 | Phase 3 (Capture & Mandatory Review UI) | Pending |
+| REV-03 | Phase 3 (Capture & Mandatory Review UI) | Pending |
+| REV-04 | Phase 3 (Capture & Mandatory Review UI) | Pending |
+| CAP-03 | Phase 4 (Cost/Quota Gating & Dedup) | Pending |
+| COST-01 | Phase 4 (Cost/Quota Gating & Dedup) | Pending |
+| COST-02 | Phase 4 (Cost/Quota Gating & Dedup) | Pending |
+| COST-03 | Phase 4 (Cost/Quota Gating & Dedup) | Pending |
+| SOC-01 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
+| SOC-02 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
+| SOC-03 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
+| SOC-04 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
+| SOC-05 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
+| RCP-01 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
+| RCP-02 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
+| RCP-03 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
+| RCP-04 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
 
 **Coverage:**
-- v1 requirements: 30 total
-- Mapeados provisoriamente: 30
-- A confirmar pelo roadmapper (v2 fica para Phase 6 / próximo milestone)
+- v1 requirements: 31 total (CAP-01..03, PIPE-01..07, EXT-01..05, REV-01..04, RCP-01..04, SOC-01..05, COST-01..03)
+- Mapeados: 31/31 (100%)
+- Unmapped: 0
+- v2 requirements (EXTN, IMG, PRO, SHARE, TS, MOD — 12 total) intencionalmente fora das fases: ver seção "Future / v2" em `.planning/ROADMAP.md`
 
 ---
 *Requirements defined: 2026-07-01*
-*Last updated: 2026-07-01 after initial definition*
+*Last updated: 2026-07-01 after roadmap creation — traceability confirmed, 31/31 v1 requirements mapped*
