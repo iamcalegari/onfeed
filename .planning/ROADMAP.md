@@ -30,7 +30,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. An `ImportJob` document tracks the job through queued → downloading → transcribing → extracting (stub) → ready_for_review/failed, survives a duplicate/retried message without creating a second job or reprocessing (idempotency + DLQ), and no raw video/audio file remains on disk or in S3 after the job finishes.
   4. When a platform blocks or rate-limits the download, the job lands in a distinct, monitored `failed` state (not a silent hang or generic 500) — per-platform success-rate is observable, and a circuit breaker degrades gracefully instead of hammering a broken platform.
   5. A clip with no real narration (music-only/silent) is flagged as low/no-speech rather than handed to the LLM as if it were a confident transcript.
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+- [ ] 01-01-PLAN.md — Test infra (Vitest), env/config blocks, ImportJob model/repository/types (PIPE-06)
+- [ ] 01-02-PLAN.md — Pure-logic infra: ffmpeg exec wrapper, silencedetect VAD, keyframe extractor, circuit breaker (PIPE-02/04/07)
+- [ ] 01-03-PLAN.md — yt-dlp downloader + failure classification, Groq→OpenAI transcription fallback (PIPE-01/02/03)
+- [ ] 01-04-PLAN.md — Import module: CAP-02 validation/SSRF allowlist, enqueue producer, ownership-scoped routes, README (CAP-02/PIPE-06)
+- [ ] 01-05-PLAN.md — import-worker: sqs-consumer loop, pipeline orchestration, two-layer cleanup, idempotency (PIPE-01..07)
+- [ ] 01-06-PLAN.md — Deploy: Dockerfile.import-worker, render.yaml worker block, SQS queue+DLQ, infra/video README (PIPE-06/07)
 
 ### Phase 2: Structured Extraction & Recipe Persistence
 **Goal**: The transcript + caption produced by Phase 1 becomes a structured, canonicalized, searchable recipe — and every field is honest about whether it was stated in the source or inferred, with low-confidence extractions routed to mandatory review rather than published silently.
@@ -88,7 +95,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Video Pipeline Foundation | 0/TBD | Not started | - |
+| 1. Video Pipeline Foundation | 0/6 | Not started | - |
 | 2. Structured Extraction & Recipe Persistence | 0/TBD | Not started | - |
 | 3. Capture & Mandatory Review UI | 0/TBD | Not started | - |
 | 4. Cost/Quota Gating & Dedup | 0/TBD | Not started | - |
