@@ -28,7 +28,7 @@
     "ui_phase": true,
     "ui_safety_gate": true,
     "ai_integration_phase": true,
-    "human_verify_mode": "end-of-phase",
+    "human_verify_mode": "mid-flight",
     "context_guard_mode": "warn",
     "text_mode": false,
     "research_before_questions": false,
