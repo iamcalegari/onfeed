@@ -27,7 +27,7 @@
     "s3:up": "docker compose up -d",
     "s3:down": "docker compose down",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --exclude '**/*.integration.test.ts'",
+    "test": "VITEST_EXCLUDE_INTEGRATION=true vitest run",
     "test:all": "vitest run",
     "build:lambda": "esbuild src/lambda/ingest-handler.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/lambda/handler.js --external:@aws-sdk/* --tsconfig=tsconfig.json",
     "deploy:lambda": "bash infra/scripts/deploy-lambda.sh",
