@@ -20,7 +20,7 @@ Núcleo do MVP: **colar link → receita confiável**. Extensão de browser, car
 - [ ] **PIPE-03**: O worker captura a caption do post e os metadados de origem (plataforma, URL do vídeo, @ do autor, URL do perfil quando extraíveis)
 - [ ] **PIPE-04**: O worker extrai 1 keyframe representativo do vídeo como imagem da receita (melhor frame)
 - [ ] **PIPE-05**: O vídeo/áudio baixado é apagado após o processamento (não re-hospeda mídia de terceiros)
-- [ ] **PIPE-06**: Um `ImportJob` rastreia o estado do trabalho (queued → downloading → transcribing → extracting → ready_for_review → published/failed) com idempotência, retry e DLQ
+- [x] **PIPE-06**: Um `ImportJob` rastreia o estado do trabalho (queued → downloading → transcribing → extracting → ready_for_review → published/failed) com idempotência, retry e DLQ
 - [ ] **PIPE-07**: Falha de download por bloqueio de plataforma é um estado tratado e monitorado (circuit breaker + telemetria de taxa de sucesso por plataforma), com mensagem específica ao usuário
 
 ### Extração estruturada
@@ -113,7 +113,7 @@ Mapeamento confirmado pelo roadmapper em `.planning/ROADMAP.md` (2026-07-01).
 | PIPE-03 | Phase 1 (Video Pipeline Foundation) | Pending |
 | PIPE-04 | Phase 1 (Video Pipeline Foundation) | Pending |
 | PIPE-05 | Phase 1 (Video Pipeline Foundation) | Pending |
-| PIPE-06 | Phase 1 (Video Pipeline Foundation) | Pending |
+| PIPE-06 | Phase 1 (Video Pipeline Foundation) | Complete |
 | PIPE-07 | Phase 1 (Video Pipeline Foundation) | Pending |
 | CAP-02 | Phase 1 (Video Pipeline Foundation) | Pending |
 | EXT-01 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
@@ -141,6 +141,7 @@ Mapeamento confirmado pelo roadmapper em `.planning/ROADMAP.md` (2026-07-01).
 | RCP-04 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
 
 **Coverage:**
+
 - v1 requirements: 31 total (CAP-01..03, PIPE-01..07, EXT-01..05, REV-01..04, RCP-01..04, SOC-01..05, COST-01..03)
 - Mapeados: 31/31 (100%)
 - Unmapped: 0
