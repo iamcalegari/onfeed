@@ -1,5 +1,5 @@
 ---
-tags: [backend, module, video-pipeline, import]
+tags: [backend, module, video-pipeline, import, ssrf, idor]
 updated: 2026-07-01
 ---
 
@@ -15,14 +15,11 @@ para progresso quanto para idempotência (PIPE-06).
 |---|---|
 | `import-job.types.ts` | `ImportJobStatus`, `ImportFailureReason`, `ImportJob`, `ImportJobMessage` |
 | `import-job.model.ts` | Schema Mongoat: coleção `import_jobs`, índices em `status`/`userId` |
-| `import-job.repository.ts` | `createImportJob`, `getImportJob`, `updateImportJobStatus` |
+| `import-job.repository.ts` | `createImportJob`, `getImportJob` (opcionalmente escopado por `userId`), `updateImportJobStatus` |
 | `import-job.repository.test.ts` | Testes unitários do repositório (`ImportJobModel` mockado) |
-
-> [!INFO] Ainda não existe nesta fase
-> `import.routes.ts` (rotas `POST /import` / `GET /import/:jobId`) e
-> `import.service.ts` (`enqueueImportJob`, `detectPlatform`, `normalizeUrl`)
-> são entregues em plans seguintes desta mesma fase — este plan (01-01)
-> estabelece só a fundação (tipos + model + repository).
+| `import.service.ts` | `detectPlatform` (fronteira SSRF), `normalizeUrl`, `enqueueImportJob` |
+| `import.service.test.ts` | Testes unitários (allowlist SSRF, normalização, enqueue) |
+| `import.routes.ts` | `POST /import`, `GET /import/:jobId` (rotas exigem [[Auth]]) |
 
 ## State Machine
 
@@ -44,6 +41,38 @@ queued → downloading → transcribing → extracting → ready_for_review
 > autoritativo em vez de confiar no conteúdo da mensagem. Isso é a mitigação
 > de tampering T-01-02 do threat model desta fase.
 
+## Rotas
+
+```
+POST   /api/v1/import           body: { url }
+                                 → 202 { jobId }
+                                 → 400 { error: "invalid_url" | "unsupported_platform" }
+GET    /api/v1/import/:jobId    → ImportJob (só se o caller for o dono)
+                                 → 404 (job de outro usuário OU inexistente — indistinguível)
+```
+
+`POST /import` roda `detectPlatform(url)` **antes** de criar qualquer doc ou
+enfileirar qualquer mensagem — uma URL rejeitada nunca chega perto do
+worker/yt-dlp. Em caso de sucesso: cria o `ImportJob` (`status: "queued"`),
+chama `enqueueImportJob(job._id)` e responde `202` com o `jobId`.
+
+> [!INFO] detectPlatform é a fronteira de segurança contra SSRF
+> `detectPlatform` usa uma allowlist estrita de domínio (só
+> `youtube.com`/`youtu.be`, `tiktok.com`/`vm.tiktok.com`,
+> `instagram.com`) — não uma checagem frouxa de "parece uma URL de vídeo".
+> Qualquer URL fora dessas 3 plataformas (IP interno, host arbitrário,
+> `file:`/`javascript:`) retorna `null` e é rejeitada com 400 antes do job
+> existir. Isso é a mitigação real de SSRF (T-04-01) — o yt-dlp nunca vê
+> uma URL que não passou por essa allowlist.
+
+> [!TIP] Ownership check escopado na query, não busca-e-compara
+> `GET /import/:jobId` chama `getImportJob(jobId, userId)`, que filtra por
+> `_id` **e** `userId` na própria query Mongo. Um usuário que não é dono
+> recebe o mesmo `404` de "job inexistente" — não há como diferenciar "não
+> existe" de "não é seu", o que bloqueia enumeração de jobId (IDOR, T-04-02).
+> Essa rota não tem precedente no restante do código (é superfície de
+> ataque nova desta fase) — o check é explícito, não herdado do guard de auth.
+
 ## ImportJobModel (Mongoat)
 
 Mirror do padrão de [[Favorites]] (`favorite.model.ts`), com uma diferença
@@ -63,8 +92,10 @@ existente).
 
 - `createImportJob(userId, sourceUrl, normalizedUrl, platform)` — insere o doc
   inicial; `status`/`retryCount`/timestamps vêm de `documentDefaults`.
-- `getImportJob(jobId)` — `findById` direto (mesmo idioma de
-  `recipe.repository.ts#getRecipeById`); retorna `null` se não existir.
+- `getImportJob(jobId, userId?)` — sem `userId`, `findById` direto (usado
+  internamente/pelo worker). Com `userId`, filtra por `_id` **e** `userId`
+  na mesma query (`ImportJobModel.find({ _id, userId })`) — é essa variante
+  que `GET /import/:jobId` usa para o ownership check (ver callout acima).
 - `updateImportJobStatus(jobId, patch)` — `update({ _id: new ObjectId(jobId) }, { $set: { ...patch, updatedAt: new Date() } })`,
   transição atômica de status/campos a cada fronteira de etapa do pipeline.
 
@@ -72,7 +103,16 @@ existente).
 
 - Referencia [[Recipes]] indiretamente — o objetivo final do pipeline é criar
   uma receita a partir do `ImportJob` completo (fora do escopo deste plan).
-- Usa [[Auth]] (ownership check planejado para `GET /import/:jobId` em plan
-  futuro: filtrar por `userId` na query, não comparar depois de buscar).
+- Usa [[Auth]] (`requireAuth` nas duas rotas; ownership check adicional em
+  `GET /import/:jobId` via `getImportJob(jobId, userId)`).
+- Depende de `src/infra/video/*` (downloader/transcription/keyframe) — esse
+  módulo só cria e enfileira o `ImportJob`; quem baixa/transcreve/extrai é o
+  worker dedicado (`src/workers/import-worker.ts`, plans seguintes).
 - Env config relacionada vive em `src/config/env.ts`: blocos `sqs.import*`,
   `groq`, `openaiTranscription`, `import.maxDurationSec`.
+
+> [!INFO] Extração estruturada é stub nesta fase
+> `status: "extracting"` sempre passa direto para `ready_for_review` — não há
+> chamada de LLM aqui. A extração real da receita (ingredientes, passos,
+> confidence/grounding) é a Fase 2, que reprocessa a partir do `transcript`
+> já persistido, sem precisar rebaixar o vídeo.
