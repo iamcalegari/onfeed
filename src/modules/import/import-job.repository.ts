@@ -44,6 +44,36 @@ export async function getImportJob(
 }
 
 /**
+ * Busca um import bem-sucedido anterior do MESMO usuário para o mesmo
+ * normalizedUrl (CAP-03 — dedup de submissão repetida).
+ *
+ * `userId` é dobrado no próprio filtro Mongo (idiom de `getImportJob`),
+ * nunca busca-e-compara depois — sem isso, a submissão da mesma URL por
+ * outro usuário vazaria o import privado do dono original (IDOR, T-04-07,
+ * D-01).
+ *
+ * Casa SOMENTE `status: "ready_for_review"`: é o único estado terminal de
+ * sucesso do ImportJobStatus — não existe status "confirmed" (a confirmação
+ * do usuário vive em `Recipe.confirmedAt`, ortogonal ao ImportJob.status).
+ * Um job `failed` nunca casa (D-05) — reimportar uma URL que falhou antes é
+ * um retry legítimo, não deve ser bloqueado pelo dedup.
+ *
+ * Sem filtro de tempo/TTL: o match é permanente (D-06) — uma URL
+ * importada com sucesso deduplica indefinidamente.
+ */
+export async function findExistingSuccessfulImport(
+  userId: string,
+  normalizedUrl: string,
+): Promise<ImportJob | null> {
+  const job = await ImportJobModel.find({
+    userId,
+    normalizedUrl,
+    status: "ready_for_review",
+  } as never);
+  return (job as ImportJob | null) ?? null;
+}
+
+/**
  * Aplica uma transição de status/patch parcial no ImportJob, sempre
  * atualizando updatedAt. Usado em cada fronteira de etapa do pipeline
  * (queued -> downloading -> transcribing -> extracting -> ready_for_review/failed).
