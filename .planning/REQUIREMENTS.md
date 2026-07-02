@@ -47,7 +47,7 @@ Núcleo do MVP: **colar link → receita confiável**. Extensão de browser, car
 
 ### Social, atribuição e promoção
 
-- [ ] **SOC-01**: A receita importada nasce **privada**, no livro do usuário que importou
+- [x] **SOC-01**: A receita importada nasce **privada**, no livro do usuário que importou
 - [x] **SOC-02**: A receita privada tem um **link compartilhável**; quem abre o link pode visualizar e dar like
 - [ ] **SOC-03**: A página da receita credita o creator original (@ do autor + link do perfil + link do vídeo fonte, quando disponíveis)
 - [x] **SOC-04**: Ao atingir **+5 likes**, a receita é promovida ao catálogo público como **variante** (reusa promoteToVariant), gated por confiança E contagem de likes
@@ -130,7 +130,7 @@ Mapeamento confirmado pelo roadmapper em `.planning/ROADMAP.md` (2026-07-01).
 | COST-01 | Phase 4 (Cost/Quota Gating & Dedup) | Complete |
 | COST-02 | Phase 4 (Cost/Quota Gating & Dedup) | Complete |
 | COST-03 | Phase 4 (Cost/Quota Gating & Dedup) | Complete |
-| SOC-01 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
+| SOC-01 | Phase 5 (Publish, Promotion & Full Citizenship) | Complete |
 | SOC-02 | Phase 5 (Publish, Promotion & Full Citizenship) | Complete |
 | SOC-03 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
 | SOC-04 | Phase 5 (Publish, Promotion & Full Citizenship) | Complete |

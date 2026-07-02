@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 5
 current_phase_name: Publish, Promotion & Full Citizenship
 status: executing
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-07-02T19:26:07.267Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-07-02T19:35:50.437Z"
 last_activity: 2026-07-02
 last_activity_desc: Phase 5 execution started
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 28
-  completed_plans: 24
+  completed_plans: 25
   percent: 80
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 ## Current Position
 
 Phase: 5 (Publish, Promotion & Full Citizenship) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-07-02 — Phase 5 execution started
 
@@ -67,6 +67,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-structured-extraction-recipe-persistence P05 | 45min | 3 tasks | 6 files |
 | Phase 05 P01 | 15min | 2 tasks | 4 files |
 | Phase 05 P02 | 20min | 3 tasks | 4 files |
+| Phase 05 P03 | 6min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,9 @@ Recent decisions affecting current work:
 - [Phase 05-01]: recipe.model.test.ts is the first repo test to import @/config/env.js directly; stubs required env vars via process.env before dynamic import
 - [Phase ?]: [Phase 05-02]: LikeModel.total() exclusion path is an operator filter ($ne), not client-side count -- total() forwards its filter arg to collection.countDocuments(), which supports Mongo operators natively
 - [Phase ?]: [Phase 05-02]: promoteImportToPublic flips visibility only, never source -- source stays 'imported' so grounding + createdBy[]/sourceMeta credits survive promotion (D-05/D-09, SOC-05 falls out for free)
+- [Phase ?]: [Phase 05-03]: shareSlug usa randomBytes(24).toString('base64url') (192 bits) na mesma $set de confirmedAt -- token gerado sem ação de publish separada, idempotência herdada do guard existente
+- [Phase ?]: [Phase 05-03]: getRecipeByShareSlug é lookup puro sem branch de visibility/ownership -- o shareSlug secreto é a única autorização (D-03), mais simples que o idioma de 3 assinaturas de getRecipeById
+- [Phase ?]: [Phase 05-03]: GET /recipes/share/:token retorna { recipe, likes: { count, liked } } -- recipe.visibility incluída para o front aplicar o redirect canônico D-12
 
 ### Pending Todos
 
@@ -128,6 +132,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-02T19:26:07.260Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-07-02T19:35:50.430Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None
