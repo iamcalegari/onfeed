@@ -14,11 +14,19 @@ export async function createImportJob(
   normalizedUrl: string,
   platform: ImportJob["platform"],
 ): Promise<ImportJob> {
+  // insertedAt/updatedAt EXPLÍCITOS aqui, nunca via documentDefaults do model:
+  // o mongoat avalia documentDefaults UMA vez no load do módulo, então o
+  // `new Date()` de lá congela no boot do processo — todo job nascia com o
+  // timestamp do deploy, quebrando o refund de cota por-dia (failJob chaveia
+  // pelo dia de insertedAt) e qualquer ordenação por recência.
+  const now = new Date();
   return ImportJobModel.insert({
     userId,
     sourceUrl,
     normalizedUrl,
     platform,
+    insertedAt: now,
+    updatedAt: now,
   } as never) as unknown as Promise<ImportJob>;
 }
 

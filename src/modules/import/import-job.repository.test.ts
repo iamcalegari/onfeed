@@ -47,6 +47,10 @@ describe("import-job.repository", () => {
       sourceUrl: "https://www.instagram.com/reel/abc123/",
       normalizedUrl: "https://www.instagram.com/reel/abc123/",
       platform: "instagram",
+      // Datas explícitas por chamada — NUNCA via documentDefaults, que o
+      // mongoat avalia uma única vez no load do módulo (data congelada no boot).
+      insertedAt: expect.any(Date),
+      updatedAt: expect.any(Date),
     });
     expect(job.status).toBe("queued");
     expect(job.retryCount).toBe(0);

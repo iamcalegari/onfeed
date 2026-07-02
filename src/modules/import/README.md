@@ -302,7 +302,17 @@ central: `ImportJob` é atualizado in-place a cada fronteira de etapa, então o
 `allowedMethods` inclui `METHODS.UPDATE` (favorites nunca atualiza um doc
 existente).
 
-`documentDefaults` seta `status: "queued"`, `retryCount: 0`, timestamps.
+`documentDefaults` seta `status: "queued"` e `retryCount: 0`. Os timestamps
+(`insertedAt`/`updatedAt`) são passados EXPLICITAMENTE por `createImportJob`
+no repository — nunca via `documentDefaults`.
+
+> [!WARNING] Gotcha Mongoat — `new Date()` em documentDefaults congela no boot
+> O Mongoat avalia `documentDefaults` UMA vez, no load do módulo (spread
+> estático em `Model.insert`). Um `insertedAt: new Date()` ali carimba TODOS
+> os docs com o horário do deploy — foi o que fez jobs criados às 19:06 UTC
+> nascerem com `insertedAt` 17:10 UTC (2026-07-02), quebrando o refund de
+> cota por-dia (`failJob` chaveia pelo dia de `insertedAt`) e ordenações por
+> recência. Os demais models do projeto ainda carregam esse padrão (dívida).
 
 > [!WARNING] Gotcha Mongoat — ordem de import
 > `import-job.model.ts` só registra a coleção no Mongoat se for importado via
