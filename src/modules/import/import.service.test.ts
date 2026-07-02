@@ -12,7 +12,16 @@ vi.mock("@/infra/queue/sqs.client.js", () => ({
   sqsClient: { send: (...args: unknown[]) => sendMock(...args) },
 }));
 
-const { detectPlatform, normalizeUrl, enqueueImportJob } = await import(
+// hybridSearch: espiona os params compostos por listMyImportedRecipes sem
+// tocar Mongo/Atlas real (D-14 — provar o invariante ownerId-sempre-junto-com-
+// 'imported' em sources).
+const hybridSearchMock = vi.fn().mockResolvedValue([]);
+vi.mock("@/modules/recipes/recipe.repository.js", () => ({
+  DEFAULT_SEARCH_SOURCES: ["curated", "generated_validated", "variant", "user"],
+  hybridSearch: (...args: unknown[]) => hybridSearchMock(...args),
+}));
+
+const { detectPlatform, normalizeUrl, enqueueImportJob, listMyImportedRecipes } = await import(
   "./import.service.js"
 );
 
@@ -87,5 +96,56 @@ describe("enqueueImportJob", () => {
     expect(JSON.parse(command.input.MessageBody)).toEqual({
       jobId: "507f1f77bcf86cd799439011",
     });
+  });
+});
+
+describe("listMyImportedRecipes (EXT-04 concrete calling path / D-14 invariant)", () => {
+  beforeEach(() => {
+    hybridSearchMock.mockClear();
+  });
+
+  it("always calls hybridSearch with ownerId === the passed userId AND a sources array containing 'imported'", async () => {
+    await listMyImportedRecipes("user_A");
+
+    expect(hybridSearchMock).toHaveBeenCalledTimes(1);
+    const [calledParams] = hybridSearchMock.mock.calls[0] as [Record<string, unknown>];
+    expect(calledParams.ownerId).toBe("user_A");
+    expect(calledParams.sources).toContain("imported");
+  });
+
+  it("layers 'imported' on top of the standard DEFAULT_SEARCH_SOURCES set when no sources override is passed", async () => {
+    await listMyImportedRecipes("user_A");
+
+    const [calledParams] = hybridSearchMock.mock.calls[0] as [Record<string, unknown>];
+    expect(calledParams.sources).toEqual([
+      "curated",
+      "generated_validated",
+      "variant",
+      "user",
+      "imported",
+    ]);
+  });
+
+  it("there is no code path that includes 'imported' in sources without also setting ownerId", async () => {
+    // Varre todas as invocações feitas neste describe block: sempre que
+    // 'imported' aparece em sources, ownerId tem que estar presente.
+    await listMyImportedRecipes("user_B", { sources: ["curated"] });
+
+    for (const call of hybridSearchMock.mock.calls) {
+      const calledParams = call[0] as Record<string, unknown>;
+      const sources = calledParams.sources as string[];
+      if (sources.includes("imported")) {
+        expect(calledParams.ownerId).toBeTruthy();
+      }
+    }
+  });
+
+  it("passes ownerId through even when the caller overrides other params (e.g. a custom sources list)", async () => {
+    await listMyImportedRecipes("user_C", { sources: ["curated"], limit: 5 });
+
+    const [calledParams] = hybridSearchMock.mock.calls[0] as [Record<string, unknown>];
+    expect(calledParams.ownerId).toBe("user_C");
+    expect(calledParams.sources).toEqual(["curated", "imported"]);
+    expect(calledParams.limit).toBe(5);
   });
 });
