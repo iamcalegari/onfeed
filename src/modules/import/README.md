@@ -3,6 +3,18 @@ tags: [backend, module, video-pipeline, import, ssrf, idor, llm-extraction, conf
 updated: 2026-07-02
 ---
 
+> [!INFO] Fase 4 (Cost/Quota/Gating/Dedup) — Plano 04-04 (findExistingSuccessfulImport)
+> Implementa `findExistingSuccessfulImport(userId, normalizedUrl)` em
+> `import-job.repository.ts` — a consulta de dedup exigida por CAP-03. Segue
+> o mesmo idiom `getImportJob(jobId, userId)`: `userId` é dobrado no próprio
+> filtro Mongo (`{ userId, normalizedUrl, status: "ready_for_review" }`),
+> nunca busca-e-compara depois (T-04-07, D-01). Casa SOMENTE
+> `status: "ready_for_review"` — um job `failed` nunca deduplica (D-05,
+> retry legítimo). Sem filtro de tempo/TTL — o match é permanente (D-06).
+> Consome o índice `dedup_lookup {userId, normalizedUrl, status}` criado no
+> Plano 04-02. `POST /import` (Plano 04-05) vai chamar essa função como o
+> primeiro guard, antes do gate de quota.
+
 > [!INFO] Fase 4 (Cost/Quota/Gating/Dedup) — Plano 04-02 (schema costCents + dedup_lookup)
 > Expande `ImportJob.costCents` do shape flat-placeholder da Fase 1
 > (`{download,transcription,total}: number`) para o shape nested por estágio
@@ -265,8 +277,9 @@ costCents?: {
 > presença. `import-job.model.test.ts` trava esse invariante.
 
 O índice `dedup_lookup {userId, normalizedUrl, status}` (composto, adicionado
-junto neste plano) serve a consulta `findExistingSuccessfulImport` do Plano 04
-— dedup por usuário na escala de produção, sem full scan de `import_jobs`.
+junto no Plano 04-02) serve a consulta `findExistingSuccessfulImport` (Plano
+04-04) — dedup por usuário na escala de produção, sem full scan de
+`import_jobs`.
 
 ## Repository
 
@@ -276,6 +289,12 @@ junto neste plano) serve a consulta `findExistingSuccessfulImport` do Plano 04
   internamente/pelo worker). Com `userId`, filtra por `_id` **e** `userId`
   na mesma query (`ImportJobModel.find({ _id, userId })`) — é essa variante
   que `GET /import/:jobId` usa para o ownership check (ver callout acima).
+- `findExistingSuccessfulImport(userId, normalizedUrl)` (Fase 4, Plano 04-04)
+  — dedup de CAP-03: filtra por `userId` **e** `normalizedUrl` **e**
+  `status: "ready_for_review"` na mesma query Mongo (mesmo idiom acima),
+  retorna o `ImportJob` existente ou `null`. Nunca casa `status: "failed"`
+  (D-05) nem omite `userId` (T-04-07, D-01). Sem TTL — match permanente
+  (D-06). Consumida por `POST /import` (Plano 04-05) antes do gate de quota.
 - `updateImportJobStatus(jobId, patch)` — `update({ _id: new ObjectId(jobId) }, { $set: { ...patch, updatedAt: new Date() } })`,
   transição atômica de status/campos a cada fronteira de etapa do pipeline.
 
