@@ -13,7 +13,7 @@ onFeed Import turns a pasted Instagram/TikTok/YouTube link into a trustworthy, s
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Video Pipeline Foundation** - ImportJob state machine + yt-dlp/ffmpeg/Whisper adapters proven end-to-end on a deployed Render Background Worker, extraction stubbed
+- [x] **Phase 1: Video Pipeline Foundation** - ImportJob state machine + yt-dlp/ffmpeg/Whisper adapters proven end-to-end on a deployed Render Background Worker, extraction stubbed (completed 2026-07-02)
 - [ ] **Phase 2: Structured Extraction & Recipe Persistence** - Claude turns transcript+caption into a confidence-graded structured recipe, persisted as the user's first private imported recipe
 - [ ] **Phase 3: Capture & Mandatory Review UI** - Paste-link entry point, live status polling, and a mandatory review/edit screen before any recipe is considered saved
 - [ ] **Phase 4: Cost/Quota Gating & Dedup** - Quota reserved at submission, duplicate URLs served from cache, per-stage cost telemetry live before real volume
@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. When a platform blocks or rate-limits the download, the job lands in a distinct, monitored `failed` state (not a silent hang or generic 500) — per-platform success-rate is observable, and a circuit breaker degrades gracefully instead of hammering a broken platform.
   5. A clip with no real narration (music-only/silent) is flagged as low/no-speech rather than handed to the LLM as if it were a confident transcript.
 
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans complete
 Plans:
 
 - [x] 01-01-PLAN.md — Test infra (Vitest), env/config blocks, ImportJob model/repository/types (PIPE-06)
@@ -42,7 +42,7 @@ Plans:
 - [x] 01-03-PLAN.md — yt-dlp downloader + failure classification, Groq→OpenAI transcription fallback (PIPE-01/02/03)
 - [x] 01-04-PLAN.md — Import module: CAP-02 validation/SSRF allowlist, enqueue producer, ownership-scoped routes, README (CAP-02/PIPE-06)
 - [x] 01-05-PLAN.md — import-worker: sqs-consumer loop, pipeline orchestration, two-layer cleanup, idempotency (PIPE-01..07)
-- [ ] 01-06-PLAN.md — Deploy: Dockerfile.import-worker, render.yaml worker block, SQS queue+DLQ, infra/video README (PIPE-06/07)
+- [x] 01-06-PLAN.md — Deploy: Dockerfile.import-worker, render.yaml worker block, SQS queue+DLQ, infra/video README (PIPE-06/07)
 
 ### Phase 2: Structured Extraction & Recipe Persistence
 
@@ -112,7 +112,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Video Pipeline Foundation | 5/6 | In Progress|  |
+| 1. Video Pipeline Foundation | 6/6 | Complete   | 2026-07-02 |
 | 2. Structured Extraction & Recipe Persistence | 0/TBD | Not started | - |
 | 3. Capture & Mandatory Review UI | 0/TBD | Not started | - |
 | 4. Cost/Quota Gating & Dedup | 0/TBD | Not started | - |
