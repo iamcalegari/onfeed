@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 2
 current_phase_name: Structured Extraction & Recipe Persistence
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-07-02T03:08:27.085Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-07-02T03:14:22.017Z"
 last_activity: 2026-07-02
 last_activity_desc: Phase 2 execution started
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 11
-  completed_plans: 9
+  completed_plans: 10
   percent: 20
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 ## Current Position
 
 Phase: 2 (Structured Extraction & Recipe Persistence) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-07-02 — Phase 2 execution started
 
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-structured-extraction-recipe-persistence P01 | 35min | 3 tasks | 9 files |
 | Phase 02 P02 | 45min | 2 tasks | 3 files |
 | Phase 02-structured-extraction-recipe-persistence P03 | 6min | 3 tasks | 6 files |
+| Phase 02-structured-extraction-recipe-persistence P04 | 15min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,8 @@ Recent decisions affecting current work:
 - [Phase 02-03]: DEFAULTS.sources in recipe.repository.ts left unchanged; 'imported' only added via owner-scoped listMyImportedRecipes (D-14)
 - [Phase 02-03]: getRecipeById(id, userId?) folds ownership into one combined Mongo filter (getImportJob idiom), never fetch-then-compare
 - [Phase 02-03]: Atlas index filter-field declaration is code-only; pre-existing environments need a manual index update since ensureSearchIndex only creates when absent
+- [Phase ?]: Nutrition excluded entirely from computeConfidence's weighted field list (not scored as fixed 'inferred') since ImportedRecipeSchema never asks the model for nutrition grounding — avoids deterministic score depression without added signal
+- [Phase ?]: Critical-field review override strictly follows D-03: only core ingredients (not garnish/optional) trigger reviewRequired when quantity is inferred
 
 ### Pending Todos
 
@@ -112,6 +115,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-02T03:08:27.078Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-07-02T03:14:22.010Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None
