@@ -32,6 +32,7 @@ import path from "node:path";
 
 import { detectPlatform, normalizeUrl } from "@/modules/import/import.service.js";
 import { createImportJob, getImportJob } from "@/modules/import/import-job.repository.js";
+import { getRecipeById } from "@/modules/recipes/recipe.repository.js";
 import { processImportJob } from "@/infra/video/pipeline.js";
 import { downloadVideo, DownloadError } from "@/infra/video/ytdlp.downloader.js";
 import { extractAudio } from "@/infra/video/ffmpeg.exec.js";
@@ -140,10 +141,39 @@ async function runPersist(rawUrl: string) {
     console.log(`   autor:         ${final.sourceMeta?.authorHandle ?? "—"}`);
     console.log(`   noSpeech:      ${final.noSpeechDetected ?? false}`);
     console.log(`   transcript:    ${final.transcriptSource ?? "—"} (${(final.transcript ?? "").length} chars)`);
-    if (final.transcript) {
-      console.log(`   \x1b[90m${final.transcript.slice(0, 400)}${final.transcript.length > 400 ? "…" : ""}\x1b[0m`);
-    }
     console.log(`   keyframeUrl:   ${final.keyframeUrl ?? "—"}`);
+    console.log(`   recipeId:      ${final.recipeId ?? "—"}`);
+    console.log(`   confidence:    ${final.confidenceScore?.toFixed(2) ?? "—"}  reviewRequired: ${final.reviewRequired ?? "—"}`);
+
+    // Receita estruturada extraída (Fase 2) + grounding por campo
+    if (final.recipeId) {
+      const recipe = await getRecipeById(String(final.recipeId));
+      if (recipe) {
+        const g = (recipe as { grounding?: {
+          titleGrounding?: string;
+          quantityGrounding?: string[];
+          stepGrounding?: string[];
+          sourceDivergence?: string[];
+        } }).grounding;
+        log("\x1b[35m🍳 Receita estruturada extraída\x1b[0m");
+        console.log(`   título:     ${recipe.title}  \x1b[90m[${g?.titleGrounding ?? "?"}]\x1b[0m`);
+        console.log(`   ingredientes (${recipe.ingredients.length}):`);
+        recipe.ingredients.forEach((ing, i) => {
+          const qty = [ing.quantity, ing.unit].filter(Boolean).join(" ") || "—";
+          const gr = g?.quantityGrounding?.[i] ?? "?";
+          console.log(`     • ${ing.name}: ${qty}  \x1b[90m[${gr}]\x1b[0m`);
+        });
+        console.log(`   passos:     ${recipe.steps.length}`);
+        if (recipe.nutrition) {
+          console.log(
+            `   nutrição:   ${recipe.nutrition.calories}kcal · P${recipe.nutrition.protein} C${recipe.nutrition.carbs} G${recipe.nutrition.fat}  \x1b[90m[inferred]\x1b[0m`,
+          );
+        }
+        if (g?.sourceDivergence?.length) {
+          console.log(`   divergências entre fontes: ${g.sourceDivergence.join("; ")}`);
+        }
+      }
+    }
   } finally {
     await disconnectDatabase();
   }

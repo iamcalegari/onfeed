@@ -1,6 +1,6 @@
 ---
-tags: [backend, module, core]
-updated: 2026-06-22
+tags: [backend, module, core, idor, security]
+updated: 2026-07-02
 ---
 
 # Recipes
@@ -13,13 +13,15 @@ Módulo central do sistema. Gerencia o catálogo de receitas, o pipeline de inge
 |---|---|
 | `recipe.types.ts` | Interfaces TypeScript: `Recipe`, `RecipeIngredient`, `RecipeStep`, `RecipeSearchHit`, `DimensionScores` |
 | `recipe.model.ts` | Schema MongoDB + validadores BSON + índices (vector search, ingredient lookup) |
-| `recipe.repository.ts` | `hybridSearch` — pipeline de busca vetorial + re-rank I/E/T/N |
+| `recipe.repository.ts` | `hybridSearch` — pipeline de busca vetorial + re-rank I/E/T/N; owner-scoped via `ownerId` (Fase 2, D-14). `getRecipeById(id, userId?)` — IDOR-safe. |
+| `recipe.repository.test.ts` | Fase 2: prova isolamento cross-user do filtro `$or` owner-scoped, preservação do comportamento de catálogo sem `ownerId`, exclusão de `'imported'` de `DEFAULTS.sources`, e IDOR-safety de `getRecipeById` |
 | `recipe.ingestion.ts` | Pipeline de ingestão única: extração LLM → canonicalização → embedding → persist |
 | `recipe.extraction.ts` | Chama [[LLM (Anthropic)]] para extrair estrutura de um texto/receita crua |
 | `recipe.generation.ts` | Gera receita nova via LLM a partir de ingredientes (feature "adaptar") |
 | `recipe.routes.ts` | Rotas REST: GET `/recipes/:id`, POST `/recipes/adapt`, POST `/recipes/:id/thumbnail/trigger` |
 | `recipe.batch-ingestion.ts` | Versão batch usando Anthropic Batches API (mais barato para volume alto) |
 | `recipe.sample-data.ts` | Fixtures para desenvolvimento local |
+| `recipe.ingestion.test.ts` | Fase 2: cobertura de `persistExtractedRecipe` (canonicalização/embedding reuse, default de `visibility`, threading de grounding) |
 
 ## Modelo de Dados
 
@@ -37,11 +39,44 @@ Recipe {
   ingredients: RecipeIngredient[]
   steps: RecipeStep[]    // cada step tem text + minutes (para o StepTimer)
   nutrition?: Nutrition  // calorias, proteína, carb, gordura — dimensão N
-  source: RecipeSource   // curated | generated_pending | generated_validated | user
+  source: RecipeSource   // curated | generated_pending | generated_validated | user | imported
+  visibility: RecipeVisibility // private | public — receitas importadas nascem private (Fase 2)
   embedding: number[]    // vetor Voyage (usado no hybridSearch)
   embeddingText: string  // texto que gerou o embedding (para reindexar)
 }
 ```
+
+> [!INFO] Fase 2 (onFeed Import) — campos novos, ainda sem plug de extração real
+> `visibility`, `grounding?`, `importJobId?`, `sourceMeta?`, `reviewRequired?`,
+> `confidenceScore?` foram adicionados ao schema (Plano 02-01) para suportar
+> receitas extraídas de vídeo (`source: "imported"`). `visibility` é
+> **obrigatório no tipo TS** mas fica FORA do `required` do schema BSON —
+> docs de catálogo já existentes não têm o campo; `persistExtractedRecipe`
+> aplica o default `'public'` na camada de app para todo caller que não
+> passar `opts.visibility` explicitamente. O extrator LLM em si
+> (`import.extraction.ts`) e o gate de confiança (`import.confidence.ts`)
+> chegam nos planos seguintes — este plano só estende o schema + a
+> persistência (`IngestOptions`).
+
+> [!WARNING] D-14 — busca owner-scoped para receitas privadas importadas (Plano 02-03)
+> `hybridSearch` ganhou `params.ownerId` opcional: quando presente, o filtro
+> `$vectorSearch` exige `visibility != "private"` OU (`visibility: "private"`
+> **e** `"createdBy.userId" === ownerId`). `'imported'` **nunca** entra no
+> array global `DEFAULTS.sources` — quem quer imports no resultado passa
+> `sources: [...DEFAULT_SEARCH_SOURCES, "imported"]` **junto** com `ownerId`
+> (ver `listMyImportedRecipes` em [[Import]]). Adicionar `'imported'` a
+> `DEFAULTS.sources` sem esse acoplamento vazaria imports privados de todos
+> os usuários — é o exato bug que o Pitfall 2 do research desta fase alertou.
+> `getRecipeById(id, userId?)` espelha o idioma de `getImportJob` (IDOR-safe
+> — dobra a checagem de dono no mesmo filtro Mongo, nunca busca-e-compara).
+>
+> O índice Atlas (`recipe.model.ts`'s `recipeVectorIndexDefinition` em
+> `search-indexes.ts`) precisou declarar `visibility` e `createdBy.userId`
+> como `filter` fields — um path de filtro não declarado é silenciosamente
+> ignorado pelo `$vectorSearch` no Atlas (T-02-08). Em ambientes onde o
+> índice já existe, `ensureSearchIndex` só cria quando ausente — **é preciso
+> atualizar manualmente o índice existente** para essas novas colunas de
+> filtro passarem a valer (follow-up operacional, não coberto por código).
 
 ## Score I/E/T/N
 

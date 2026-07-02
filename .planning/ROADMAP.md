@@ -14,7 +14,7 @@ onFeed Import turns a pasted Instagram/TikTok/YouTube link into a trustworthy, s
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Video Pipeline Foundation** - ImportJob state machine + yt-dlp/ffmpeg/Whisper adapters proven end-to-end on a deployed Render Background Worker, extraction stubbed (completed 2026-07-02)
-- [ ] **Phase 2: Structured Extraction & Recipe Persistence** - Claude turns transcript+caption into a confidence-graded structured recipe, persisted as the user's first private imported recipe
+- [x] **Phase 2: Structured Extraction & Recipe Persistence** - Claude turns transcript+caption into a confidence-graded structured recipe, persisted as the user's first private imported recipe (completed 2026-07-02)
 - [ ] **Phase 3: Capture & Mandatory Review UI** - Paste-link entry point, live status polling, and a mandatory review/edit screen before any recipe is considered saved
 - [ ] **Phase 4: Cost/Quota Gating & Dedup** - Quota reserved at submission, duplicate URLs served from cache, per-stage cost telemetry live before real volume
 - [ ] **Phase 5: Publish, Promotion & Full Citizenship** - Private recipe gets a shareable link, likes drive promotion (gated on confidence too), and imported recipes behave like any other recipe across search, macros, shopping list, and cook mode
@@ -57,13 +57,13 @@ Plans:
   4. The persisted recipe has a Voyage embedding and is retrievable through the existing hybrid I/E/T/N search for the importing user.
   5. When overall extraction confidence is low (sparse/conflicting transcript vs. caption, many ungrounded fields), the job is explicitly marked as requiring review — it is structurally impossible for this state to auto-publish.
 
-**Plans**: 0/5 plans executed
+**Plans**: 5/5 plans complete
 
-- [ ] 02-01-PLAN.md
-- [ ] 02-02-PLAN.md
-- [ ] 02-03-PLAN.md
-- [ ] 02-04-PLAN.md
-- [ ] 02-05-PLAN.md
+- [x] 02-01-PLAN.md
+- [x] 02-02-PLAN.md
+- [x] 02-03-PLAN.md
+- [x] 02-04-PLAN.md
+- [x] 02-05-PLAN.md
 
 **Research flag**: yes — PT-BR Whisper transcription accuracy on cooking slang/informal register needs empirical validation against real onFeed sample clips before locking in a transcription provider default (see research/SUMMARY.md Research Flags).
 
@@ -120,7 +120,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Video Pipeline Foundation | 6/6 | Complete   | 2026-07-02 |
-| 2. Structured Extraction & Recipe Persistence | 0/5 | Planned    |  |
+| 2. Structured Extraction & Recipe Persistence | 5/5 | Complete   | 2026-07-02 |
 | 3. Capture & Mandatory Review UI | 0/TBD | Not started | - |
 | 4. Cost/Quota Gating & Dedup | 0/TBD | Not started | - |
 | 5. Publish, Promotion & Full Citizenship | 0/TBD | Not started | - |

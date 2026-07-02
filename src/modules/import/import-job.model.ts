@@ -40,6 +40,10 @@ const schema: ModelValidationSchema = {
       },
     },
     retryCount: { bsonType: "number" },
+    // Fase 2 (extração): back-reference à Recipe criada + saída do gate de confiança.
+    recipeId: { bsonType: "string" },
+    reviewRequired: { bsonType: "bool" },
+    confidenceScore: { bsonType: "number" },
     insertedAt: { bsonType: "date" },
     updatedAt: { bsonType: "date" },
   },

@@ -47,6 +47,10 @@ export const env = {
   anthropic: {
     apiKey: required("ANTHROPIC_API_KEY"),
     model: optional("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
+    // Modelo dedicado à extração de receitas importadas (onFeed Import, Fase 2,
+    // D-15): Sonnet é o Core Value (grounding + conciliação transcript/caption
+    // exigem mais que o Haiku do catálogo) — configurável via env, nunca opus.
+    importModel: optional("IMPORT_EXTRACTION_MODEL", "claude-sonnet-4-5"),
     // Gate de custo de IA por plano (ver módulo billing). Free bate cedo porque
     // cada adaptação custa uma chamada de LLM; PRO tem teto alto anti-abuso.
     adaptDailyLimitFree: Number(optional("ADAPT_DAILY_LIMIT_FREE", "3")),

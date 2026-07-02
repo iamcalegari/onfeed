@@ -2,6 +2,12 @@ import { SendMessageCommand } from "@aws-sdk/client-sqs";
 
 import { env } from "@/config/env.js";
 import { sqsClient } from "@/infra/queue/sqs.client.js";
+import {
+  DEFAULT_SEARCH_SOURCES,
+  hybridSearch,
+  type HybridSearchParams,
+} from "@/modules/recipes/recipe.repository.js";
+import type { RecipeSearchHit } from "@/modules/recipes/recipe.types.js";
 import type { ImportJobMessage } from "./import-job.types.js";
 
 /**
@@ -73,4 +79,28 @@ export async function enqueueImportJob(jobId: string): Promise<void> {
       MessageBody: JSON.stringify(message),
     }),
   );
+}
+
+/**
+ * Busca híbrida I/E/T/N escopada ao usuário importador, incluindo suas
+ * próprias receitas privadas `source: "imported"` (EXT-04). Único caminho de
+ * chamada concreto que materializa a promessa do filtro owner-scoped de
+ * hybridSearch (Task 2) — a Fase 3 (UI de revisão) chama este método, nunca
+ * hybridSearch diretamente com 'imported' em sources.
+ *
+ * D-14 (segurança): ownerId e a source 'imported' são SEMPRE passados juntos
+ * — nunca existe um caminho aqui que inclua 'imported' em sources sem também
+ * setar ownerId (isso vazaria imports privados de outros usuários).
+ */
+export async function listMyImportedRecipes(
+  userId: string,
+  params?: Partial<HybridSearchParams>,
+): Promise<RecipeSearchHit[]> {
+  return hybridSearch({
+    queryVector: [],
+    haveIds: [],
+    ...params,
+    ownerId: userId,
+    sources: [...(params?.sources ?? DEFAULT_SEARCH_SOURCES), "imported"],
+  });
 }

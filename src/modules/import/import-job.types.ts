@@ -22,6 +22,7 @@ export type ImportFailureReason =
   | "no_speech_detected" // não é necessariamente falha — ver noSpeechDetected
   | "transcription_failed" // Groq e fallback OpenAI esgotados
   | "download_timeout"
+  | "extraction_failed" // Fase 2 — LLM de extração não retornou parsed_output
   | "unknown_error";
 
 export interface ImportJob {
@@ -44,6 +45,9 @@ export interface ImportJob {
     durationSec?: number;
   };
   keyframeUrl?: string; // URL S3, setado quando PIPE-04 completa
+  recipeId?: string; // setado após persistExtractedRecipe suceder (Fase 2)
+  reviewRequired?: boolean; // de computeConfidence — Fase 3 consome para UI
+  confidenceScore?: number; // 0..1, de computeConfidence — Fase 3 consome
   costCents?: {
     // placeholders — populados na Fase 4, mas o shape já existe agora
     download?: number;
