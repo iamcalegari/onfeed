@@ -1,6 +1,6 @@
 ---
 tags: [frontend, components]
-updated: 2026-06-22
+updated: 2026-07-02
 ---
 
 # Componentes Web
@@ -46,6 +46,11 @@ Componentes React reutilizáveis do frontend Next.js 15 (App Router). Todos em `
 | `LikeButton` | Botão de like com contador |
 | `PantryManager` | Gerenciamento da despensa: autocomplete + tags removíveis |
 | `ShareButton` | Botão de compartilhar (Web Share API) |
+
+### onFeed Import (Fase 3 — captura + revisão obrigatória)
+| Componente | Descrição |
+|---|---|
+| `GroundingBadge` | Pill "Confira isto — inferido/impreciso" para campos não-grounded de uma receita importada (REV-02); `grounded` renderiza `null` — 2 estados, não 3-color traffic-lighting |
 
 ## Padrões
 

@@ -119,6 +119,14 @@ O `hybridSearch` devolve `RecipeSearchHit` com `matchScore` (0–100) e `scores:
 > [!INFO] cookableNow
 > `cookableNow = true` quando `missingCoreCount === 0` — todos os ingredientes obrigatórios estão na despensa/busca do usuário.
 
+> [!INFO] reviewRequired/confirmedAt no RecipeSearchHit (Fase 3, Plano 03-03)
+> O `$project` final de `hybridSearch` também projeta `reviewRequired`/
+> `confirmedAt` — sem isso, `GET /import/mine` ([[Import]]) não teria como
+> a UI ("Minhas importações", Fase 3 frontend) distinguir "Em revisão" de
+> "Confirmada" sem uma query extra por item. Campos ficam `undefined` em
+> receitas não-importadas (não fazem parte do fluxo delas), inofensivo para
+> os demais chamadores de `hybridSearch`.
+
 ## Pipeline de Ingestão
 
 ```
