@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 5
 current_phase_name: Publish, Promotion & Full Citizenship
 status: executing
-stopped_at: Phase 5 UI-SPEC approved
-last_updated: "2026-07-02T18:55:34.904Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-07-02T19:12:16.692Z"
 last_activity: 2026-07-02
-last_activity_desc: Phase 04 complete, transitioned to Phase 5
+last_activity_desc: Phase 5 execution started
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 22
-  completed_plans: 22
+  total_plans: 28
+  completed_plans: 23
   percent: 80
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-01)
 
 **Core value:** Transformar um vídeo de receita do feed do usuário em uma receita real, correta e acionável (ingredientes com quantidade, passo a passo e dicas fiéis) dentro do onFeed. Se a extração for imprecisa, nada mais importa.
-**Current focus:** Phase 04 — cost-quota-gating-dedup
+**Current focus:** Phase 5 — Publish, Promotion & Full Citizenship
 
 ## Current Position
 
-Phase: 5 — Publish, Promotion & Full Citizenship
-Plan: Not started
+Phase: 5 (Publish, Promotion & Full Citizenship) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-07-02 — Phase 04 complete, transitioned to Phase 5
+Last activity: 2026-07-02 — Phase 5 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -65,6 +65,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-structured-extraction-recipe-persistence P03 | 6min | 3 tasks | 6 files |
 | Phase 02-structured-extraction-recipe-persistence P04 | 15min | 2 tasks | 2 files |
 | Phase 02-structured-extraction-recipe-persistence P05 | 45min | 3 tasks | 6 files |
+| Phase 05 P01 | 15min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,9 @@ Recent decisions affecting current work:
 - [Phase 02-structured-extraction-recipe-persistence]: mapExtractedToRecipe returns { input, extracted, options } matching persistExtractedRecipe's real (input, extracted, opts) signature — the plan's literal '{ recipe, options }' wording didn't match the actual three-argument function signature
 - [Phase 02-structured-extraction-recipe-persistence]: IngestOptions extended with reviewRequired/confidenceScore, threaded into persistExtractedRecipe's RecipeModel.insert — BSON schema already had both properties from Plan 01 but nothing wrote them onto the Recipe document
 - [Phase 02-structured-extraction-recipe-persistence]: pipeline.ts extracting stage uses freshly-computed local transcript/caption/noSpeechDetected vars, not the stale job parameter — job is never locally mutated after the transcribing stage's DB write, so job.transcript would be undefined on the normal single-pass path
+- [Phase 05-01]: shareSlug NOT added to RecipeSearchHit — search results never surface the raw token
+- [Phase 05-01]: share_slug_lookup index mirrors external_id_unique (unique+sparse) — token collision structurally impossible at DB layer (T-05-02)
+- [Phase 05-01]: recipe.model.test.ts is the first repo test to import @/config/env.js directly; stubs required env vars via process.env before dynamic import
 
 ### Pending Todos
 
@@ -109,6 +113,7 @@ None yet.
 
 - Phase 1 needs phase-research at planning time: yt-dlp anti-bot/egress strategy for IG/TikTok from Render/AWS IPs, and exact Render Background Worker packaging — fast-moving, LOW-MEDIUM confidence per research/STACK.md.
 - Phase 2 needs phase-research at planning time: PT-BR Whisper transcription accuracy (cooking slang, informal register) not yet empirically validated — must test against real onFeed sample clips before locking a transcription provider default.
+- USER GATE: npm run setup:db must be run against live Atlas (collMod sync of shareSlug validator + share_slug_lookup index) before Plan 03's confirm-time shareSlug write — harness blocks prod-Atlas credentials, so this is not automatable
 
 ## Deferred Items
 
@@ -120,6 +125,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-02T18:30:58.820Z
-Stopped at: Phase 5 UI-SPEC approved
+Last session: 2026-07-02T19:12:16.685Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: .planning/phases/05-publish-promotion-full-citizenship/05-UI-SPEC.md
