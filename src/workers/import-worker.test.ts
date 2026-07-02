@@ -1,9 +1,9 @@
 import { existsSync } from "node:fs";
-import { readdir } from "node:fs/promises";
+import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 // pipeline.ts importa @/config/env.js (transitivamente via ytdlp.downloader.ts/
 // transcription.port.ts) — mockar evita arrastar a validação required(MONGODB_URI)
@@ -54,6 +54,15 @@ const getImportJob = vi.fn();
 vi.mock("@/modules/import/import-job.repository.js", () => ({
   updateImportJobStatus: (...args: unknown[]) => updateImportJobStatus(...args),
   getImportJob: (...args: unknown[]) => getImportJob(...args),
+}));
+
+// Quota de import (Plano 01/06) — refundDailyImportQuota é mockado para não
+// tocar o Model real do mongoat (evita o gotcha "Database not found" —
+// import-usage.model.ts registra o Model no module-load); cada teste de
+// refund verifica a chamada via este spy.
+const refundDailyImportQuota = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/modules/usage/usage.repository.js", () => ({
+  refundDailyImportQuota: (...args: unknown[]) => refundDailyImportQuota(...args),
 }));
 
 // Downloader (Plan 03) — mockado por padrão em modo sucesso; cada teste
@@ -144,7 +153,26 @@ function extractedFixture(overrides: Record<string, unknown> = {}) {
   };
 }
 
-extractImportedRecipe.mockResolvedValue(extractedFixture());
+/** Shape de retorno de extractImportedRecipe (Plano 06) — { recipe, usage } —
+ * usage alimenta a telemetria de custo (COST-02). */
+function extractionResultFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    recipe: extractedFixture(overrides),
+    usage: { inputTokens: 1200, outputTokens: 400 },
+  };
+}
+
+extractImportedRecipe.mockResolvedValue(extractionResultFixture());
+
+/** Caminho fake de vídeo baixado, compartilhado pelos mocks de downloadVideo
+ * — precisa existir de fato em disco porque o pipeline (Plano 06) faz
+ * stat(videoPath) para medir bytes baixados (COST-02). */
+const FAKE_VIDEO_PATH = path.join(tmpdir(), "import-worker-test-fake-video.mp4");
+
+beforeAll(async () => {
+  await mkdir(path.dirname(FAKE_VIDEO_PATH), { recursive: true });
+  await writeFile(FAKE_VIDEO_PATH, Buffer.from("fake-video-bytes"));
+});
 
 function baseJob(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -177,13 +205,13 @@ describe("processImportJob — cleanup guarantee (PIPE-05)", () => {
     extractNormalizedKeyframe.mockReset().mockResolvedValue(Buffer.from("fake-jpeg"));
     putImage.mockReset().mockResolvedValue("https://cdn.example.com/imports/job1/keyframe.jpg");
     extractAudio.mockReset().mockResolvedValue(undefined);
-    extractImportedRecipe.mockReset().mockResolvedValue(extractedFixture());
+    extractImportedRecipe.mockReset().mockResolvedValue(extractionResultFixture());
     persistExtractedRecipe.mockReset().mockResolvedValue({ _id: "recipe1" });
   });
 
   it("removes the job temp dir after a successful run", async () => {
     downloadVideo.mockResolvedValue({
-      videoPath: "/tmp/fake/video.mp4",
+      videoPath: FAKE_VIDEO_PATH,
       meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
     });
 
@@ -216,13 +244,13 @@ describe("processImportJob — no-speech skip (PIPE-02, D-06)", () => {
     isOpen.mockReset().mockReturnValue(false);
     extractNormalizedKeyframe.mockReset().mockResolvedValue(Buffer.from("fake-jpeg"));
     putImage.mockReset().mockResolvedValue("https://cdn.example.com/imports/job1/keyframe.jpg");
-    extractImportedRecipe.mockReset().mockResolvedValue(extractedFixture());
+    extractImportedRecipe.mockReset().mockResolvedValue(extractionResultFixture());
     persistExtractedRecipe.mockReset().mockResolvedValue({ _id: "recipe1" });
   });
 
   it("does NOT call transcribe and sets noSpeechDetected when the silence ratio exceeds the threshold", async () => {
     downloadVideo.mockResolvedValue({
-      videoPath: "/tmp/fake/video.mp4",
+      videoPath: FAKE_VIDEO_PATH,
       meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
     });
     detectSilenceRatio.mockResolvedValue(0.95); // acima de NO_SPEECH_RATIO_THRESHOLD (0.8)
@@ -238,7 +266,7 @@ describe("processImportJob — no-speech skip (PIPE-02, D-06)", () => {
 
   it("still reaches ready_for_review with reviewRequired true when no speech was detected (D-06 override integration)", async () => {
     downloadVideo.mockResolvedValue({
-      videoPath: "/tmp/fake/video.mp4",
+      videoPath: FAKE_VIDEO_PATH,
       meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
     });
     detectSilenceRatio.mockResolvedValue(0.95); // acima de NO_SPEECH_RATIO_THRESHOLD (0.8)
@@ -304,6 +332,57 @@ describe("processImportJob — anti_bot_blocked failure (PIPE-07)", () => {
   });
 });
 
+describe("failJob — refund da cota reservada (COST-01/D-07)", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+    getImportJob.mockReset();
+    downloadVideo.mockReset();
+    isOpen.mockReset().mockReturnValue(false);
+    refundDailyImportQuota.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("refunda exatamente uma vez, com userId e o dia RESERVADO (job.insertedAt), quando o job falha", async () => {
+    const insertedAt = new Date("2026-07-01T23:50:00.000Z"); // véspera da virada UTC
+    downloadVideo.mockRejectedValue(
+      new DownloadError("anti_bot_blocked", "Sign in to confirm you're not a bot"),
+    );
+
+    await processImportJob(baseJob({ insertedAt }) as never);
+
+    expect(refundDailyImportQuota).toHaveBeenCalledTimes(1);
+    expect(refundDailyImportQuota).toHaveBeenCalledWith("user_1", "2026-07-01");
+  });
+
+  it("NÃO refunda duas vezes quando a mesma mensagem SQS é redelivered para um job já failed (no-op via TERMINAL_STATUSES)", async () => {
+    downloadVideo.mockRejectedValue(
+      new DownloadError("anti_bot_blocked", "Sign in to confirm you're not a bot"),
+    );
+    getImportJob.mockResolvedValue(baseJob({ status: "queued" }));
+
+    // 1ª entrega: processa e falha -> refund único.
+    await handleImportMessage(JSON.stringify({ jobId: "job1" }));
+    expect(refundDailyImportQuota).toHaveBeenCalledTimes(1);
+
+    // Redelivery: o doc já está failed (fonte da verdade é o Mongo, não o
+    // payload SQS) -> handleImportMessage faz no-op via TERMINAL_STATUSES,
+    // processImportJob/failJob NUNCA rodam de novo.
+    getImportJob.mockResolvedValue(baseJob({ status: "failed" }));
+    await handleImportMessage(JSON.stringify({ jobId: "job1" }));
+
+    expect(refundDailyImportQuota).toHaveBeenCalledTimes(1);
+    expect(downloadVideo).toHaveBeenCalledTimes(1);
+  });
+
+  it("chave do refund é o dia de insertedAt, não a data atual (RESEARCH Pattern 2 anti-pattern)", async () => {
+    const insertedAt = new Date("2020-01-15T10:00:00.000Z");
+    downloadVideo.mockRejectedValue(new DownloadError("rate_limited", "429 Too Many Requests"));
+
+    await processImportJob(baseJob({ insertedAt }) as never);
+
+    expect(refundDailyImportQuota).toHaveBeenCalledWith("user_1", "2020-01-15");
+  });
+});
+
 describe("handleImportMessage — idempotency (PIPE-06)", () => {
   afterEach(() => {
     vi.clearAllMocks();
@@ -314,7 +393,7 @@ describe("handleImportMessage — idempotency (PIPE-06)", () => {
     isOpen.mockReset().mockReturnValue(false);
     extractNormalizedKeyframe.mockReset().mockResolvedValue(Buffer.from("fake-jpeg"));
     putImage.mockReset().mockResolvedValue("https://cdn.example.com/imports/job1/keyframe.jpg");
-    extractImportedRecipe.mockReset().mockResolvedValue(extractedFixture());
+    extractImportedRecipe.mockReset().mockResolvedValue(extractionResultFixture());
     persistExtractedRecipe.mockReset().mockResolvedValue({ _id: "recipe1" });
   });
 
@@ -339,7 +418,7 @@ describe("handleImportMessage — idempotency (PIPE-06)", () => {
   it("processes the pipeline for a queued job (not a no-op)", async () => {
     getImportJob.mockResolvedValue(baseJob({ status: "queued" }));
     downloadVideo.mockResolvedValue({
-      videoPath: "/tmp/fake/video.mp4",
+      videoPath: FAKE_VIDEO_PATH,
       meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
     });
 
@@ -370,13 +449,13 @@ describe("processImportJob — extracting stage (Fase 2 Plano 05, EXT-05 ready_f
     extractNormalizedKeyframe.mockReset().mockResolvedValue(Buffer.from("fake-jpeg"));
     putImage.mockReset().mockResolvedValue("https://cdn.example.com/imports/job1/keyframe.jpg");
     extractAudio.mockReset().mockResolvedValue(undefined);
-    extractImportedRecipe.mockReset().mockResolvedValue(extractedFixture());
+    extractImportedRecipe.mockReset().mockResolvedValue(extractionResultFixture());
     persistExtractedRecipe.mockReset().mockResolvedValue({ _id: "recipe1" });
   });
 
   it("happy path: lands ready_for_review with recipeId/reviewRequired/confidenceScore, and NEVER writes a public/published status", async () => {
     downloadVideo.mockResolvedValue({
-      videoPath: "/tmp/fake/video.mp4",
+      videoPath: FAKE_VIDEO_PATH,
       meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
     });
 
@@ -403,7 +482,7 @@ describe("processImportJob — extracting stage (Fase 2 Plano 05, EXT-05 ready_f
 
   it("passes the persist options with source imported and visibility private (never a public status path)", async () => {
     downloadVideo.mockResolvedValue({
-      videoPath: "/tmp/fake/video.mp4",
+      videoPath: FAKE_VIDEO_PATH,
       meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
     });
 
@@ -416,7 +495,7 @@ describe("processImportJob — extracting stage (Fase 2 Plano 05, EXT-05 ready_f
 
   it("extraction throw -> status failed, failureReason extraction_failed, no recipeId linked", async () => {
     downloadVideo.mockResolvedValue({
-      videoPath: "/tmp/fake/video.mp4",
+      videoPath: FAKE_VIDEO_PATH,
       meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
     });
     extractImportedRecipe.mockRejectedValue(
@@ -438,7 +517,7 @@ describe("processImportJob — extracting stage (Fase 2 Plano 05, EXT-05 ready_f
 
   it("persistExtractedRecipe throw -> status failed, failureReason extraction_failed (atomic — no half-written recipe)", async () => {
     downloadVideo.mockResolvedValue({
-      videoPath: "/tmp/fake/video.mp4",
+      videoPath: FAKE_VIDEO_PATH,
       meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
     });
     persistExtractedRecipe.mockRejectedValue(new Error("Voyage não retornou embedding"));
@@ -453,7 +532,7 @@ describe("processImportJob — extracting stage (Fase 2 Plano 05, EXT-05 ready_f
 
   it("does not retry (no rethrow) on an extraction failure — SQS message is not left for immediate redrive", async () => {
     downloadVideo.mockResolvedValue({
-      videoPath: "/tmp/fake/video.mp4",
+      videoPath: FAKE_VIDEO_PATH,
       meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
     });
     extractImportedRecipe.mockRejectedValue(new Error("boom"));

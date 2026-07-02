@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 4
-current_phase_name: Cost/Quota Gating & Dedup
+current_phase: 5
+current_phase_name: Publish, Promotion & Full Citizenship
 status: executing
-stopped_at: Phase 3 plans verified (5 plans, VERIFICATION PASSED)
-last_updated: "2026-07-02T08:29:56.937Z"
+stopped_at: Phase 4 plans verified (6 plans, 0 blockers)
+last_updated: "2026-07-02T16:40:21.471Z"
 last_activity: 2026-07-02
-last_activity_desc: Phase 03 complete, transitioned to Phase 4
+last_activity_desc: Phase 04 complete, transitioned to Phase 5
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 16
-  completed_plans: 16
-  percent: 60
+  completed_phases: 4
+  total_plans: 22
+  completed_plans: 22
+  percent: 80
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-01)
 
 **Core value:** Transformar um vídeo de receita do feed do usuário em uma receita real, correta e acionável (ingredientes com quantidade, passo a passo e dicas fiéis) dentro do onFeed. Se a extração for imprecisa, nada mais importa.
-**Current focus:** Phase 03 — capture-mandatory-review-ui
+**Current focus:** Phase 04 — cost-quota-gating-dedup
 
 ## Current Position
 
-Phase: 4 — Cost/Quota Gating & Dedup
+Phase: 5 — Publish, Promotion & Full Citizenship
 Plan: Not started
-Status: Executing Phase 03
-Last activity: 2026-07-02 — Phase 03 complete, transitioned to Phase 4
+Status: Executing Phase 04
+Last activity: 2026-07-02 — Phase 04 complete, transitioned to Phase 5
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -39,7 +39,7 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity:**
 
-- Total plans completed: 5
+- Total plans completed: 11
 - Average duration: - min
 - Total execution time: 0 hours
 
@@ -48,6 +48,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 03 | 5 | - | - |
+| 04 | 6 | - | - |
 
 **Recent Trend:**
 
@@ -119,6 +120,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-02T05:02:08.062Z
-Stopped at: Phase 3 plans verified (5 plans, VERIFICATION PASSED)
-Resume file: .planning/phases/03-capture-mandatory-review-ui/03-01-PLAN.md
+Last session: 2026-07-02T13:30:49.132Z
+Stopped at: Phase 4 plans verified (6 plans, 0 blockers)
+Resume file: .planning/phases/04-cost-quota-gating-dedup/04-01-PLAN.md

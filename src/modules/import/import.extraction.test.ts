@@ -162,9 +162,13 @@ describe("extractImportedRecipe", () => {
     parse.mockReset();
   });
 
-  it("returns parsed_output when the LLM call succeeds", async () => {
+  it("returns parsed_output plus LLM token usage when the LLM call succeeds", async () => {
     const fixture = validImportedRecipeFixture();
-    parse.mockResolvedValue({ parsed_output: fixture, stop_reason: "end_turn" });
+    parse.mockResolvedValue({
+      parsed_output: fixture,
+      stop_reason: "end_turn",
+      usage: { input_tokens: 1234, output_tokens: 567 },
+    });
 
     const result = await extractImportedRecipe({
       transcript: "oi gente, hoje vou fazer um risoto",
@@ -172,7 +176,8 @@ describe("extractImportedRecipe", () => {
       noSpeechDetected: false,
     });
 
-    expect(result).toEqual(fixture);
+    expect(result.recipe).toEqual(fixture);
+    expect(result.usage).toEqual({ inputTokens: 1234, outputTokens: 567 });
     expect(parse).toHaveBeenCalledTimes(1);
   });
 

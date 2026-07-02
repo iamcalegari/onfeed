@@ -11,7 +11,7 @@ Núcleo do MVP: **colar link → receita confiável**. Extensão de browser, car
 
 - [x] **CAP-01**: Usuário pode colar a URL de um vídeo (Instagram, TikTok ou YouTube) numa tela do app e iniciar a importação
 - [x] **CAP-02**: O app valida a URL/plataforma antes de enfileirar; URL inválida ou plataforma não suportada retorna erro claro
-- [ ] **CAP-03**: Importações duplicadas da mesma URL (normalizada) são deduplicadas — reusa o resultado existente em vez de reprocessar
+- [x] **CAP-03**: Importações duplicadas da mesma URL (normalizada) são deduplicadas — reusa o resultado existente em vez de reprocessar
 
 ### Pipeline de mídia
 
@@ -55,9 +55,9 @@ Núcleo do MVP: **colar link → receita confiável**. Extensão de browser, car
 
 ### Custo, quota e gate
 
-- [ ] **COST-01**: A quota diária de importação (free tier) é reservada **na submissão**, não na conclusão (evita gasto antes do gate perceber)
-- [ ] **COST-02**: O custo por job é medido por estágio (download/bandwidth, minutos de ASR, tokens de LLM, embedding)
-- [ ] **COST-03**: Importação básica é grátis dentro da quota; volume alto exige PRO (reusa entitlement)
+- [x] **COST-01**: A quota diária de importação (free tier) é reservada **na submissão**, não na conclusão (evita gasto antes do gate perceber)
+- [x] **COST-02**: O custo por job é medido por estágio (download/bandwidth, minutos de ASR, tokens de LLM, embedding)
+- [x] **COST-03**: Importação básica é grátis dentro da quota; volume alto exige PRO (reusa entitlement)
 
 ## v2 Requirements
 
@@ -126,10 +126,10 @@ Mapeamento confirmado pelo roadmapper em `.planning/ROADMAP.md` (2026-07-01).
 | REV-02 | Phase 3 (Capture & Mandatory Review UI) | Complete |
 | REV-03 | Phase 3 (Capture & Mandatory Review UI) | Complete |
 | REV-04 | Phase 3 (Capture & Mandatory Review UI) | Complete |
-| CAP-03 | Phase 4 (Cost/Quota Gating & Dedup) | Pending |
-| COST-01 | Phase 4 (Cost/Quota Gating & Dedup) | Pending |
-| COST-02 | Phase 4 (Cost/Quota Gating & Dedup) | Pending |
-| COST-03 | Phase 4 (Cost/Quota Gating & Dedup) | Pending |
+| CAP-03 | Phase 4 (Cost/Quota Gating & Dedup) | Complete |
+| COST-01 | Phase 4 (Cost/Quota Gating & Dedup) | Complete |
+| COST-02 | Phase 4 (Cost/Quota Gating & Dedup) | Complete |
+| COST-03 | Phase 4 (Cost/Quota Gating & Dedup) | Complete |
 | SOC-01 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
 | SOC-02 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
 | SOC-03 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |

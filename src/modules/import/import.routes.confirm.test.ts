@@ -9,14 +9,27 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // (import-job.repository.test.ts / import.service.test.ts), mas exercitando a
 // rota Fastify real via `inject` para cobrir a validação de schema
 // (additionalProperties:false) e os status codes de verdade.
+vi.mock("@/config/env.js", () => ({
+  env: { import: { dailyLimitFree: 3, dailyLimitPro: 50 } },
+}));
+
 vi.mock("@/modules/auth/auth.guard.js", () => ({
   getUserId: vi.fn(() => "user_A"),
   requireAuth: vi.fn(async () => {}),
 }));
 
+vi.mock("@/modules/billing/entitlement.repository.js", () => ({
+  isProUser: vi.fn(async () => false),
+}));
+
+vi.mock("@/modules/usage/usage.repository.js", () => ({
+  consumeDailyImportQuota: vi.fn(),
+}));
+
 vi.mock("./import-job.repository.js", () => ({
   getImportJob: vi.fn(),
   createImportJob: vi.fn(),
+  findExistingSuccessfulImport: vi.fn(),
 }));
 
 vi.mock("./import.service.js", () => ({

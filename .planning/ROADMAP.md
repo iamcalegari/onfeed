@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Video Pipeline Foundation** - ImportJob state machine + yt-dlp/ffmpeg/Whisper adapters proven end-to-end on a deployed Render Background Worker, extraction stubbed (completed 2026-07-02)
 - [x] **Phase 2: Structured Extraction & Recipe Persistence** - Claude turns transcript+caption into a confidence-graded structured recipe, persisted as the user's first private imported recipe (completed 2026-07-02)
 - [x] **Phase 3: Capture & Mandatory Review UI** - Paste-link entry point, live status polling, and a mandatory review/edit screen before any recipe is considered saved (completed 2026-07-02)
-- [ ] **Phase 4: Cost/Quota Gating & Dedup** - Quota reserved at submission, duplicate URLs served from cache, per-stage cost telemetry live before real volume
+- [x] **Phase 4: Cost/Quota Gating & Dedup** - Quota reserved at submission, duplicate URLs served from cache, per-stage cost telemetry live before real volume (completed 2026-07-02)
 - [ ] **Phase 5: Publish, Promotion & Full Citizenship** - Private recipe gets a shareable link, likes drive promotion (gated on confidence too), and imported recipes behave like any other recipe across search, macros, shopping list, and cook mode
 
 ## Phase Details
@@ -103,7 +103,15 @@ Plans:
   3. Each completed job has a recorded cost breakdown by stage (download/bandwidth, ASR minutes, LLM tokens, embedding) — visible for at least basic operational review, not only discoverable via the monthly invoice.
   4. A free-tier user can import within their daily quota at no charge; exceeding the quota (or requesting future PRO-gated enrichment) is blocked with a clear message pointing at the existing PRO entitlement, reusing `isProUser()`/`consumeDailyAdaptQuota()`-style patterns rather than new billing logic.
 
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+
+- [x] 04-01-PLAN.md — Import quota primitive: import_usage model + consumeDailyImportQuota/refundDailyImportQuota + first usage.repository tests (COST-01/03)
+- [x] 04-02-PLAN.md — [BLOCKING] Expand costCents nested per-stage shape (type+BSON) + dedup_lookup index + setup:db sync (COST-02)
+- [x] 04-03-PLAN.md — env.import daily limits (free/pro) + config price table (COST-02/03)
+- [x] 04-04-PLAN.md — Owner-scoped dedup lookup findExistingSuccessfulImport + repository tests (CAP-03)
+- [x] 04-05-PLAN.md — POST /import dedup+quota gate (200/deduped, adapt-mirrored block) + PasteLinkButton branch + route tests (CAP-03/COST-01/03)
+- [x] 04-06-PLAN.md — Pipeline per-stage cost recording + refund-in-failJob (once) + refund test (COST-01/02)
 
 ### Phase 5: Publish, Promotion & Full Citizenship
 
@@ -130,7 +138,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Video Pipeline Foundation | 6/6 | Complete   | 2026-07-02 |
 | 2. Structured Extraction & Recipe Persistence | 5/5 | Complete   | 2026-07-02 |
 | 3. Capture & Mandatory Review UI | 5/5 | Complete    | 2026-07-02 |
-| 4. Cost/Quota Gating & Dedup | 0/TBD | Not started | - |
+| 4. Cost/Quota Gating & Dedup | 6/6 | Complete    | 2026-07-02 |
 | 5. Publish, Promotion & Full Citizenship | 0/TBD | Not started | - |
 
 ## Future / v2 (Not in This Roadmap)

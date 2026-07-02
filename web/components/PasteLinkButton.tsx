@@ -57,7 +57,11 @@ export function PasteLinkButton() {
     setSubmitError(null);
     startTransition(async () => {
       const res = await startImportAction(trimmed);
-      if (res.ok) {
+      if (res.ok && "deduped" in res) {
+        // Reimportação de uma URL já importada com sucesso (CAP-03): reusa a
+        // receita existente em vez de gerar um progresso/pipeline novo.
+        router.push(`/recipe/${res.recipeId}`);
+      } else if (res.ok) {
         router.push(`/import/${res.jobId}`);
       } else {
         setSubmitError(res.error);

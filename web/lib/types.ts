@@ -140,6 +140,13 @@ export interface Recipe {
   reviewRequired?: boolean;
   /** Setado apenas após o PATCH de confirmação explícita do usuário (REV-04). */
   confirmedAt?: string;
+  /** Atribuição da fonte — só em receitas source: "imported": link do vídeo
+   * original + @autor/perfil que postou (crédito na tela de detalhe). */
+  sourceMeta?: {
+    authorHandle?: string;
+    authorUrl?: string;
+    sourceUrl?: string;
+  };
 }
 
 /* ── Plano alimentar (CheffIA) ─────────────────────────────── */

@@ -379,6 +379,44 @@ export default async function RecipePage({
           {recipe.intro}
         </p>
 
+        {/* ── Créditos da fonte (receitas importadas de vídeo) ── */}
+        {recipe.source === "imported" && recipe.sourceMeta && (
+          <div
+            className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-areia/20 px-3 py-2 text-xs text-carvao/60"
+            style={{ border: "1px solid var(--t-bd-card)" }}
+          >
+            <span>🎬 Importado de vídeo</span>
+            {recipe.sourceMeta.authorHandle &&
+              (recipe.sourceMeta.authorUrl ? (
+                <a
+                  href={recipe.sourceMeta.authorUrl}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="font-semibold text-terracota"
+                >
+                  @{recipe.sourceMeta.authorHandle}
+                </a>
+              ) : (
+                <span className="font-semibold text-carvao/80">
+                  @{recipe.sourceMeta.authorHandle}
+                </span>
+              ))}
+            {recipe.sourceMeta.sourceUrl && (
+              <>
+                <span className="text-carvao/30">·</span>
+                <a
+                  href={recipe.sourceMeta.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="font-medium text-terracota"
+                >
+                  Ver vídeo original ↗
+                </a>
+              </>
+            )}
+          </div>
+        )}
+
         {/* ── Card nutricional ──────────────────────────────── */}
         {nut && (
           <div

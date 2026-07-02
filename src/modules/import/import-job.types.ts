@@ -48,11 +48,15 @@ export interface ImportJob {
   recipeId?: string; // setado após persistExtractedRecipe suceder (Fase 2)
   reviewRequired?: boolean; // de computeConfidence — Fase 3 consome para UI
   confidenceScore?: number; // 0..1, de computeConfidence — Fase 3 consome
+  // shape nested por estágio (COST-02) — populado pelo pipeline na Fase 4 (Plano 06);
+  // docs anteriores à Fase 4 têm o shape antigo/ausente — todo sub-campo é opcional
+  // e a leitura DEVE usar optional chaining (nunca assumir presença).
   costCents?: {
-    // placeholders — populados na Fase 4, mas o shape já existe agora
-    download?: number;
-    transcription?: number;
-    total?: number;
+    download?: { bytes?: number; cents?: number };
+    transcription?: { minutes?: number; cents?: number };
+    extraction?: { inputTokens?: number; outputTokens?: number; cents?: number };
+    embedding?: { tokens?: number; cents?: number };
+    totalCents?: number;
   };
   retryCount: number;
   insertedAt: Date;

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ImportJobModel } from "./import-job.model.js";
 import {
   createImportJob,
+  findExistingSuccessfulImport,
   getImportJob,
   updateImportJobStatus,
 } from "./import-job.repository.js";
@@ -14,6 +15,7 @@ vi.mock("./import-job.model.js", () => ({
   ImportJobModel: {
     insert: vi.fn(),
     findById: vi.fn(),
+    find: vi.fn(),
     update: vi.fn(),
   },
 }));
@@ -95,5 +97,97 @@ describe("import-job.repository", () => {
       },
     });
     expect((updateDoc as { $set: { updatedAt: Date } }).$set.updatedAt).toBeInstanceOf(Date);
+  });
+
+  it("findExistingSuccessfulImport retorna o job existente quando há um ready_for_review para o mesmo usuário e normalizedUrl (HIT)", async () => {
+    const existing = {
+      _id: "507f1f77bcf86cd799439011",
+      userId: "user_1",
+      normalizedUrl: "https://www.instagram.com/reel/abc123/",
+      status: "ready_for_review" as const,
+      recipeId: "recipe_1",
+    };
+    vi.mocked(ImportJobModel.find).mockResolvedValue(existing as never);
+
+    const job = await findExistingSuccessfulImport(
+      "user_1",
+      "https://www.instagram.com/reel/abc123/",
+    );
+
+    expect(job).toEqual(existing);
+  });
+
+  it("findExistingSuccessfulImport retorna null quando não há import bem-sucedido anterior (MISS)", async () => {
+    vi.mocked(ImportJobModel.find).mockResolvedValue(null as never);
+
+    const job = await findExistingSuccessfulImport(
+      "user_1",
+      "https://www.instagram.com/reel/abc123/",
+    );
+
+    expect(job).toBeNull();
+  });
+
+  it("findExistingSuccessfulImport escopa o filtro por userId, normalizedUrl e status ready_for_review (guarda de IDOR / D-01, D-05)", async () => {
+    vi.mocked(ImportJobModel.find).mockClear();
+    vi.mocked(ImportJobModel.find).mockResolvedValue(null as never);
+
+    await findExistingSuccessfulImport("user_1", "https://www.instagram.com/reel/abc123/");
+
+    expect(ImportJobModel.find).toHaveBeenCalledTimes(1);
+    const [filter] = vi.mocked(ImportJobModel.find).mock.calls[0]!;
+    const filterObj = filter as unknown as {
+      userId: string;
+      normalizedUrl: string;
+      status: string;
+    };
+    expect(filterObj.userId).toBe("user_1");
+    expect(filterObj.normalizedUrl).toBe("https://www.instagram.com/reel/abc123/");
+    expect(filterObj.status).toBe("ready_for_review");
+    // D-05: um job failed nunca deve casar com o dedup — o filtro nunca usa "failed".
+    expect(filterObj.status).not.toBe("failed");
+  });
+
+  it("findExistingSuccessfulImport lê o shape nested costCents com optional chaining sem lançar quando ausente", async () => {
+    const jobSemCosto = {
+      _id: "507f1f77bcf86cd799439011",
+      userId: "user_1",
+      normalizedUrl: "https://www.instagram.com/reel/abc123/",
+      status: "ready_for_review" as const,
+    };
+    vi.mocked(ImportJobModel.find).mockResolvedValue(jobSemCosto as never);
+
+    const job = await findExistingSuccessfulImport(
+      "user_1",
+      "https://www.instagram.com/reel/abc123/",
+    );
+
+    expect(job?.costCents?.download?.cents).toBeUndefined();
+    expect(job?.costCents?.extraction?.inputTokens).toBeUndefined();
+    expect(job?.costCents?.totalCents).toBeUndefined();
+  });
+
+  it("findExistingSuccessfulImport lê o shape nested costCents (download.cents, extraction.inputTokens, totalCents) quando presente", async () => {
+    const jobComCosto = {
+      _id: "507f1f77bcf86cd799439011",
+      userId: "user_1",
+      normalizedUrl: "https://www.instagram.com/reel/abc123/",
+      status: "ready_for_review" as const,
+      costCents: {
+        download: { bytes: 1024, cents: 2 },
+        extraction: { inputTokens: 500, outputTokens: 120, cents: 8 },
+        totalCents: 10,
+      },
+    };
+    vi.mocked(ImportJobModel.find).mockResolvedValue(jobComCosto as never);
+
+    const job = await findExistingSuccessfulImport(
+      "user_1",
+      "https://www.instagram.com/reel/abc123/",
+    );
+
+    expect(job?.costCents?.download?.cents).toBe(2);
+    expect(job?.costCents?.extraction?.inputTokens).toBe(500);
+    expect(job?.costCents?.totalCents).toBe(10);
   });
 });
