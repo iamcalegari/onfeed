@@ -5,8 +5,8 @@ milestone_name: milestone
 current_phase: 5
 current_phase_name: Publish, Promotion & Full Citizenship
 status: executing
-stopped_at: Phase 5 context gathered
-last_updated: "2026-07-02T17:32:51.595Z"
+stopped_at: Phase 5 UI-SPEC approved
+last_updated: "2026-07-02T18:30:58.828Z"
 last_activity: 2026-07-02
 last_activity_desc: Phase 04 complete, transitioned to Phase 5
 progress:
@@ -120,6 +120,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-02T17:32:51.567Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-publish-promotion-full-citizenship/05-CONTEXT.md
+Last session: 2026-07-02T18:30:58.820Z
+Stopped at: Phase 5 UI-SPEC approved
+Resume file: .planning/phases/05-publish-promotion-full-citizenship/05-UI-SPEC.md
