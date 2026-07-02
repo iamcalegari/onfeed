@@ -2,14 +2,23 @@
  * Orquestração por-job do pipeline de import (PIPE-01..05, PIPE-07). Compõe
  * todos os adapters das Plans 01-03 (download, VAD, transcrição, keyframe,
  * breaker) numa única sequência: download → VAD → transcrever/pular →
- * extracting (stub) → keyframe → S3 → cleanup, escrevendo o status do
- * ImportJob em cada fronteira de etapa.
+ * extracting (extração real + confiança + persistência, Fase 2 Plano 05) →
+ * keyframe → S3 → cleanup, escrevendo o status do ImportJob em cada
+ * fronteira de etapa.
  *
  * Camada 1 de limpeza garantida (PIPE-05, D-09): TODO o corpo download→
  * keyframe roda dentro de um try/finally que remove o diretório temporário
  * mkdtemp'd do job incondicionalmente — vídeo/áudio brutos NUNCA persistem
  * além do job, e NUNCA são enviados ao S3 (só o keyframe é, D-10). A camada
  * 2 (sweep no boot do worker, sobrevive a SIGKILL) vive em import-worker.ts.
+ *
+ * EXT-05 (Plano 05) — `ready_for_review` é o ÚNICO terminal de sucesso: não
+ * existe caminho de código daqui até um status público/publicado. Qualquer
+ * erro na camada de extração (zod, LLM sem parsed_output, mapping) ou na
+ * persistência mapeia para `failed`/`extraction_failed`, nunca-retryable
+ * (uma re-tentativa de uma falha determinística de extração falharia de
+ * novo) — `persistExtractedRecipe` é atômico (insere tudo ou lança, nunca
+ * meia-receita), então a falha nunca deixa um recipeId pendurado no job.
  */
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -17,6 +26,10 @@ import path from "node:path";
 
 import { updateImportJobStatus } from "@/modules/import/import-job.repository.js";
 import type { ImportFailureReason, ImportJob } from "@/modules/import/import-job.types.js";
+import { extractImportedRecipe } from "@/modules/import/import.extraction.js";
+import { computeConfidence } from "@/modules/import/import.confidence.js";
+import { mapExtractedToRecipe } from "@/modules/import/import.recipe-mapping.js";
+import { persistExtractedRecipe } from "@/modules/recipes/recipe.ingestion.js";
 import { DownloadError, downloadVideo, type DownloadFailureReason } from "./ytdlp.downloader.js";
 import { extractAudio } from "./ffmpeg.exec.js";
 import { detectSilenceRatio, NO_SPEECH_RATIO_THRESHOLD } from "./vad.js";
@@ -199,9 +212,40 @@ export async function processImportJob(job: ImportJob): Promise<void> {
       },
     });
 
-    // 4. Extracting — STUB nesta fase (Fase 2 substitui por extração LLM real).
+    // 4. Extracting — extração LLM real → confiança → mapeamento → persistência
+    // (Fase 2 Plano 05). Falha aqui NUNCA é retryable (determinística) e NUNCA
+    // deixa um recipeId pendurado — persistExtractedRecipe é atômico.
     await updateImportJobStatus(id, { status: "extracting" });
-    // no-op intencional.
+    let recipeId: string;
+    let reviewRequired: boolean;
+    let confidenceScore: number;
+    try {
+      const extracted = await extractImportedRecipe({
+        ...(transcript !== undefined && { transcript }),
+        ...(downloadResult.meta.caption !== undefined && { caption: downloadResult.meta.caption }),
+        noSpeechDetected,
+      });
+      const confidence = computeConfidence(extracted, { noSpeechDetected });
+      const { input, extracted: mappedExtracted, options } = mapExtractedToRecipe(
+        extracted,
+        {
+          ...job,
+          ...(transcript !== undefined && { transcript }),
+          ...(downloadResult.meta.caption !== undefined && { caption: downloadResult.meta.caption }),
+          noSpeechDetected,
+        },
+        confidence,
+      );
+      const created = await persistExtractedRecipe(input, mappedExtracted, options);
+      recipeId = String(created._id);
+      reviewRequired = confidence.reviewRequired;
+      confidenceScore = confidence.score;
+    } catch (err) {
+      // Nunca loga o transcript/payload do LLM completo (CONCERNS.md).
+      await failJob(job, "extraction_failed", err instanceof Error ? err.message : String(err));
+      logOutcome({ platform: job.platform, outcome: "failure", failureReason: "extraction_failed", durationMs: Date.now() - startedAt });
+      return;
+    }
 
     // 5. Keyframe → normalize → S3 (única coisa que sobe ao S3; mídia bruta nunca é enviada — D-09).
     const keyframeTmpPath = path.join(jobDir, "keyframe.jpg");
@@ -212,8 +256,15 @@ export async function processImportJob(job: ImportJob): Promise<void> {
     );
     const keyframeUrl = await putImage(`imports/${id}/keyframe.jpg`, keyframeBuffer, "image/jpeg");
 
-    // 6. ready_for_review.
-    await updateImportJobStatus(id, { status: "ready_for_review", keyframeUrl });
+    // 6. ready_for_review — o ÚNICO terminal de sucesso (EXT-05); nunca um
+    // status público/publicado a partir daqui.
+    await updateImportJobStatus(id, {
+      status: "ready_for_review",
+      keyframeUrl,
+      recipeId,
+      reviewRequired,
+      confidenceScore,
+    });
 
     logOutcome({ platform: job.platform, outcome: "success", durationMs: Date.now() - startedAt });
   } finally {
