@@ -220,9 +220,21 @@ export function buildImportParams(input: ImportExtractionInput) {
   };
 }
 
+/** Uso de tokens LLM da chamada de extração — telemetria de custo (COST-02),
+ * nunca o payload/transcript em si (D-08). */
+export interface ImportExtractionUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export interface ImportExtractionResult {
+  recipe: ExtractedImportedRecipe;
+  usage: ImportExtractionUsage;
+}
+
 export async function extractImportedRecipe(
   input: ImportExtractionInput,
-): Promise<ExtractedImportedRecipe> {
+): Promise<ImportExtractionResult> {
   const res = await anthropic.messages.parse(buildImportParams(input));
 
   if (!res.parsed_output) {
@@ -230,5 +242,11 @@ export async function extractImportedRecipe(
       `Extração de import falhou (stop_reason=${res.stop_reason})`,
     );
   }
-  return res.parsed_output;
+  return {
+    recipe: res.parsed_output,
+    usage: {
+      inputTokens: res.usage.input_tokens,
+      outputTokens: res.usage.output_tokens,
+    },
+  };
 }
