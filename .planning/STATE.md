@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 2
 current_phase_name: Structured Extraction & Recipe Persistence
 status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-07-02T02:57:28.062Z"
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-07-02T03:08:27.085Z"
 last_activity: 2026-07-02
 last_activity_desc: Phase 2 execution started
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 11
-  completed_plans: 8
+  completed_plans: 9
   percent: 20
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 ## Current Position
 
 Phase: 2 (Structured Extraction & Recipe Persistence) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-07-02 — Phase 2 execution started
 
@@ -61,6 +61,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P05 | 50min | 2 tasks | 8 files |
 | Phase 02-structured-extraction-recipe-persistence P01 | 35min | 3 tasks | 9 files |
 | Phase 02 P02 | 45min | 2 tasks | 3 files |
+| Phase 02-structured-extraction-recipe-persistence P03 | 6min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,9 @@ Recent decisions affecting current work:
 - [Phase ?]: RecipeGrounding modeled as single nested object (titleGrounding/quantityGrounding/stepGrounding/nutrition/sourceDivergence) mirroring creatorSchema/nutritionSchema BSON pattern
 - [Phase 02-02]: Grounding é inline por campo no schema de extração (quantityGrounding/grounding) — diferente do shape de persistência RecipeGrounding (mapas paralelos); mapeamento fica para plano de confidence gate/pipeline
 - [Phase 02-02]: extractImportedRecipe usa max_tokens=6000 e effort='medium' (vs 4000/low do catálogo) — reconciliação+grounding é tarefa mais difícil e input maior
+- [Phase 02-03]: DEFAULTS.sources in recipe.repository.ts left unchanged; 'imported' only added via owner-scoped listMyImportedRecipes (D-14)
+- [Phase 02-03]: getRecipeById(id, userId?) folds ownership into one combined Mongo filter (getImportJob idiom), never fetch-then-compare
+- [Phase 02-03]: Atlas index filter-field declaration is code-only; pre-existing environments need a manual index update since ensureSearchIndex only creates when absent
 
 ### Pending Todos
 
@@ -108,6 +112,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-02T02:57:28.055Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-07-02T03:08:27.078Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None
