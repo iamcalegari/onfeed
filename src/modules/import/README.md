@@ -1,7 +1,16 @@
 ---
-tags: [backend, module, video-pipeline, import, ssrf, idor, llm-extraction, confidence-gate, confirm-gate, cost-telemetry, dedup]
+tags: [backend, module, video-pipeline, import, ssrf, idor, llm-extraction, confidence-gate, confirm-gate, cost-telemetry, dedup, citizenship]
 updated: 2026-07-02
 ---
+
+> [!INFO] Fase 5 (Publish, Promotion & Full Citizenship) — Plano 06 (citizenship regression + doc)
+> Fecha o loop de cidadania plena (RCP-01..04): testes de regressão em
+> `recipe.citizenship.test.ts` ([[Recipes]]) provam — em vez de reconstruir —
+> que uma receita importada adapta, entra na lista de compras e roda no modo
+> cozinha exatamente como qualquer outra, e que SOC-01 (nasce privada) e
+> SOC-05 (créditos sobrevivem à promoção) valem contra o código real. Ver
+> §Cidadania plena (Fase 5) abaixo para o detalhe e o aviso de "não
+> reintroduza source:'imported' nesses caminhos".
 
 > [!INFO] Fase 4 (Cost/Quota/Gating/Dedup) — Plano 04-05 (guards de dedup + cota em POST /import)
 > `POST /import` ganha dois guards novos, na ORDEM ESTRITA de D-07:
@@ -536,3 +545,56 @@ extractImportedRecipe({ transcript, caption, noSpeechDetected })
 > inteira ou lança ANTES de vincular qualquer `recipeId` — não existe
 > "meia-receita" referenciada por um `ImportJob` falho. O transcript/payload
 > completo do LLM NUNCA é logado (só `err.message`), mesmo em falha.
+
+## Cidadania plena (Fase 5 — Plano 06)
+
+Fecha o ciclo SOC-01..05 / RCP-01..04: uma receita importada é cidadã de
+primeira classe do catálogo, por **reuso direto** dos fluxos existentes —
+nunca por um caminho paralelo específico de import.
+
+- **(a) Nasce privada + linkável (SOC-01/SOC-02/D-03/D-04)** —
+  `mapExtractedToRecipe` ([[Import]], acima) seta `visibility: "private"` no
+  momento da persistência; o `shareSlug` é gerado na MESMA escrita de
+  `confirmedAt` por `confirmImportedRecipe` ([[Import]]) — nenhuma ação
+  separada de "publicar link". Ver `recipe.citizenship.test.ts` ([[Recipes]])
+  para a asserção de que o mapeamento realmente produz `visibility:"private"`
+  (verificado, não assumido).
+- **(b) Promoção é um flip de visibilidade, nunca de source (SOC-04/SOC-05/D-05/D-09)**
+  — `promoteImportToPublic` ([[Recipes]]), disparado por `maybePromote`
+  ([[Likes]]) quando o gate de 3 partes passa (likes de terceiros ≥
+  threshold, `confidenceScore ≥ promoteConfidence`, `confirmedAt` setado),
+  só toca `visibility`/`updatedAt` no `$set` — `source` permanece
+  `"imported"` para sempre, então `createdBy[]` (importador) e `sourceMeta`
+  (creator externo, `@handle`) sobrevivem estruturalmente à promoção. Nenhum
+  crédito é sintetizado nem apagado.
+- **(c) RCP-01/02/03 são REUSO DIRETO — adapt/lista de compras/modo cozinha
+  não têm código específico de import.** `adaptRecipe` ([[Recipes]]) resolve
+  a receita base via `getRecipeById` (idioma trusted, sem filtro de
+  visibilidade) e gera um filho `generated_pending` ancorado via
+  `parentRecipeId` — o mesmo caminho para uma base `curated` ou `imported`,
+  sem NENHUM branch por `source`. Lista de compras e modo cozinha resolvem
+  por id de receita da mesma forma, também sem inspecionar `source`.
+  `recipe.citizenship.test.ts` ([[Recipes]]) trava essa paridade.
+
+  > [!WARNING] D-11 — NÃO adicione branches por source:"imported" em adapt/lista de compras/modo cozinha
+  > Esses três caminhos são deliberadamente source-agnósticos (D-11). Se um
+  > editor futuro sentir necessidade de checar `recipe.source === "imported"`
+  > dentro de `adaptRecipe`, da rota de lista de compras ou do modo cozinha,
+  > isso é um sinal de que algo mais específico deveria viver em
+  > `import.recipe-mapping.ts` ou `import.service.ts` — não nesses fluxos
+  > compartilhados. Um branch desses quebraria silenciosamente a promessa de
+  > "cidadania plena" e não seria pego por testes que assumem reuso.
+
+- **(d) RCP-04 — cidadania na busca/swipe** — `hybridSearch` ([[Recipes]],
+  Fase 5 Plano 04) foi ampliada: `DEFAULTS.sources` agora inclui
+  `"imported"`, e o guard de visibilidade no `$vectorSearch.filter` é
+  incondicional — sem `ownerId`, exclui `visibility:"private"` (só imports
+  promovidos aparecem publicamente); com `ownerId`, mantém o `$or`
+  owner-scoped já existente (dono vê o próprio import privado). Regressão de
+  isolamento (`recipe.repository.search.test.ts`) prova que o import privado
+  de um usuário nunca vaza para outro nem para busca pública.
+  **Nota de escopo:** o wiring de `ownerId` a partir da rota
+  (`search.service.ts`/`search.routes.ts`) para o dono ver seu próprio
+  import privado no feed/swipe geral segue fora do escopo — hoje quem
+  escopa `ownerId` de fato é `listMyImportedRecipes` ([[Import]], "Minhas
+  importações"), não o `searchRecipes` genérico.
