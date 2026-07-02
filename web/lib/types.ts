@@ -147,6 +147,18 @@ export interface Recipe {
     authorUrl?: string;
     sourceUrl?: string;
   };
+  /** Visibilidade (privado/público) — presente em receitas importadas para
+   * decidir o redirect canônico /r/[token] -> /recipe/[id] (Fase 5, D-12). */
+  visibility?: "private" | "public";
+  /** Token do link público — presente após confirmação (Fase 5, D-03/D-04). */
+  shareSlug?: string;
+}
+
+/** Resposta de GET /recipes/share/:token — recipe + estado de like do
+ * visitante (anônimo ou logado), usado pela página pública /r/[token]. */
+export interface ShareRecipeResponse {
+  recipe: Recipe;
+  likes: { count: number; liked: boolean };
 }
 
 /* ── Plano alimentar (CheffIA) ─────────────────────────────── */

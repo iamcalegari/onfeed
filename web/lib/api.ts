@@ -16,6 +16,7 @@ import type {
   Recipe,
   SearchRequest,
   SearchResponse,
+  ShareRecipeResponse,
 } from "./types";
 
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:3000";
@@ -61,6 +62,26 @@ export async function getRecipe(id: string): Promise<Recipe | null> {
     throw new Error(`Detalhe falhou: ${res.status} ${await res.text()}`);
   }
   return res.json() as Promise<Recipe>;
+}
+
+/**
+ * Página pública do link compartilhável (Fase 5, D-01/D-03). Busca por
+ * shareSlug — nunca por objectId. authHeaders() é enviado mesmo aqui (não
+ * exige login) só para o backend resolver o `liked` de um visitante que por
+ * acaso já esteja logado; retorna null em 404 (token inválido/expirado).
+ */
+export async function getRecipeByShareSlug(
+  token: string,
+): Promise<ShareRecipeResponse | null> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/recipes/share/${encodeURIComponent(token)}`,
+    { cache: "no-store", headers: { ...(await authHeaders()) } },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error(`Receita compartilhada falhou: ${res.status} ${await res.text()}`);
+  }
+  return res.json() as Promise<ShareRecipeResponse>;
 }
 
 export interface AdaptBody {
