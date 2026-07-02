@@ -51,20 +51,12 @@ export function mapExtractedToRecipe(
     servings: 1,
   };
 
-  const quantityGrounding: Record<string, string> = {};
-  extracted.ingredients.forEach((ing, i) => {
-    quantityGrounding[String(i)] = ing.quantityGrounding;
-  });
-
-  const stepGrounding: Record<string, string> = {};
-  extracted.steps.forEach((step, i) => {
-    stepGrounding[String(i)] = step.grounding;
-  });
-
+  // Grounding como arrays paralelos aos ingredients[]/steps[] (não Record: o
+  // mongoat injeta additionalProperties:false, rejeitando chaves dinâmicas).
   const grounding: RecipeGrounding = {
     titleGrounding: extracted.titleGrounding,
-    quantityGrounding: quantityGrounding as RecipeGrounding["quantityGrounding"],
-    stepGrounding: stepGrounding as RecipeGrounding["stepGrounding"],
+    quantityGrounding: extracted.ingredients.map((ing) => ing.quantityGrounding),
+    stepGrounding: extracted.steps.map((step) => step.grounding),
     nutrition: "inferred", // D-10 — nunca autorrelatado pelo modelo
     sourceDivergence: extracted.sourceDivergence,
   };

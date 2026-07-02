@@ -137,8 +137,8 @@ describe("persistExtractedRecipe (EXT-03/EXT-04 — canonicalização + embeddin
   it("threads grounding through conditionally, without altering canonicalization/embedding calls", async () => {
     const grounding = {
       titleGrounding: "grounded" as const,
-      quantityGrounding: { "canon:arroz carnaroli": "grounded" as const },
-      stepGrounding: { "0": "grounded" as const },
+      quantityGrounding: ["grounded" as const],
+      stepGrounding: ["grounded" as const],
       nutrition: "inferred" as const,
       sourceDivergence: [],
     };

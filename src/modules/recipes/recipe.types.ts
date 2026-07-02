@@ -21,10 +21,10 @@ export type GroundingLevel = "grounded" | "inferred" | "ambiguous";
  */
 export interface RecipeGrounding {
   titleGrounding: GroundingLevel;
-  /** chave = canonicalId (ou índice, se ainda não canonicalizado) do ingrediente */
-  quantityGrounding: Record<string, GroundingLevel>;
-  /** chave = índice do passo */
-  stepGrounding: Record<string, GroundingLevel>;
+  /** grounding da quantidade por ingrediente — índice paralelo a `ingredients[]` (array, não Record: o mongoat injeta additionalProperties:false, então chaves dinâmicas de object são rejeitadas) */
+  quantityGrounding: GroundingLevel[];
+  /** grounding por passo — índice paralelo a `steps[]` */
+  stepGrounding: GroundingLevel[];
   /** nutrição é sempre estimada pelo mecanismo do catálogo (D-10) — nunca perguntada ao modelo */
   nutrition: "inferred";
   /** campos onde transcript e caption divergem explicitamente (D-08) */

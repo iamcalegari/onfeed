@@ -151,8 +151,8 @@ async function runPersist(rawUrl: string) {
       if (recipe) {
         const g = (recipe as { grounding?: {
           titleGrounding?: string;
-          quantityGrounding?: Record<string, string>;
-          stepGrounding?: Record<string, string>;
+          quantityGrounding?: string[];
+          stepGrounding?: string[];
           sourceDivergence?: string[];
         } }).grounding;
         log("\x1b[35m🍳 Receita estruturada extraída\x1b[0m");
@@ -160,7 +160,7 @@ async function runPersist(rawUrl: string) {
         console.log(`   ingredientes (${recipe.ingredients.length}):`);
         recipe.ingredients.forEach((ing, i) => {
           const qty = [ing.quantity, ing.unit].filter(Boolean).join(" ") || "—";
-          const gr = g?.quantityGrounding?.[String(i)] ?? "?";
+          const gr = g?.quantityGrounding?.[i] ?? "?";
           console.log(`     • ${ing.name}: ${qty}  \x1b[90m[${gr}]\x1b[0m`);
         });
         console.log(`   passos:     ${recipe.steps.length}`);

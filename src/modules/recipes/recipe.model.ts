@@ -56,8 +56,8 @@ const groundingSchema: ModelValidationSchema = {
   required: ["titleGrounding", "quantityGrounding", "stepGrounding", "nutrition", "sourceDivergence"],
   properties: {
     titleGrounding: { bsonType: "string", enum: ["grounded", "inferred", "ambiguous"] },
-    quantityGrounding: { bsonType: "object" },
-    stepGrounding: { bsonType: "object" },
+    quantityGrounding: { bsonType: "array", items: { bsonType: "string", enum: ["grounded", "inferred", "ambiguous"] } },
+    stepGrounding: { bsonType: "array", items: { bsonType: "string", enum: ["grounded", "inferred", "ambiguous"] } },
     nutrition: { bsonType: "string", enum: ["inferred"] },
     sourceDivergence: { bsonType: "array", items: { bsonType: "string" } },
   },
@@ -115,7 +115,7 @@ const schema: ModelValidationSchema = {
     // app (persistExtractedRecipe), não no schema (mongoat valida todo insert).
     visibility: { bsonType: "string", enum: ["private", "public"] },
     grounding: groundingSchema,
-    importJobId: { bsonType: "objectId" },
+    importJobId: { bsonType: "string" },
     sourceMeta: sourceMetaSchema,
     reviewRequired: { bsonType: "bool" },
     confidenceScore: { bsonType: "number" },
