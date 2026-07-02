@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 1
 current_phase_name: Video Pipeline Foundation
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-07-02T00:12:32.513Z"
+stopped_at: "Completed 01-05-PLAN.md (worker assembly: pipeline.ts + import-worker.ts, PIPE-01..07 all complete)"
+last_updated: "2026-07-02T00:24:29.841Z"
 last_activity: 2026-07-01
 last_activity_desc: Phase 1 execution started
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 ## Current Position
 
 Phase: 1 (Video Pipeline Foundation) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-07-01 — Phase 1 execution started
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-video-pipeline-foundation P01 | 35min | 3 tasks | 10 files |
 | Phase 01 P03 | 45min | 3 tasks | 12 files |
 | Phase 01-video-pipeline-foundation P04 | 40min | 3 tasks | 6 files |
+| Phase 01 P05 | 50min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Recent decisions affecting current work:
 - [Phase ?]: Groq->OpenAI transcription fallback is a runtime try/catch in transcribe(), never an env-time swap; size guard (25MB) routes oversized audio straight to OpenAI
 - [Phase 01-04]: getImportJob(jobId, userId?) uses an optional second param for ownership-scoped queries, blocking IDOR on GET /import/:jobId while preserving existing single-arg callers
 - [Phase 01-04]: detectPlatform stays a strict SSRF allowlist (platform | null); a route-layer classifyRejectionReason helper distinguishes invalid_url vs unsupported_platform for CAP-02's specific-error requirement
+- [Phase ?]: DownloadFailureReason (yt-dlp error vocabulary) explicitly mapped to ImportFailureReason (ImportJob state vocabulary) via toImportFailureReason() in pipeline.ts — the two unions diverge in purpose and are never assumed to be the same type
+- [Phase ?]: handleMessage acks (returns) the SQS message on both real success and idempotent no-op; only a thrown error triggers processing_error and leaves the message for DLQ redrive
 
 ### Pending Todos
 
@@ -98,6 +101,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-02T00:10:58.194Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-video-pipeline-foundation/01-CONTEXT.md
+Last session: 2026-07-02T00:24:29.834Z
+Stopped at: Completed 01-05-PLAN.md (worker assembly: pipeline.ts + import-worker.ts, PIPE-01..07 all complete)
+Resume file: .planning/phases/01-video-pipeline-foundation/01-06-PLAN.md
