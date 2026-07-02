@@ -33,6 +33,16 @@ export interface HybridSearchParams {
   weights?: Partial<DimensionWeights>;
   numCandidates?: number;
   limit?: number;
+  /**
+   * D-14 (segurança): quando informado, restringe o resultado a receitas
+   * não-privadas OU privadas cujo dono seja `ownerId`. Necessário para
+   * receitas `source: "imported"` (sempre `visibility: "private"` até
+   * promoção — Fase 5) aparecerem na busca só para quem importou.
+   * NUNCA adicionar 'imported' a DEFAULTS.sources sem também passar ownerId
+   * (T-02-06 / Pitfall 2) — callers que querem imports passam sources
+   * explicitamente junto com ownerId (ver listMyImportedRecipes).
+   */
+  ownerId?: string;
 }
 
 const CORE_WEIGHT = 3;
@@ -54,6 +64,15 @@ const DEFAULTS = {
   limit: 20,
   sources: ["curated", "generated_validated", "variant", "user"] as RecipeSource[],
 };
+
+/**
+ * Sources padrão do catálogo público — exportado para composição por callers
+ * owner-scoped (ex: listMyImportedRecipes em import.service.ts) que precisam
+ * somar 'imported' ao conjunto SEM alterar este array global (D-14 / T-02-06:
+ * 'imported' nunca entra aqui, só em sources passados explicitamente junto
+ * com ownerId).
+ */
+export const DEFAULT_SEARCH_SOURCES = DEFAULTS.sources;
 
 // Referências para o score N (heurístico — ajustável)
 const SATIETY_CALORIES_REF = 700; // calorias que já "matam a fome"
@@ -222,6 +241,14 @@ export async function hybridSearch(
         filter: {
           source: { $in: params.sources ?? DEFAULTS.sources },
           ...(isDrinks && { occasions: "drinks" }),
+          // D-14: receitas privadas (imports não promovidos) só entram no
+          // resultado se params.ownerId for o dono — nunca globalmente.
+          ...(params.ownerId && {
+            $or: [
+              { visibility: { $ne: "private" } },
+              { visibility: "private", "createdBy.userId": params.ownerId },
+            ],
+          }),
         },
       },
     },
@@ -419,11 +446,31 @@ export async function searchByTitle(
   }));
 }
 
-/** Receita completa para a tela de detalhe (sem o embedding pesado). */
-export async function getRecipeById(id: string): Promise<Recipe | null> {
-  const recipe = await RecipeModel.findById(id, {
-    projection: { embedding: 0, embeddingText: 0 },
-  });
+/**
+ * Receita completa para a tela de detalhe (sem o embedding pesado).
+ *
+ * Quando `userId` é informado, a checagem de ownership é dobrada NO MESMO
+ * filtro Mongo (idioma de getImportJob) — nunca busca-e-compara depois. Uma
+ * receita privada de outro dono resolve `null`, o mesmo "não existe" de um
+ * id inexistente (IDOR-safe, D-14 / T-02-07). Sem `userId`, o comportamento
+ * é inalterado (compatibilidade com callers existentes).
+ */
+export async function getRecipeById(id: string, userId?: string): Promise<Recipe | null> {
+  const projection = { embedding: 0, embeddingText: 0 };
+  if (userId) {
+    const recipe = await RecipeModel.find(
+      {
+        _id: new ObjectId(id),
+        $or: [
+          { visibility: { $ne: "private" } },
+          { visibility: "private", "createdBy.userId": userId },
+        ],
+      } as never,
+      { projection },
+    );
+    return (recipe as Recipe | null) ?? null;
+  }
+  const recipe = await RecipeModel.findById(id, { projection });
   return recipe as Recipe | null;
 }
 

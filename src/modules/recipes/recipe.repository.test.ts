@@ -1,0 +1,122 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// recipe.repository.ts importa RECIPE_VECTOR_INDEX de search-indexes.ts, que
+// por sua vez importa connection.ts (conecta ao Mongo real via env.mongo.uri
+// no module-load) — mockado direto para não arrastar nenhuma validação de
+// env/infra real para a suite rápida (mesma decisão de recipe.ingestion.test.ts).
+vi.mock("@/infra/database/search-indexes.js", () => ({
+  RECIPE_VECTOR_INDEX: "recipe_vector_index",
+}));
+
+const aggregate = vi.fn();
+const find = vi.fn();
+const findById = vi.fn();
+vi.mock("./recipe.model.js", () => ({
+  RecipeModel: {
+    aggregate: (...args: unknown[]) => aggregate(...args),
+    find: (...args: unknown[]) => find(...args),
+    findById: (...args: unknown[]) => findById(...args),
+  },
+}));
+
+const { hybridSearch, getRecipeById, DEFAULT_SEARCH_SOURCES } = await import(
+  "./recipe.repository.js"
+);
+
+function minimalParams(overrides: Partial<Parameters<typeof hybridSearch>[0]> = {}) {
+  return {
+    queryVector: [0.1, 0.2, 0.3],
+    haveIds: [],
+    ...overrides,
+  };
+}
+
+describe("hybridSearch — owner-scoped $vectorSearch filter (D-14 / T-02-06)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    aggregate.mockResolvedValue([]);
+  });
+
+  it("adds the visibility/createdBy.userId $or clause to the $vectorSearch filter when ownerId is present", async () => {
+    await hybridSearch(minimalParams({ ownerId: "user_A", sources: [...DEFAULT_SEARCH_SOURCES, "imported"] }));
+
+    expect(aggregate).toHaveBeenCalledTimes(1);
+    const [pipeline] = aggregate.mock.calls[0] as [Array<Record<string, unknown>>];
+    const vectorStage = pipeline[0] as { $vectorSearch: { filter: Record<string, unknown> } };
+    expect(vectorStage.$vectorSearch.filter).toEqual(
+      expect.objectContaining({
+        $or: [
+          { visibility: { $ne: "private" } },
+          { visibility: "private", "createdBy.userId": "user_A" },
+        ],
+      }),
+    );
+  });
+
+  it("does NOT add an owner clause when ownerId is absent (catalog behavior preserved)", async () => {
+    await hybridSearch(minimalParams());
+
+    const [pipeline] = aggregate.mock.calls[0] as [Array<Record<string, unknown>>];
+    const vectorStage = pipeline[0] as { $vectorSearch: { filter: Record<string, unknown> } };
+    expect(vectorStage.$vectorSearch.filter.$or).toBeUndefined();
+  });
+
+  it("DEFAULTS.sources (exported as DEFAULT_SEARCH_SOURCES) does not contain 'imported'", () => {
+    expect(DEFAULT_SEARCH_SOURCES).toEqual(["curated", "generated_validated", "variant", "user"]);
+    expect(DEFAULT_SEARCH_SOURCES).not.toContain("imported");
+  });
+
+  it("cross-user isolation: user A's private imported recipe filter matches only createdBy.userId === A, never B", async () => {
+    await hybridSearch(minimalParams({ ownerId: "user_B", sources: [...DEFAULT_SEARCH_SOURCES, "imported"] }));
+
+    const [pipeline] = aggregate.mock.calls[0] as [Array<Record<string, unknown>>];
+    const vectorStage = pipeline[0] as { $vectorSearch: { filter: Record<string, unknown> } };
+    const orClause = vectorStage.$vectorSearch.filter.$or as Array<Record<string, unknown>>;
+    const ownerBranch = orClause[1] as Record<string, unknown>;
+    expect(ownerBranch["createdBy.userId"]).toBe("user_B");
+    expect(ownerBranch["createdBy.userId"]).not.toBe("user_A");
+  });
+});
+
+describe("getRecipeById — IDOR-safe owner overload (D-14 / T-02-07)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("without userId, keeps the existing findById-by-id behavior unchanged", async () => {
+    findById.mockResolvedValue({ _id: "recipe1", title: "Bolo" });
+
+    const result = await getRecipeById("recipe1");
+
+    expect(findById).toHaveBeenCalledWith("recipe1", {
+      projection: { embedding: 0, embeddingText: 0 },
+    });
+    expect(find).not.toHaveBeenCalled();
+    expect(result).toEqual({ _id: "recipe1", title: "Bolo" });
+  });
+
+  it("with userId, folds ownership into a single Mongo filter (never fetch-then-compare)", async () => {
+    find.mockResolvedValue({ _id: "recipe1", title: "Bolo", visibility: "private" });
+
+    await getRecipeById("507f1f77bcf86cd799439011", "user_A");
+
+    expect(findById).not.toHaveBeenCalled();
+    expect(find).toHaveBeenCalledTimes(1);
+    const [filter] = find.mock.calls[0] as [Record<string, unknown>];
+    expect(filter.$or).toEqual([
+      { visibility: { $ne: "private" } },
+      { visibility: "private", "createdBy.userId": "user_A" },
+    ]);
+  });
+
+  it("resolves null for a non-owner requesting another user's private recipe (no leak via existence check)", async () => {
+    // O driver Mongo real não retornaria o doc porque o filtro combinado
+    // ($or) já exclui o caso "private + não é o dono" — aqui simulamos
+    // exatamente esse retorno vazio do banco.
+    find.mockResolvedValue(null);
+
+    const result = await getRecipeById("507f1f77bcf86cd799439011", "user_B");
+
+    expect(result).toBeNull();
+  });
+});
