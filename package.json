@@ -33,7 +33,8 @@
     "test:all": "vitest run",
     "build:lambda": "esbuild src/lambda/ingest-handler.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/lambda/handler.js --external:@aws-sdk/* --tsconfig=tsconfig.json",
     "deploy:lambda": "bash infra/scripts/deploy-lambda.sh",
-    "setup:ssm": "bash infra/scripts/setup-ssm.sh"
+    "setup:ssm": "bash infra/scripts/setup-ssm.sh",
+    "setup:import-queue": "bash infra/scripts/setup-import-queue.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.2",
