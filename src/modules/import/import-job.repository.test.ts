@@ -129,6 +129,7 @@ describe("import-job.repository", () => {
   });
 
   it("findExistingSuccessfulImport escopa o filtro por userId, normalizedUrl e status ready_for_review (guarda de IDOR / D-01, D-05)", async () => {
+    vi.mocked(ImportJobModel.find).mockClear();
     vi.mocked(ImportJobModel.find).mockResolvedValue(null as never);
 
     await findExistingSuccessfulImport("user_1", "https://www.instagram.com/reel/abc123/");
