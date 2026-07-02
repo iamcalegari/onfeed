@@ -36,11 +36,14 @@ O transcript + caption produzidos pela Fase 1 viram uma **receita estruturada** 
 ### Reuso do motor de extração (EXT-03)
 - **D-11:** Espelha `recipe.extraction.ts` (schema zod + Claude structured outputs), estendido com o grounding por campo (D-01). Input muda de "receita base" para "transcript + caption".
 - **D-12:** Ingredientes extraídos passam pela **canonicalização existente** (match exato → semântico → pending), **sem lógica paralela/duplicada** (EXT-03). Reusa `resolveCanonicalForIngestion`/o mesmo caminho do catálogo.
-- **D-13:** A receita persistida recebe **embedding Voyage** e entra na **busca híbrida I/E/T/N** para o usuário importador (EXT-04), reusando o pipeline de embedding existente. Persistência via o padrão `persistExtractedRecipe`, com `source: "imported"`, `visibility: private` (schema estendido na Fase 1/aqui conforme necessário).
+- **D-13:** A receita persistida recebe **embedding Voyage** e entra na **busca híbrida I/E/T/N** para o usuário importador (EXT-04), reusando o pipeline de embedding existente. Persistência via o padrão `persistExtractedRecipe`, com `source: "imported"`, `visibility: private` (campos novos — `visibility`, `source:"imported"`, `grounding` e o back-reference `importJobId`/`recipeId` não existem hoje e são criados aqui).
+- **D-14 (SEGURANÇA — obrigatório, achado do research):** a busca (`hybridSearch`) hoje NÃO tem owner-scoping — `DEFAULTS.sources` cobre só curated/generated_validated/variant/user. Uma receita importada é **privada**, então NÃO pode simplesmente entrar em `DEFAULTS.sources`, senão vazaria os imports privados de todos para todos. A receita importada só é buscável **pelo próprio dono** (query owner-scoped por `userId`) enquanto `visibility: private`; ela só entra na busca pública quando **promovida** (Fase 5, por confiança + likes). O planner DEVE implementar o filtro por dono, não apenas adicionar "imported" à allowlist de sources.
+- **D-15:** Modelo da extração = **Claude Sonnet** (decisão do usuário — é o Core Value; melhor que o default do catálogo para grounding+conciliação, mais barato que Opus). Correção: o default de extração do catálogo hoje é `claude-haiku-4-5`, NÃO opus — não hardcodar opus. Modelo configurável via env, seguindo o padrão existente.
 
 ### Claude's Discretion
-- Modelo Claude e effort (o catálogo usa `claude-opus-4-8` na ingestão; o planner/researcher decide se opus ou sonnet dado custo por import e volume) — 1 chamada por extração.
+- Effort do modelo (o modelo em si é Sonnet, D-15) — 1 chamada por extração.
 - Forma exata do schema de grounding (flag inline por item vs mapa paralelo de confiança), nome dos campos, e o cálculo do score agregado + limiares concretos do gate — o planner define, ancorado em D-01..D-03.
+- Open questions do research a resolver no plano: EXT-05 usa estado distinto vs sempre `ready_for_review` + flag `requiresReview`/score (provável: sempre ready_for_review + flag, já que a UI é Fase 3); forma do `visibility` (mínimo private|public agora, enum rico na Fase 5); estrutura do `sourceDivergence` (para a UI da Fase 3).
 - Como o `noSpeechDetected` (Fase 1) alimenta a extração: se sem fala, a extração recai só na caption (e provavelmente vira baixa confiança → review).
 
 </decisions>
