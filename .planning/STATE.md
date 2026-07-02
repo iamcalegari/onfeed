@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 2
 current_phase_name: Structured Extraction & Recipe Persistence
-status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-07-02T03:14:22.017Z"
+status: verifying
+stopped_at: Completed 02-05-PLAN.md (Phase 2 fully complete, 5/5 plans)
+last_updated: "2026-07-02T03:27:59.955Z"
 last_activity: 2026-07-02
 last_activity_desc: Phase 2 execution started
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 11
-  completed_plans: 10
-  percent: 20
+  completed_plans: 11
+  percent: 40
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 
 Phase: 2 (Structured Extraction & Recipe Persistence) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-02 — Phase 2 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -63,6 +63,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02 P02 | 45min | 2 tasks | 3 files |
 | Phase 02-structured-extraction-recipe-persistence P03 | 6min | 3 tasks | 6 files |
 | Phase 02-structured-extraction-recipe-persistence P04 | 15min | 2 tasks | 2 files |
+| Phase 02-structured-extraction-recipe-persistence P05 | 45min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,9 @@ Recent decisions affecting current work:
 - [Phase 02-03]: Atlas index filter-field declaration is code-only; pre-existing environments need a manual index update since ensureSearchIndex only creates when absent
 - [Phase ?]: Nutrition excluded entirely from computeConfidence's weighted field list (not scored as fixed 'inferred') since ImportedRecipeSchema never asks the model for nutrition grounding — avoids deterministic score depression without added signal
 - [Phase ?]: Critical-field review override strictly follows D-03: only core ingredients (not garnish/optional) trigger reviewRequired when quantity is inferred
+- [Phase 02-structured-extraction-recipe-persistence]: mapExtractedToRecipe returns { input, extracted, options } matching persistExtractedRecipe's real (input, extracted, opts) signature — the plan's literal '{ recipe, options }' wording didn't match the actual three-argument function signature
+- [Phase 02-structured-extraction-recipe-persistence]: IngestOptions extended with reviewRequired/confidenceScore, threaded into persistExtractedRecipe's RecipeModel.insert — BSON schema already had both properties from Plan 01 but nothing wrote them onto the Recipe document
+- [Phase 02-structured-extraction-recipe-persistence]: pipeline.ts extracting stage uses freshly-computed local transcript/caption/noSpeechDetected vars, not the stale job parameter — job is never locally mutated after the transcribing stage's DB write, so job.transcript would be undefined on the normal single-pass path
 
 ### Pending Todos
 
@@ -115,6 +119,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-02T03:14:22.010Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-07-02T03:27:59.948Z
+Stopped at: Completed 02-05-PLAN.md (Phase 2 fully complete, 5/5 plans)
 Resume file: None
