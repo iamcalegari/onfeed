@@ -126,7 +126,15 @@ Plans:
   4. The promoted public variant retains credit to both the original creator and the importing user (`createdBy[]`).
   5. An imported recipe can be macro-adapted (`adaptRecipe`), contributes missing ingredients to the shopping list, runs in step-by-step cook mode with timers, and appears in search/swipe results with an I/E/T/N match score — identically to any other recipe in the catalog.
 
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+
+- [ ] 05-01-PLAN.md — [BLOCKING] shareSlug BSON+type+unique/sparse index + env.import.promoteConfidence + setup:db sync (SOC-02)
+- [ ] 05-02-PLAN.md — promoteImportToPublic (visibility flip, source kept) + widened maybePromote (confidence+confirmedAt gate, owner self-like excluded) (SOC-04/05)
+- [ ] 05-03-PLAN.md — shareSlug gen at confirm + getRecipeByShareSlug + public GET /recipes/share/:token (no existence leak, IDOR-safe) (SOC-01/02)
+- [ ] 05-04-PLAN.md — hybridSearch widening (owner-private + public-promoted imports, D-14 safe) + "🎬 sua importação" badges (RCP-04)
+- [ ] 05-05-PLAN.md — public /r/[token] Next page + middleware allowlist + LikeButton sign-in redirect + ShareButton token wiring (SOC-02/03)
+- [ ] 05-06-PLAN.md — verify citizenship reuse (adapt/shopping/cook) + SOC-01/05 regression + import README (RCP-01/02/03)
 
 ## Progress
 
@@ -139,7 +147,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Structured Extraction & Recipe Persistence | 5/5 | Complete   | 2026-07-02 |
 | 3. Capture & Mandatory Review UI | 5/5 | Complete    | 2026-07-02 |
 | 4. Cost/Quota Gating & Dedup | 6/6 | Complete    | 2026-07-02 |
-| 5. Publish, Promotion & Full Citizenship | 0/TBD | Not started | - |
+| 5. Publish, Promotion & Full Citizenship | 0/6 | Not started | - |
 
 ## Future / v2 (Not in This Roadmap)
 
