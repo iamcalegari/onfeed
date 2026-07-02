@@ -14,6 +14,18 @@ updated: 2026-07-02
 > `confirmedAt` no Atlas live) é um gate humano deste plano — ver
 > `03-01-SUMMARY.md`.
 
+> [!WARNING] Fix — Plano 03-05: `createdBy` faltava em receitas importadas
+> `mapExtractedToRecipe` nunca setava `options.createdBy`, então o `$or` de
+> visibilidade que `hybridSearch({ ownerId })` monta (`{ visibility:
+> "private", "createdBy.userId": ownerId }`) nunca autorizava o dono de um
+> import — `GET /import/mine` (via `listMyImportedRecipes`) sempre voltava
+> vazio, mesmo com jobs `ready_for_review`/confirmados. Corrigido setando
+> `createdBy: [{ userId: job.userId, username: job.userId }]` no mapeamento
+> (`username` repete o `userId` como placeholder — não há lookup de perfil
+> Clerk neste contexto, e o campo nunca é exibido para `source: "imported"`,
+> só para `source: "variant"` no frontend). Descoberto executando o Plano
+> 03-05 (frontend `/import/mine`), corrigido no módulo backend correspondente.
+
 > [!INFO] Fase 2 (onFeed Import) completa
 > Plano 02-01 estendeu `ImportJob`/`Recipe` com os campos que a extração real
 > preenche (`recipeId`, `reviewRequired`, `confidenceScore`,
