@@ -10,7 +10,7 @@ Núcleo do MVP: **colar link → receita confiável**. Extensão de browser, car
 ### Captura (paste link)
 
 - [ ] **CAP-01**: Usuário pode colar a URL de um vídeo (Instagram, TikTok ou YouTube) numa tela do app e iniciar a importação
-- [ ] **CAP-02**: O app valida a URL/plataforma antes de enfileirar; URL inválida ou plataforma não suportada retorna erro claro
+- [x] **CAP-02**: O app valida a URL/plataforma antes de enfileirar; URL inválida ou plataforma não suportada retorna erro claro
 - [ ] **CAP-03**: Importações duplicadas da mesma URL (normalizada) são deduplicadas — reusa o resultado existente em vez de reprocessar
 
 ### Pipeline de mídia
@@ -115,7 +115,7 @@ Mapeamento confirmado pelo roadmapper em `.planning/ROADMAP.md` (2026-07-01).
 | PIPE-05 | Phase 1 (Video Pipeline Foundation) | Pending |
 | PIPE-06 | Phase 1 (Video Pipeline Foundation) | Complete |
 | PIPE-07 | Phase 1 (Video Pipeline Foundation) | Pending |
-| CAP-02 | Phase 1 (Video Pipeline Foundation) | Pending |
+| CAP-02 | Phase 1 (Video Pipeline Foundation) | Complete |
 | EXT-01 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
 | EXT-02 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
 | EXT-03 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
