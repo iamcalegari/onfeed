@@ -1,6 +1,6 @@
 ---
 tags: [backend, module, video-pipeline, import, ssrf, idor, llm-extraction]
-updated: 2026-07-01
+updated: 2026-07-02
 ---
 
 > [!INFO] Fase 2 (onFeed Import) em andamento
@@ -9,9 +9,12 @@ updated: 2026-07-01
 > `ImportFailureReason: "extraction_failed"`) e adicionou `__fixtures__/`.
 > Plano 02-02 implementou a extração LLM real de texto estruturado
 > (`import.extraction.ts`, via Claude — schema zod + grounding por campo).
-> O plug no `pipeline.ts` (substituir o stub `extracting` pela chamada real)
-> e o cálculo de confiança/gate (`import.confidence.ts`) chegam nos próximos
-> planos da Fase 2.
+> Plano 02-03 fechou o gap de segurança D-14: `listMyImportedRecipes` agora
+> materializa EXT-04 (receita importada buscável só pelo dono) via
+> `hybridSearch` owner-scoped (ver [[Recipes]]). O plug no `pipeline.ts`
+> (substituir o stub `extracting` pela chamada real) e o cálculo de
+> confiança/gate (`import.confidence.ts`) chegam nos próximos planos da
+> Fase 2.
 
 # Import
 
@@ -27,8 +30,8 @@ para progresso quanto para idempotência (PIPE-06).
 | `import-job.model.ts` | Schema Mongoat: coleção `import_jobs`, índices em `status`/`userId` |
 | `import-job.repository.ts` | `createImportJob`, `getImportJob` (opcionalmente escopado por `userId`), `updateImportJobStatus` |
 | `import-job.repository.test.ts` | Testes unitários do repositório (`ImportJobModel` mockado) |
-| `import.service.ts` | `detectPlatform` (fronteira SSRF), `normalizeUrl`, `enqueueImportJob` |
-| `import.service.test.ts` | Testes unitários (allowlist SSRF, normalização, enqueue) |
+| `import.service.ts` | `detectPlatform` (fronteira SSRF), `normalizeUrl`, `enqueueImportJob`, `listMyImportedRecipes` (Fase 2, Plano 02-03 — owner-scoped) |
+| `import.service.test.ts` | Testes unitários (allowlist SSRF, normalização, enqueue, invariante ownerId-sempre-junto-com-'imported' de `listMyImportedRecipes`) |
 | `import.routes.ts` | `POST /import`, `GET /import/:jobId` (rotas exigem [[Auth]]) |
 | `import.extraction.ts` | Fase 2 (Plano 02-02): `ImportedRecipeSchema` (zod + grounding inline), `IMPORT_RECONCILIATION_SYSTEM_PROMPT`, `buildImportUserContent`, `extractImportedRecipe(input)` — extração LLM real de transcript+caption em receita estruturada |
 | `import.extraction.test.ts` | Testes unitários (LLM mockado): shape do schema, ambíguo preservado literal (D-04), título inferido (D-06), seções delimitadas do user-content |
@@ -120,6 +123,8 @@ existente).
 
 - Referencia [[Recipes]] indiretamente — o objetivo final do pipeline é criar
   uma receita a partir do `ImportJob` completo (fora do escopo deste plan).
+- Usa `hybridSearch`/`DEFAULT_SEARCH_SOURCES` de [[Recipes]] diretamente via
+  `listMyImportedRecipes` (Plano 02-03) — busca owner-scoped D-14.
 - Usa [[Auth]] (`requireAuth` nas duas rotas; ownership check adicional em
   `GET /import/:jobId` via `getImportJob(jobId, userId)`).
 - Depende de `src/infra/video/*` (downloader/transcription/keyframe) — esse
@@ -173,3 +178,26 @@ schema/prompt/input próprios:
 > o fixture adversarial de injection) só é verificável rodando a extração
 > de verdade contra os `__fixtures__/`, um spot-check manual documentado em
 > `02-VALIDATION.md` > Manual-Only Verifications.
+
+## Busca owner-scoped (Fase 2 — Plano 02-03)
+
+`listMyImportedRecipes(userId, params?)` é o caminho de chamada concreto que
+entrega EXT-04 ("receita importada buscável pelo usuário importador"):
+
+```ts
+listMyImportedRecipes(userId, params?) →
+  hybridSearch({
+    ...params,
+    ownerId: userId,
+    sources: [...(params?.sources ?? DEFAULT_SEARCH_SOURCES), "imported"],
+  })
+```
+
+- `ownerId` e `'imported'` em `sources` **sempre** viajam juntos — nunca há
+  um caminho aqui que inclua `'imported'` sem `ownerId` (D-14; ver o
+  callout D-14 em [[Recipes]] para o filtro `$or` que isso ativa).
+- A Fase 3 (UI de revisão) chama este método, não `hybridSearch` diretamente
+  — evita que qualquer novo caller reintroduza o bug do Pitfall 2 do
+  research (adicionar `'imported'` a `DEFAULTS.sources` sem escopo de dono).
+- É composição fina: nenhuma lógica de busca nova vive aqui, só a montagem
+  dos params que `hybridSearch` (em [[Recipes]]) já sabe interpretar.
