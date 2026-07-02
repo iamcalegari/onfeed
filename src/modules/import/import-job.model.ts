@@ -34,9 +34,36 @@ const schema: ModelValidationSchema = {
     costCents: {
       bsonType: "object",
       properties: {
-        download: { bsonType: "number" },
-        transcription: { bsonType: "number" },
-        total: { bsonType: "number" },
+        download: {
+          bsonType: "object",
+          properties: {
+            bytes: { bsonType: "number" },
+            cents: { bsonType: "number" },
+          },
+        },
+        transcription: {
+          bsonType: "object",
+          properties: {
+            minutes: { bsonType: "number" },
+            cents: { bsonType: "number" },
+          },
+        },
+        extraction: {
+          bsonType: "object",
+          properties: {
+            inputTokens: { bsonType: "number" },
+            outputTokens: { bsonType: "number" },
+            cents: { bsonType: "number" },
+          },
+        },
+        embedding: {
+          bsonType: "object",
+          properties: {
+            tokens: { bsonType: "number" },
+            cents: { bsonType: "number" },
+          },
+        },
+        totalCents: { bsonType: "number" },
       },
     },
     retryCount: { bsonType: "number" },
@@ -69,5 +96,7 @@ export const ImportJobModel = new Model<ImportJob>({
     { key: { status: 1 }, name: "status_lookup" },
     // GET /import/:jobId (ownership) e futuras listagens por usuário
     { key: { userId: 1 }, name: "user_lookup" },
+    // dedup por usuário (Plano 04 — findExistingSuccessfulImport)
+    { key: { userId: 1, normalizedUrl: 1, status: 1 }, name: "dedup_lookup" },
   ],
 });
