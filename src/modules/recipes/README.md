@@ -3,6 +3,32 @@ tags: [backend, module, core, idor, security]
 updated: 2026-07-02
 ---
 
+> [!WARNING] GET /recipes/:id — guard de visibilidade (Fase 3, Plano 02, T-03-05/T-03-06)
+> A rota continua **pública** (sem `requireAuth` — receitas do catálogo seguem
+> funcionando anônimas), mas agora passa `getUserId(request)` (string ou
+> `null`) como 2º argumento explícito de `getRecipeById`, acionando o guard
+> de visibilidade: uma receita `private` (import não-revisado, ver [[Import]])
+> só resolve para o dono; anônimo ou outro usuário caem no MESMO 404 de
+> "não encontrada" — sem vazar a existência do import (no existence leak).
+>
+> **Por que `createdBy.userId` sozinho não bastava:** imports nascem com
+> `visibility:"private"` + `importJobId`, mas **sem** `createdBy[]`
+> (`import.recipe-mapping.ts` não popula esse campo — a receita ainda não
+> foi "reclamada" no catálogo). O `$or` existente por `createdBy.userId`
+> nunca autoriza o dono de um import. `getRecipeById` resolve isso com um
+> segundo passo: se o fast-path Mongo não encontrou e a receita é
+> `private` + tem `importJobId`, busca o `ImportJob` correspondente e
+> compara `job.userId === userId`.
+>
+> **Assinatura de 3 estados** (mesmo idioma de `getImportJob(jobId, userId?)`):
+> - `getRecipeById(id)` — 1 argumento, caller **trusted/interno**
+>   (adaptação, likes, confirm flow) — sem filtro de `visibility`,
+>   comportamento pré-existente inalterado.
+> - `getRecipeById(id, null)` — caller **untrusted** sem sessão (rota
+>   pública, anônimo) — aplica o guard; privado nunca resolve.
+> - `getRecipeById(id, userId)` — caller **untrusted** com sessão — aplica
+>   o guard com ownership check.
+
 # Recipes
 
 Módulo central do sistema. Gerencia o catálogo de receitas, o pipeline de ingestão, e expõe as rotas REST para consulta e adaptação.
@@ -13,8 +39,9 @@ Módulo central do sistema. Gerencia o catálogo de receitas, o pipeline de inge
 |---|---|
 | `recipe.types.ts` | Interfaces TypeScript: `Recipe`, `RecipeIngredient`, `RecipeStep`, `RecipeSearchHit`, `DimensionScores` |
 | `recipe.model.ts` | Schema MongoDB + validadores BSON + índices (vector search, ingredient lookup) |
-| `recipe.repository.ts` | `hybridSearch` — pipeline de busca vetorial + re-rank I/E/T/N; owner-scoped via `ownerId` (Fase 2, D-14). `getRecipeById(id, userId?)` — IDOR-safe. |
-| `recipe.repository.test.ts` | Fase 2: prova isolamento cross-user do filtro `$or` owner-scoped, preservação do comportamento de catálogo sem `ownerId`, exclusão de `'imported'` de `DEFAULTS.sources`, e IDOR-safety de `getRecipeById` |
+| `recipe.repository.ts` | `hybridSearch` — pipeline de busca vetorial + re-rank I/E/T/N; owner-scoped via `ownerId` (Fase 2, D-14). `getRecipeById(id)` / `getRecipeById(id, userId \| null)` — IDOR-safe, resolve ownership de import via `importJobId → ImportJob.userId` (Fase 3, T-03-05). |
+| `recipe.repository.test.ts` | Fase 2: prova isolamento cross-user do filtro `$or` owner-scoped, preservação do comportamento de catálogo sem `ownerId`, exclusão de `'imported'` de `DEFAULTS.sources`, e IDOR-safety de `getRecipeById`. Fase 3: resolução de ownership de import privado via `importJobId` (dono, não-dono, anônimo). |
+| `recipe.routes.visibility.test.ts` | Fase 3 (Plano 02): `GET /recipes/:id` — anônimo vê público, anônimo/outro usuário levam 404 em import privado, dono vê o próprio import privado, overlay `lang=en` preservado |
 | `recipe.ingestion.ts` | Pipeline de ingestão única: extração LLM → canonicalização → embedding → persist |
 | `recipe.extraction.ts` | Chama [[LLM (Anthropic)]] para extrair estrutura de um texto/receita crua |
 | `recipe.generation.ts` | Gera receita nova via LLM a partir de ingredientes (feature "adaptar") |
