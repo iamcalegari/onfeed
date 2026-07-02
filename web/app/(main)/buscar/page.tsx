@@ -10,6 +10,7 @@ import { clearPendingSlot, getPendingSlot, type PendingSlot } from "@/lib/planSt
 import { consumeSearch, SEARCH_FREE } from "@/lib/proStorage";
 import { usePro } from "@/lib/usePro";
 import { showToast } from "@/lib/toast";
+import { ImportShortcut } from "@/components/ImportShortcut";
 
 /* ── Types ────────────────────────────────────────────────────── */
 interface Ingredient { name: string; base: boolean }
@@ -340,6 +341,9 @@ export default function BuscarPage() {
 
   return (
     <div className="flex flex-col gap-0 pb-4" style={{ padding: "0 0 24px" }}>
+
+      {/* ── Atalho: importar receita de vídeo (onFeed Import) ── */}
+      <ImportShortcut className="mb-4" />
 
       {/* ── Banner modo plano ──────────────────────────────── */}
       {pending && (
