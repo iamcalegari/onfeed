@@ -37,7 +37,8 @@ export type RecipeSource =
   | "generated_validated"
   | "variant"
   | "rejected"
-  | "user";
+  | "user"
+  | "imported";
 
 export interface RecipeCreator {
   userId: string;
@@ -173,4 +174,67 @@ export interface GeneratePlanRequest {
   dietaryTags?: string[];
   maxPrepTimeMin?: number;
   note?: string;
+}
+
+/* ── onFeed Import (Fase 3 — captura + revisão obrigatória) ──────────── */
+
+export type ImportJobStatus =
+  | "queued"
+  | "downloading"
+  | "transcribing"
+  | "extracting"
+  | "ready_for_review"
+  | "failed";
+
+export type ImportFailureReason =
+  | "unsupported_platform"
+  | "invalid_url"
+  | "anti_bot_blocked"
+  | "rate_limited"
+  | "video_unavailable"
+  | "no_speech_detected"
+  | "transcription_failed"
+  | "download_timeout"
+  | "extraction_failed"
+  | "unknown_error";
+
+export interface ImportJob {
+  _id: string;
+  status: ImportJobStatus;
+  failureReason?: ImportFailureReason;
+  errorMessage?: string;
+  recipeId?: string;
+  reviewRequired?: boolean;
+  confidenceScore?: number;
+  platform: "instagram" | "tiktok" | "youtube";
+  sourceMeta?: {
+    authorHandle?: string;
+    authorUrl?: string;
+    durationSec?: number;
+  };
+}
+
+/** Nível de confiança de um campo extraído (só existe em source: "imported"). */
+export type GroundingLevel = "grounded" | "inferred" | "ambiguous";
+
+export interface RecipeGrounding {
+  titleGrounding: GroundingLevel;
+  quantityGrounding: GroundingLevel[];
+  stepGrounding: GroundingLevel[];
+  nutrition: "inferred";
+  sourceDivergence: string[];
+}
+
+/** Corpo do PATCH /import/:jobId/recipe — mirrora ImportRecipeEditSchema (content-only). */
+export interface ImportRecipeEditPatch {
+  title: string;
+  intro: string;
+  ingredients: { name: string; quantity?: number; unit?: string }[];
+  steps: { text: string }[];
+}
+
+/** Item retornado por GET /import/mine — RecipeSearchHit + status de revisão. */
+export interface ImportedRecipeListItem extends SearchHit {
+  reviewRequired?: boolean;
+  confirmedAt?: string;
 }

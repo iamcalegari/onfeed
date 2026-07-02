@@ -7,16 +7,26 @@ import {
   adaptRecipe,
   addFavorite,
   addToPantry,
+  confirmImportRecipe,
+  getImportJob,
   getThumbnailUrl,
   getPantry,
   getRecipeLikes,
+  listMyImports,
   rateRecipe,
   removeFavorite,
   removeFromPantry,
+  startImport,
   toggleLike,
   triggerThumbnail,
 } from "@/lib/api";
-import type { PantryIngredient, RatingStats } from "@/lib/types";
+import type {
+  ImportedRecipeListItem,
+  ImportJob,
+  ImportRecipeEditPatch,
+  PantryIngredient,
+  RatingStats,
+} from "@/lib/types";
 
 /**
  * Server action da geração híbrida — roda no servidor do Next, chama o backend
@@ -88,4 +98,47 @@ export async function rateRecipeAction(
   rating: number,
 ): Promise<RatingStats> {
   return rateRecipe(recipeId, rating);
+}
+
+// --- onFeed Import (Fase 3 — captura + revisão obrigatória) ---
+
+/** Inicia a importação de um vídeo — server action chamada pelo formulário de URL. */
+export async function startImportAction(
+  url: string,
+): Promise<{ ok: true; jobId: string } | { ok: false; error: string }> {
+  try {
+    const { jobId } = await startImport(url);
+    return { ok: true, jobId };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Falha ao iniciar importação",
+    };
+  }
+}
+
+/** Lê o status do job — chamada pelo loop de polling (useImportPolling), nunca fetch direto. */
+export async function getImportJobAction(jobId: string): Promise<ImportJob> {
+  return getImportJob(jobId);
+}
+
+/** Confirma (com edições opcionais) a receita extraída — tela de revisão obrigatória. */
+export async function confirmImportRecipeAction(
+  jobId: string,
+  patch: ImportRecipeEditPatch,
+): Promise<{ ok: true; recipeId: string } | { ok: false; error: string }> {
+  try {
+    const { recipeId } = await confirmImportRecipe(jobId, patch);
+    return { ok: true, recipeId };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Falha ao confirmar receita",
+    };
+  }
+}
+
+/** Lista as receitas importadas pelo usuário atual — tela "Minhas importações". */
+export async function listMyImportsAction(): Promise<ImportedRecipeListItem[]> {
+  return listMyImports();
 }

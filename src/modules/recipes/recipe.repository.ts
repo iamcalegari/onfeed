@@ -401,6 +401,12 @@ export async function hybridSearch(
         nutrition: 1,
         avgRating: 1,
         ratingCount: 1,
+        // reviewRequired/confirmedAt: projetados para que GET /import/mine (Fase 3)
+        // consiga renderizar o status ("Em revisão"/"Confirmada") sem uma query
+        // extra — inofensivo para os demais chamadores de hybridSearch (campos
+        // ausentes em receitas não-importadas, undefined no hit).
+        reviewRequired: 1,
+        confirmedAt: 1,
       },
     },
   ];

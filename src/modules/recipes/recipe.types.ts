@@ -177,4 +177,7 @@ export interface RecipeSearchHit {
   nutrition?: Nutrition;
   avgRating?: number;
   ratingCount?: number;
+  /** só presente em receitas source: "imported" — alimenta o status na tela "Minhas importações" (Fase 3). */
+  reviewRequired?: boolean;
+  confirmedAt?: Date;
 }
