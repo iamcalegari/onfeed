@@ -35,13 +35,17 @@ export interface HybridSearchParams {
   numCandidates?: number;
   limit?: number;
   /**
-   * D-14 (segurança): quando informado, restringe o resultado a receitas
-   * não-privadas OU privadas cujo dono seja `ownerId`. Necessário para
-   * receitas `source: "imported"` (sempre `visibility: "private"` até
-   * promoção — Fase 5) aparecerem na busca só para quem importou.
-   * NUNCA adicionar 'imported' a DEFAULTS.sources sem também passar ownerId
-   * (T-02-06 / Pitfall 2) — callers que querem imports passam sources
-   * explicitamente junto com ownerId (ver listMyImportedRecipes).
+   * D-14 (segurança, atualizado na Fase 5): quando informado, restringe o
+   * resultado a receitas não-privadas OU privadas cujo dono seja `ownerId`.
+   * Necessário para receitas `source: "imported"` (sempre
+   * `visibility: "private"` até promoção — Fase 5) aparecerem na busca só
+   * para quem importou. 'imported' JÁ ESTÁ em DEFAULTS.sources (T-05-12/
+   * T-05-13) — isso é seguro porque o guard de visibilidade no
+   * $vectorSearch.filter é incondicional: SEM ownerId ele exclui
+   * visibility:"private" por completo (só imports promovidos/públicos
+   * aparecem), e COM ownerId ele só admite o privado do próprio dono.
+   * Nenhum import privado de outro usuário pode vazar por estar no source
+   * set.
    */
   ownerId?: string;
 }
@@ -63,15 +67,23 @@ const DEFAULT_WEIGHTS: DimensionWeights = {
 const DEFAULTS = {
   numCandidates: 200,
   limit: 20,
-  sources: ["curated", "generated_validated", "variant", "user"] as RecipeSource[],
+  // "imported" entra aqui (Fase 5, D-10/D-14): imports promovidos
+  // (visibility:"public") precisam aparecer no catálogo público, e imports
+  // privados do dono precisam aparecer na busca do próprio dono. Isso só é
+  // seguro porque o guard de visibilidade abaixo (no $vectorSearch.filter)
+  // é INCONDICIONAL — sem ownerId, o filtro exclui visibility:"private"
+  // completamente, então nenhum import privado de ninguém pode vazar por
+  // estar no source set. Ver comentário no filter block.
+  sources: ["curated", "generated_validated", "variant", "user", "imported"] as RecipeSource[],
 };
 
 /**
  * Sources padrão do catálogo público — exportado para composição por callers
  * owner-scoped (ex: listMyImportedRecipes em import.service.ts) que precisam
- * somar 'imported' ao conjunto SEM alterar este array global (D-14 / T-02-06:
- * 'imported' nunca entra aqui, só em sources passados explicitamente junto
- * com ownerId).
+ * do mesmo conjunto base. 'imported' já está incluído (Fase 5) porque o
+ * guard de visibilidade incondicional no $vectorSearch.filter é quem garante
+ * que só o promovido (público) ou o próprio privado do dono surge — nunca o
+ * privado de outro usuário.
  */
 export const DEFAULT_SEARCH_SOURCES = DEFAULTS.sources;
 
@@ -242,14 +254,26 @@ export async function hybridSearch(
         filter: {
           source: { $in: params.sources ?? DEFAULTS.sources },
           ...(isDrinks && { occasions: "drinks" }),
-          // D-14: receitas privadas (imports não promovidos) só entram no
-          // resultado se params.ownerId for o dono — nunca globalmente.
-          ...(params.ownerId && {
-            $or: [
-              { visibility: { $ne: "private" } },
-              { visibility: "private", "createdBy.userId": params.ownerId },
-            ],
-          }),
+          // D-14 (Fase 5, atualizado): 'imported' agora está em DEFAULTS.sources
+          // (antes ficava fora), então o guard de visibilidade abaixo é
+          // INCONDICIONAL — sempre aplicado, com ou sem ownerId — para que a
+          // inclusão de 'imported' no source set nunca vaze um privado:
+          // - COM ownerId: o $or admite não-privadas OU privadas do próprio
+          //   dono (createdBy.userId === ownerId) — o dono vê seu import
+          //   privado, ninguém mais vê.
+          // - SEM ownerId (busca pública/anônima): exclusão pura de
+          //   visibility:"private" — só imports promovidos (visibility:
+          //   "public") podem casar por source, nunca um privado de
+          //   qualquer usuário. É isso que fecha o leak que a mudança em
+          //   DEFAULTS.sources abriria se o guard continuasse condicional.
+          ...(params.ownerId
+            ? {
+                $or: [
+                  { visibility: { $ne: "private" } },
+                  { visibility: "private", "createdBy.userId": params.ownerId },
+                ],
+              }
+            : { visibility: { $ne: "private" } }),
         },
       },
     },
