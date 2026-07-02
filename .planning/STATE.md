@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 1
-current_phase_name: Video Pipeline Foundation
+current_phase: 2
+current_phase_name: Structured Extraction & Recipe Persistence
 status: executing
 stopped_at: Phase 2 context gathered
-last_updated: "2026-07-02T01:35:34.983Z"
-last_activity: 2026-07-01
-last_activity_desc: Phase 1 execution started
+last_updated: "2026-07-02T02:48:12.638Z"
+last_activity: 2026-07-02
+last_activity_desc: Phase 2 execution started
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 11
+  completed_plans: 7
   percent: 20
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-01)
 
 **Core value:** Transformar um vídeo de receita do feed do usuário em uma receita real, correta e acionável (ingredientes com quantidade, passo a passo e dicas fiéis) dentro do onFeed. Se a extração for imprecisa, nada mais importa.
-**Current focus:** Phase 1 — Video Pipeline Foundation
+**Current focus:** Phase 2 — Structured Extraction & Recipe Persistence
 
 ## Current Position
 
-Phase: 1 (Video Pipeline Foundation) — EXECUTING
-Plan: 6 of 6
+Phase: 2 (Structured Extraction & Recipe Persistence) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-07-01 — Phase 1 execution started
+Last activity: 2026-07-02 — Phase 2 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P03 | 45min | 3 tasks | 12 files |
 | Phase 01-video-pipeline-foundation P04 | 40min | 3 tasks | 6 files |
 | Phase 01 P05 | 50min | 2 tasks | 8 files |
+| Phase 02-structured-extraction-recipe-persistence P01 | 35min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,9 @@ Recent decisions affecting current work:
 - [Phase 01-04]: detectPlatform stays a strict SSRF allowlist (platform | null); a route-layer classifyRejectionReason helper distinguishes invalid_url vs unsupported_platform for CAP-02's specific-error requirement
 - [Phase ?]: DownloadFailureReason (yt-dlp error vocabulary) explicitly mapped to ImportFailureReason (ImportJob state vocabulary) via toImportFailureReason() in pipeline.ts — the two unions diverge in purpose and are never assumed to be the same type
 - [Phase ?]: handleMessage acks (returns) the SQS message on both real success and idempotent no-op; only a thrown error triggers processing_error and leaves the message for DLQ redrive
+- [Phase ?]: visibility kept OUT of BSON required array; app-layer default 'public' in persistExtractedRecipe
+- [Phase ?]: IMPORT_EXTRACTION_MODEL defaults to claude-sonnet-4-5 via env override (D-15); catalog EXTRACTION_MODEL stays haiku
+- [Phase ?]: RecipeGrounding modeled as single nested object (titleGrounding/quantityGrounding/stepGrounding/nutrition/sourceDivergence) mirroring creatorSchema/nutritionSchema BSON pattern
 
 ### Pending Todos
 
@@ -101,6 +105,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-02T01:35:34.967Z
+Last session: 2026-07-02T02:47:43.612Z
 Stopped at: Phase 2 context gathered
 Resume file: .planning/phases/02-structured-extraction-recipe-persistence/02-CONTEXT.md

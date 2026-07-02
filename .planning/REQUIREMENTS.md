@@ -27,9 +27,9 @@ Núcleo do MVP: **colar link → receita confiável**. Extensão de browser, car
 
 - [ ] **EXT-01**: Claude extrai da transcrição + caption: título, ingredientes **com quantidade + unidade**, passo a passo ordenado e dicas
 - [ ] **EXT-02**: Cada campo extraído carrega um sinal de confiança/grounding (declarado na fonte vs inferido pelo LLM)
-- [ ] **EXT-03**: Ingredientes extraídos passam pela canonicalização existente (match exato → semântico → pending)
-- [ ] **EXT-04**: A receita extraída recebe embedding (Voyage) e entra na busca híbrida I/E/T/N como qualquer receita
-- [ ] **EXT-05**: Extração de baixa confiança global é marcada e roteada para revisão obrigatória (nunca publica silenciosamente)
+- [x] **EXT-03**: Ingredientes extraídos passam pela canonicalização existente (match exato → semântico → pending)
+- [x] **EXT-04**: A receita extraída recebe embedding (Voyage) e entra na busca híbrida I/E/T/N como qualquer receita
+- [x] **EXT-05**: Extração de baixa confiança global é marcada e roteada para revisão obrigatória (nunca publica silenciosamente)
 
 ### Revisão obrigatória
 
@@ -118,9 +118,9 @@ Mapeamento confirmado pelo roadmapper em `.planning/ROADMAP.md` (2026-07-01).
 | CAP-02 | Phase 1 (Video Pipeline Foundation) | Complete |
 | EXT-01 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
 | EXT-02 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
-| EXT-03 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
-| EXT-04 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
-| EXT-05 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
+| EXT-03 | Phase 2 (Structured Extraction & Recipe Persistence) | Complete |
+| EXT-04 | Phase 2 (Structured Extraction & Recipe Persistence) | Complete |
+| EXT-05 | Phase 2 (Structured Extraction & Recipe Persistence) | Complete |
 | CAP-01 | Phase 3 (Capture & Mandatory Review UI) | Pending |
 | REV-01 | Phase 3 (Capture & Mandatory Review UI) | Pending |
 | REV-02 | Phase 3 (Capture & Mandatory Review UI) | Pending |
