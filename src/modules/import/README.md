@@ -1,7 +1,22 @@
 ---
-tags: [backend, module, video-pipeline, import, ssrf, idor, llm-extraction, confidence-gate, confirm-gate]
+tags: [backend, module, video-pipeline, import, ssrf, idor, llm-extraction, confidence-gate, confirm-gate, cost-telemetry, dedup]
 updated: 2026-07-02
 ---
+
+> [!INFO] Fase 4 (Cost/Quota/Gating/Dedup) — Plano 04-02 (schema costCents + dedup_lookup)
+> Expande `ImportJob.costCents` do shape flat-placeholder da Fase 1
+> (`{download,transcription,total}: number`) para o shape nested por estágio
+> exigido por COST-02: `download{bytes,cents}`, `transcription{minutes,cents}`,
+> `extraction{inputTokens,outputTokens,cents}`, `embedding{tokens,cents}`,
+> `totalCents`. Mudado em UM commit no TS (`import-job.types.ts`) e no
+> validator BSON (`import-job.model.ts`) — as duas fontes de verdade do
+> mongoat, cuja divergência já quebrou o UAT nas Fases 2/3. `costCents`
+> continua totalmente opcional (nunca em `required`); todo consumidor futuro
+> (Plano 06) DEVE ler via optional chaining, já que docs anteriores à Fase 4
+> têm o shape antigo ou nenhum. Também adiciona o índice composto
+> `dedup_lookup {userId, normalizedUrl, status}` que o Plano 04 (dedup lookup)
+> vai consultar. **Nota:** `npm run setup:db` (sync do validator + índice no
+> Atlas live) é um gate humano deste plano — ver `04-02-SUMMARY.md`.
 
 > [!INFO] Fase 3 (Capture/Review UI) — Plano 03-01 (backend confirm/edit)
 > Adiciona o gate de confirmação explícita (REV-04): `Recipe.confirmedAt`
@@ -65,9 +80,10 @@ para progresso quanto para idempotência (PIPE-06).
 | Arquivo | Responsabilidade |
 |---|---|
 | `import-job.types.ts` | `ImportJobStatus`, `ImportFailureReason`, `ImportJob`, `ImportJobMessage` |
-| `import-job.model.ts` | Schema Mongoat: coleção `import_jobs`, índices em `status`/`userId` |
+| `import-job.model.ts` | Schema Mongoat: coleção `import_jobs`, índices em `status`/`userId`/`dedup_lookup` (Fase 4, Plano 04-02) |
 | `import-job.repository.ts` | `createImportJob`, `getImportJob` (opcionalmente escopado por `userId`), `updateImportJobStatus` |
 | `import-job.repository.test.ts` | Testes unitários do repositório (`ImportJobModel` mockado) |
+| `import-job.model.test.ts` | Fase 4 (Plano 04-02): guarda de shape para `costCents` nested — shape completo é atribuível a `ImportJob`; ausência (docs pré-Fase-4) lê `undefined` via optional chaining sem lançar |
 | `import.service.ts` | `detectPlatform` (fronteira SSRF), `normalizeUrl`, `enqueueImportJob`, `listMyImportedRecipes` (D-09 — delega a `listImportedRecipesByOwner`, filtro puro owner-scoped; **não** hybridSearch), `confirmImportedRecipe` (Fase 3, Plano 03-01 — gate de confirmação REV-04) |
 | `import.service.test.ts` | Testes unitários (allowlist SSRF, normalização, enqueue, invariante ownerId-sempre-junto-com-'imported' de `listMyImportedRecipes`) |
 | `import.routes.ts` | `POST /import`, `GET /import/:jobId`, `PATCH /import/:jobId/recipe`, `GET /import/mine` (rotas exigem [[Auth]]); exporta `ImportRecipeEditSchema`/`ImportRecipeEditPatch` (Fase 3, Plano 03-01) |
@@ -216,6 +232,41 @@ existente).
 > `src/modules/index.ts` antes de qualquer chamada a `ImportJobModel.insert`/
 > `findById`/`update`. Esquecer essa linha produz o erro "Database not found".
 > Ver [[Mongoat gotchas]] na memória do projeto.
+
+### costCents (Fase 4 — Plano 04-02, COST-02)
+
+```ts
+costCents?: {
+  download?: { bytes?: number; cents?: number };
+  transcription?: { minutes?: number; cents?: number };
+  extraction?: { inputTokens?: number; outputTokens?: number; cents?: number };
+  embedding?: { tokens?: number; cents?: number };
+  totalCents?: number;
+};
+```
+
+> [!WARNING] Gotcha Mongoat — duas fontes de verdade (type TS + validator BSON)
+> O tipo `costCents` em `import-job.types.ts` e o bloco `properties.costCents`
+> do `$jsonSchema` em `import-job.model.ts` são declarações INDEPENDENTES —
+> mudar só uma compila limpo mas quebra em runtime com
+> `MongoServerError: Document failed validation` na primeira escrita do shape
+> novo. Essa exata classe de bug já derrubou o UAT das Fases 2/3 (ver
+> [[Mongoat gotchas]]). Por isso o Plano 04-02 muda as duas no MESMO commit.
+> O validator NÃO foi sincronizado no Atlas live automaticamente — isso
+> requer `npm run setup:db` rodado manualmente (gate humano, credenciais
+> `.env`), documentado em `04-02-SUMMARY.md`.
+
+> [!TIP] costCents é sempre opcional — leia com optional chaining
+> Nenhum sub-campo de `costCents` é obrigatório (nem o próprio `costCents`
+> está em `required`). Docs anteriores à Fase 4 têm o shape antigo
+> (`{download,transcription,total}: number`) ou nenhum `costCents`. O Plano
+> 06 (que populará este campo no pipeline) e qualquer leitor futuro DEVEM
+> acessar via `job.costCents?.download?.cents` etc. — nunca assumir
+> presença. `import-job.model.test.ts` trava esse invariante.
+
+O índice `dedup_lookup {userId, normalizedUrl, status}` (composto, adicionado
+junto neste plano) serve a consulta `findExistingSuccessfulImport` do Plano 04
+— dedup por usuário na escala de produção, sem full scan de `import_jobs`.
 
 ## Repository
 
