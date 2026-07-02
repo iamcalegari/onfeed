@@ -17,7 +17,26 @@ vi.mock("@/config/env.js", () => ({
     images: { bucket: "test-bucket", region: "us-east-1", cdnDomain: "", s3Endpoint: "" },
     sqs: { importQueueUrl: "https://sqs.us-east-1.amazonaws.com/000/import-queue" },
     aws: { region: "us-east-1" },
+    // pipeline.ts (Plano 05) importa import.extraction.ts/recipe.ingestion.ts
+    // transitivamente -> anthropic.client.ts/voyage.client.ts leem env no
+    // module-load (mesma decisão de recipe.ingestion.test.ts).
+    anthropic: { apiKey: "test-key", model: "claude-haiku-4-5-20251001", importModel: "claude-sonnet-4-5" },
+    voyage: { model: "voyage-3" },
   },
+}));
+
+// Extração de import (Plano 02) — mockada por padrão em modo sucesso; cada
+// teste sobrescreve fixture/erro conforme o cenário.
+const extractImportedRecipe = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/modules/import/import.extraction.js", () => ({
+  extractImportedRecipe: (...args: unknown[]) => extractImportedRecipe(...args),
+}));
+
+// Persistência (Plano 01, recipe.ingestion.ts) — mockada para não tocar
+// canonicalização/embedding/Mongo real nesta suite.
+const persistExtractedRecipe = vi.fn().mockResolvedValue({ _id: "recipe1" });
+vi.mock("@/modules/recipes/recipe.ingestion.js", () => ({
+  persistExtractedRecipe: (...args: unknown[]) => persistExtractedRecipe(...args),
 }));
 
 // import-worker.ts importa @/modules/index.js (registro de models Mongoat) e
@@ -99,6 +118,34 @@ const { processImportJob } = await import("@/infra/video/pipeline.js");
 const { DownloadError } = await import("@/infra/video/ytdlp.downloader.js");
 const { handleImportMessage, sweepStaleTempDirs } = await import("./import-worker.js");
 
+/** Fixture mínima e bem-grounded — usada como retorno padrão de extractImportedRecipe. */
+function extractedFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    title: "Risoto de Carnaroli",
+    titleGrounding: "grounded",
+    intro: "Um risoto cremoso.",
+    country: "IT",
+    occasions: ["comfort_food"],
+    equipment: ["stovetop"],
+    ingredients: [
+      {
+        raw: "2 xícaras de arroz carnaroli",
+        name: "arroz carnaroli",
+        quantity: 2,
+        unit: "xícara",
+        core: true,
+        quantityGrounding: "grounded",
+      },
+    ],
+    steps: [{ text: "Refogue o arroz.", minutes: 5, grounding: "grounded" }],
+    nutrition: { calories: 450, protein: 12, carbs: 60, fat: 15 },
+    sourceDivergence: [],
+    ...overrides,
+  };
+}
+
+extractImportedRecipe.mockResolvedValue(extractedFixture());
+
 function baseJob(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     _id: "job1",
@@ -130,6 +177,8 @@ describe("processImportJob — cleanup guarantee (PIPE-05)", () => {
     extractNormalizedKeyframe.mockReset().mockResolvedValue(Buffer.from("fake-jpeg"));
     putImage.mockReset().mockResolvedValue("https://cdn.example.com/imports/job1/keyframe.jpg");
     extractAudio.mockReset().mockResolvedValue(undefined);
+    extractImportedRecipe.mockReset().mockResolvedValue(extractedFixture());
+    persistExtractedRecipe.mockReset().mockResolvedValue({ _id: "recipe1" });
   });
 
   it("removes the job temp dir after a successful run", async () => {
@@ -167,6 +216,8 @@ describe("processImportJob — no-speech skip (PIPE-02, D-06)", () => {
     isOpen.mockReset().mockReturnValue(false);
     extractNormalizedKeyframe.mockReset().mockResolvedValue(Buffer.from("fake-jpeg"));
     putImage.mockReset().mockResolvedValue("https://cdn.example.com/imports/job1/keyframe.jpg");
+    extractImportedRecipe.mockReset().mockResolvedValue(extractedFixture());
+    persistExtractedRecipe.mockReset().mockResolvedValue({ _id: "recipe1" });
   });
 
   it("does NOT call transcribe and sets noSpeechDetected when the silence ratio exceeds the threshold", async () => {
@@ -183,6 +234,29 @@ describe("processImportJob — no-speech skip (PIPE-02, D-06)", () => {
       "job1",
       expect.objectContaining({ noSpeechDetected: true, transcriptSource: null }),
     );
+  });
+
+  it("still reaches ready_for_review with reviewRequired true when no speech was detected (D-06 override integration)", async () => {
+    downloadVideo.mockResolvedValue({
+      videoPath: "/tmp/fake/video.mp4",
+      meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
+    });
+    detectSilenceRatio.mockResolvedValue(0.95); // acima de NO_SPEECH_RATIO_THRESHOLD (0.8)
+
+    await processImportJob(baseJob() as never);
+
+    expect(extractImportedRecipe).toHaveBeenCalledWith(
+      expect.objectContaining({ noSpeechDetected: true }),
+    );
+    expect(updateImportJobStatus).toHaveBeenCalledWith(
+      "job1",
+      expect.objectContaining({ status: "ready_for_review", reviewRequired: true }),
+    );
+    const calls = updateImportJobStatus.mock.calls as [string, Record<string, unknown>][];
+    for (const [, patch] of calls) {
+      expect(patch.status).not.toBe("public");
+      expect(patch.status).not.toBe("published");
+    }
   });
 });
 
@@ -240,6 +314,8 @@ describe("handleImportMessage — idempotency (PIPE-06)", () => {
     isOpen.mockReset().mockReturnValue(false);
     extractNormalizedKeyframe.mockReset().mockResolvedValue(Buffer.from("fake-jpeg"));
     putImage.mockReset().mockResolvedValue("https://cdn.example.com/imports/job1/keyframe.jpg");
+    extractImportedRecipe.mockReset().mockResolvedValue(extractedFixture());
+    persistExtractedRecipe.mockReset().mockResolvedValue({ _id: "recipe1" });
   });
 
   it("is a no-op (does not call downloadVideo/process the pipeline) for a job already in ready_for_review", async () => {
@@ -281,6 +357,108 @@ describe("handleImportMessage — idempotency (PIPE-06)", () => {
 
     await expect(handleImportMessage(JSON.stringify({ jobId: "ghost" }))).resolves.toBeUndefined();
     expect(downloadVideo).not.toHaveBeenCalled();
+  });
+});
+
+describe("processImportJob — extracting stage (Fase 2 Plano 05, EXT-05 ready_for_review guarantee)", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+    downloadVideo.mockReset();
+    detectSilenceRatio.mockReset().mockResolvedValue(0.1);
+    transcribe.mockReset().mockResolvedValue({ text: "modo de preparo...", source: "groq" });
+    isOpen.mockReset().mockReturnValue(false);
+    extractNormalizedKeyframe.mockReset().mockResolvedValue(Buffer.from("fake-jpeg"));
+    putImage.mockReset().mockResolvedValue("https://cdn.example.com/imports/job1/keyframe.jpg");
+    extractAudio.mockReset().mockResolvedValue(undefined);
+    extractImportedRecipe.mockReset().mockResolvedValue(extractedFixture());
+    persistExtractedRecipe.mockReset().mockResolvedValue({ _id: "recipe1" });
+  });
+
+  it("happy path: lands ready_for_review with recipeId/reviewRequired/confidenceScore, and NEVER writes a public/published status", async () => {
+    downloadVideo.mockResolvedValue({
+      videoPath: "/tmp/fake/video.mp4",
+      meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
+    });
+
+    await processImportJob(baseJob() as never);
+
+    expect(extractImportedRecipe).toHaveBeenCalledTimes(1);
+    expect(persistExtractedRecipe).toHaveBeenCalledTimes(1);
+    expect(updateImportJobStatus).toHaveBeenCalledWith(
+      "job1",
+      expect.objectContaining({
+        status: "ready_for_review",
+        recipeId: "recipe1",
+        reviewRequired: expect.any(Boolean),
+        confidenceScore: expect.any(Number),
+      }),
+    );
+
+    const calls = updateImportJobStatus.mock.calls as [string, Record<string, unknown>][];
+    for (const [, patch] of calls) {
+      expect(patch.status).not.toBe("public");
+      expect(patch.status).not.toBe("published");
+    }
+  });
+
+  it("passes the persist options with source imported and visibility private (never a public status path)", async () => {
+    downloadVideo.mockResolvedValue({
+      videoPath: "/tmp/fake/video.mp4",
+      meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
+    });
+
+    await processImportJob(baseJob() as never);
+
+    const [, , options] = persistExtractedRecipe.mock.calls[0] as [unknown, unknown, Record<string, unknown>];
+    expect(options.source).toBe("imported");
+    expect(options.visibility).toBe("private");
+  });
+
+  it("extraction throw -> status failed, failureReason extraction_failed, no recipeId linked", async () => {
+    downloadVideo.mockResolvedValue({
+      videoPath: "/tmp/fake/video.mp4",
+      meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
+    });
+    extractImportedRecipe.mockRejectedValue(
+      new Error("Extração de import falhou (stop_reason=max_tokens)"),
+    );
+
+    await expect(processImportJob(baseJob() as never)).resolves.toBeUndefined();
+
+    expect(persistExtractedRecipe).not.toHaveBeenCalled();
+    expect(updateImportJobStatus).toHaveBeenCalledWith(
+      "job1",
+      expect.objectContaining({ status: "failed", failureReason: "extraction_failed" }),
+    );
+    const calls = updateImportJobStatus.mock.calls as [string, Record<string, unknown>][];
+    for (const [, patch] of calls) {
+      expect(patch).not.toHaveProperty("recipeId");
+    }
+  });
+
+  it("persistExtractedRecipe throw -> status failed, failureReason extraction_failed (atomic — no half-written recipe)", async () => {
+    downloadVideo.mockResolvedValue({
+      videoPath: "/tmp/fake/video.mp4",
+      meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
+    });
+    persistExtractedRecipe.mockRejectedValue(new Error("Voyage não retornou embedding"));
+
+    await expect(processImportJob(baseJob() as never)).resolves.toBeUndefined();
+
+    expect(updateImportJobStatus).toHaveBeenCalledWith(
+      "job1",
+      expect.objectContaining({ status: "failed", failureReason: "extraction_failed" }),
+    );
+  });
+
+  it("does not retry (no rethrow) on an extraction failure — SQS message is not left for immediate redrive", async () => {
+    downloadVideo.mockResolvedValue({
+      videoPath: "/tmp/fake/video.mp4",
+      meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
+    });
+    extractImportedRecipe.mockRejectedValue(new Error("boom"));
+
+    await expect(processImportJob(baseJob() as never)).resolves.toBeUndefined();
   });
 });
 

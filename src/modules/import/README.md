@@ -1,9 +1,9 @@
 ---
-tags: [backend, module, video-pipeline, import, ssrf, idor, llm-extraction]
+tags: [backend, module, video-pipeline, import, ssrf, idor, llm-extraction, confidence-gate]
 updated: 2026-07-02
 ---
 
-> [!INFO] Fase 2 (onFeed Import) em andamento
+> [!INFO] Fase 2 (onFeed Import) completa
 > Plano 02-01 estendeu `ImportJob`/`Recipe` com os campos que a extração real
 > preenche (`recipeId`, `reviewRequired`, `confidenceScore`,
 > `ImportFailureReason: "extraction_failed"`) e adicionou `__fixtures__/`.
@@ -11,10 +11,12 @@ updated: 2026-07-02
 > (`import.extraction.ts`, via Claude — schema zod + grounding por campo).
 > Plano 02-03 fechou o gap de segurança D-14: `listMyImportedRecipes` agora
 > materializa EXT-04 (receita importada buscável só pelo dono) via
-> `hybridSearch` owner-scoped (ver [[Recipes]]). O plug no `pipeline.ts`
-> (substituir o stub `extracting` pela chamada real) e o cálculo de
-> confiança/gate (`import.confidence.ts`) chegam nos próximos planos da
-> Fase 2.
+> `hybridSearch` owner-scoped (ver [[Recipes]]). Plano 02-04 implementou o
+> gate de confiança (`import.confidence.ts` — `computeConfidence`). Plano
+> 02-05 fechou o loop: `pipeline.ts`'s estágio `extracting` chama a extração
+> real, o gate de confiança, o mapeamento (`import.recipe-mapping.ts`) e
+> `persistExtractedRecipe`, sempre terminando em `ready_for_review` (nunca
+> um status público) — ver §Extração → Confiança → Persistência abaixo.
 
 # Import
 
@@ -35,6 +37,10 @@ para progresso quanto para idempotência (PIPE-06).
 | `import.routes.ts` | `POST /import`, `GET /import/:jobId` (rotas exigem [[Auth]]) |
 | `import.extraction.ts` | Fase 2 (Plano 02-02): `ImportedRecipeSchema` (zod + grounding inline), `IMPORT_RECONCILIATION_SYSTEM_PROMPT`, `buildImportUserContent`, `extractImportedRecipe(input)` — extração LLM real de transcript+caption em receita estruturada |
 | `import.extraction.test.ts` | Testes unitários (LLM mockado): shape do schema, ambíguo preservado literal (D-04), título inferido (D-06), seções delimitadas do user-content |
+| `import.confidence.ts` | Fase 2 (Plano 02-04): `computeConfidence(recipe, opts)` — gate puro de score agregado + `reviewRequired` estrutural (EXT-02/EXT-05) |
+| `import.confidence.test.ts` | Testes unitários (função pura, sem mocks): score ponderado, overrides estruturais de `reviewRequired` |
+| `import.recipe-mapping.ts` | Fase 2 (Plano 02-05): `mapExtractedToRecipe(extracted, job, confidence)` — mapeia a extração + o gate de confiança para o input exato de `persistExtractedRecipe`, sem persistir e sem reimplementar canonicalização (EXT-03) |
+| `import.recipe-mapping.test.ts` | Testes unitários de shape: visibility/importJobId/sourceMeta/grounding/confidenceScore/reviewRequired, ingrediente ambíguo preservado |
 | `__fixtures__/*.ts` | Fase 2: transcript+caption de teste (clean/ambiguous/adversarial) para testes de grounding — não usados em produção |
 
 ## State Machine
@@ -44,16 +50,19 @@ queued → downloading → transcribing → extracting → ready_for_review
                                                    ↘ failed (a partir de qualquer etapa)
 ```
 
-- `extracting` é um stub nesta fase — sempre passa direto para `ready_for_review`.
+- `extracting` (Plano 02-05): chama a extração LLM real → o gate de
+  confiança → o mapeamento → `persistExtractedRecipe`, e SEMPRE termina em
+  `ready_for_review` em caso de sucesso (nunca um status público — EXT-05).
 - `failedStep` registra em qual etapa a falha ocorreu; `failureReason` é um dos
   valores tipados de `ImportFailureReason` (ex.: `anti_bot_blocked`,
   `rate_limited` — relevantes ao circuit breaker de [[PIPE-07]]).
 - `noSpeechDetected: true` não é necessariamente falha (D-06) — significa que o
-  transcript está ausente/não confiável por design, não um bug.
-- Fase 2 (Plano 02-01): `ImportJob` ganhou `recipeId?`, `reviewRequired?`,
-  `confidenceScore?` (preenchidos após a extração real persistir a receita) e
-  `ImportFailureReason` ganhou `"extraction_failed"` (LLM não retornou
-  `parsed_output`). O plug real ainda não existe — só o shape.
+  transcript está ausente/não confiável por design, não um bug; ainda assim
+  força `reviewRequired: true` via `computeConfidence` (Plano 02-04).
+- `ImportJob` tem `recipeId?`, `reviewRequired?`, `confidenceScore?`,
+  preenchidos ao final de uma extração bem-sucedida (junto com `keyframeUrl`,
+  numa única escrita `ready_for_review`), e `ImportFailureReason` inclui
+  `"extraction_failed"` (extração/mapeamento/persistência lançaram).
 
 > [!TIP] Idempotência via _id
 > A mensagem SQS carrega só `{ jobId }` (o `_id` do Mongo, gerado pelo
@@ -133,13 +142,12 @@ existente).
 - Env config relacionada vive em `src/config/env.ts`: blocos `sqs.import*`,
   `groq`, `openaiTranscription`, `import.maxDurationSec`.
 
-> [!INFO] Extração real existe, mas ainda não está plugada no pipeline
-> `import.extraction.ts` (Plano 02-02) já implementa `extractImportedRecipe`
-> de verdade — mas `pipeline.ts`'s estágio `status: "extracting"` ainda passa
-> direto para `ready_for_review` sem chamá-la (o plug real é um plano
-> seguinte da Fase 2, junto com `import.confidence.ts`). Quando plugado, a
-> extração reprocessa a partir do `transcript`/`caption` já persistidos, sem
-> precisar rebaixar o vídeo.
+> [!INFO] Extração plugada no pipeline (Plano 02-05)
+> `pipeline.ts`'s estágio `status: "extracting"` chama `extractImportedRecipe`
+> de verdade a partir do `transcript`/`caption` já persistidos nesse mesmo
+> job (não precisa rebaixar o vídeo), então `computeConfidence` e
+> `mapExtractedToRecipe` → `persistExtractedRecipe`. Ver §Extração →
+> Confiança → Persistência abaixo para o fluxo completo.
 
 ## Extração LLM (Fase 2 — Plano 02-02)
 
@@ -201,3 +209,78 @@ listMyImportedRecipes(userId, params?) →
   research (adicionar `'imported'` a `DEFAULTS.sources` sem escopo de dono).
 - É composição fina: nenhuma lógica de busca nova vive aqui, só a montagem
   dos params que `hybridSearch` (em [[Recipes]]) já sabe interpretar.
+
+## Confiança / Review Gate (Fase 2 — Plano 02-04)
+
+`import.confidence.ts` exporta `computeConfidence(recipe, { noSpeechDetected })`
+— função PURA (sem I/O/LLM/DB) que transforma o grounding por-campo produzido
+por `import.extraction.ts` num `ConfidenceResult { score, reviewRequired,
+reasons }`:
+
+- **Score agregado**: média ponderada de `GROUNDING_WEIGHT` (`grounded=1`,
+  `ambiguous=0.5`, `inferred=0`) sobre título + quantidade de cada ingrediente
+  + grounding de cada passo. Título e ingredientes `core` pesam 2x
+  (`CRITICAL_FIELD_WEIGHT`) vs passos/ingredientes não-core (peso 1).
+  Nutrição fica FORA da lista ponderada (D-10 — nunca tem grounding próprio
+  no schema, incluí-la deprimiria todo score de forma fixa e sem sinal real).
+- **`reviewRequired` é estruturalmente forçado** — é o OR de 4 condições
+  independentes, nenhuma delas bypassável por autoavaliação do LLM: (1) campo
+  crítico (título ou ingrediente `core`) com `grounding: "inferred"`; (2)
+  `noSpeechDetected: true` (D-06 — vídeo sem fala nunca produz receita
+  "confiada" silenciosamente); (3) `score < REVIEW_SCORE_THRESHOLD` (0.6);
+  (4) `sourceDivergence` não-vazio (D-08 — conflito explícito entre
+  transcript e caption).
+
+## Extração → Confiança → Persistência (Fase 2 — Plano 02-05)
+
+O plug real do estágio `extracting` do pipeline (`src/infra/video/
+pipeline.ts`), fechando o loop que as Plans 01-04 construíram:
+
+```
+extractImportedRecipe({ transcript, caption, noSpeechDetected })
+  → ExtractedImportedRecipe (grounding por campo)
+  → computeConfidence(extracted, { noSpeechDetected })
+  → ConfidenceResult { score, reviewRequired, reasons }
+  → mapExtractedToRecipe(extracted, job, confidence)
+  → { input, extracted, options }  (formato exato de persistExtractedRecipe)
+  → persistExtractedRecipe(input, extracted, options)
+  → Recipe persistida (canonicalização + embedding reusados sem duplicação)
+  → updateImportJobStatus(id, { status: "ready_for_review", keyframeUrl,
+      recipeId, reviewRequired, confidenceScore })
+```
+
+- **`mapExtractedToRecipe`** (`import.recipe-mapping.ts`) NÃO persiste nada —
+  só constrói o shape. `options.source = "imported"`, `visibility =
+  "private"`, `importJobId`, `sourceMeta` (platform + authorHandle/authorUrl/
+  sourceUrl desnormalizados do job), `grounding` (titleGrounding +
+  quantityGrounding por índice de ingrediente + stepGrounding por índice de
+  passo + `nutrition: "inferred"` hardcoded, D-10 + `sourceDivergence`),
+  `confidenceScore`, `reviewRequired`. Os ingredientes preservam
+  `raw`/`name`/`quantity`/`unit`/`core` inalterados — o MESMO loop de
+  `resolveCanonicalForIngestion` que o catálogo já usa consome esse shape sem
+  nenhuma lógica paralela (EXT-03).
+
+> [!WARNING] EXT-05 — `ready_for_review` é o ÚNICO terminal de sucesso
+> Não existe NENHUM caminho de código do estágio `extracting` até um status
+> público/publicado. Toda extração bem-sucedida termina em
+> `ready_for_review` com `reviewRequired`/`confidenceScore`/`recipeId`
+> escritos — mesmo quando `reviewRequired` é `false` (alta confiança), a
+> promoção pública é sempre um passo manual/gated futuro (Fase 5, por
+> confiança + likes), nunca automático a partir daqui. O teste de integração
+> em `src/workers/import-worker.test.ts` (describe "extracting stage")
+> varre TODAS as chamadas de `updateImportJobStatus` de um run e garante que
+> nenhuma jamais carrega `status: "public"`/`"published"`.
+
+> [!DANGER] Falha na extração/persistência é SEMPRE `extraction_failed`, nunca retryable
+> `extractImportedRecipe`, `computeConfidence`, `mapExtractedToRecipe` e
+> `persistExtractedRecipe` rodam dentro de um único `try/catch` no estágio
+> `extracting`. QUALQUER erro (zod, `parsed_output` null/stop_reason
+> diferente de `end_turn`, erro de mapeamento, ou o `persistExtractedRecipe`
+> lançando) cai no mesmo branch: `status: "failed"`, `failedStep:
+> "extracting"`, `failureReason: "extraction_failed"`, SEM relançar (uma
+> redelivery SQS de uma falha determinística repetiria o mesmo erro — não é
+> um caso do DLQ/circuit-breaker de PIPE-07, é simplesmente não-retryable).
+> `persistExtractedRecipe` é atômico ao nível da aplicação: insere a receita
+> inteira ou lança ANTES de vincular qualquer `recipeId` — não existe
+> "meia-receita" referenciada por um `ImportJob` falho. O transcript/payload
+> completo do LLM NUNCA é logado (só `err.message`), mesmo em falha.
