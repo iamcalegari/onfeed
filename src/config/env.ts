@@ -135,6 +135,14 @@ export const env = {
     dailyLimitFree: Number(optional("IMPORT_DAILY_LIMIT_FREE", "3")),
     dailyLimitPro: Number(optional("IMPORT_DAILY_LIMIT_PRO", "50")),
 
+    // Gate de promoção pública (D-06, Fase 5): confiança mínima da extração
+    // para uma receita importada poder virar pública via likes — SEPARADO do
+    // REVIEW_SCORE_THRESHOLD (0.6, que só decide "precisa de revisão humana").
+    // 0.7 fica acima de 0.6 de propósito: a barra do catálogo público é mais
+    // rígida que a barra de revisão (escala 0..1 de import.confidence.ts,
+    // onde 0.5 = "ambíguo").
+    promoteConfidence: Number(optional("IMPORT_PROMOTE_CONFIDENCE", "0.7")),
+
     // Tabela de preço por unidade (centavos de USD), usada só para registrar
     // custo operacional do pipeline de import (COST-02) — NÃO é billing-crítico,
     // é estimativa para acompanhamento interno. Todos os valores são estimativas

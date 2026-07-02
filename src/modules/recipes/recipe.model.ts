@@ -123,6 +123,9 @@ const schema: ModelValidationSchema = {
     // no PATCH de confirmação explícita do usuário (REV-04). Optional: nenhum
     // doc pré-existente (catálogo ou import ainda não confirmado) o possui.
     confirmedAt: { bsonType: "date" },
+    // Fase 5 (Publish/Promotion) — token secreto do link público. Optional:
+    // só existe a partir de confirmImportedRecipe (D-03/D-04); NUNCA required.
+    shareSlug: { bsonType: "string" },
     equipment: {
       bsonType: "array",
       items: {
@@ -173,5 +176,8 @@ export const RecipeModel = new Model<Recipe>({
     { key: { dietaryTags: 1 }, name: "dietary_tags_lookup", sparse: true },
     // sparse: só receitas importadas (source: "imported") têm importJobId.
     { key: { importJobId: 1 }, name: "import_job_lookup", sparse: true },
+    // unique: colisão de token entre duas receitas é impossível; sparse: só
+    // receitas confirmadas (Fase 5) têm shareSlug — pré-Fase-5 fica isenta.
+    { key: { shareSlug: 1 }, name: "share_slug_lookup", unique: true, sparse: true },
   ],
 });

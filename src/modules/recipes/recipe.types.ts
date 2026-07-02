@@ -126,6 +126,8 @@ export interface Recipe {
   confidenceScore?: number;
   /** Setado apenas por confirmImportedRecipe no PATCH de confirmação explícita do usuário (REV-04, Fase 3). */
   confirmedAt?: Date;
+  /** Token secreto e não-adivinhável para o link público (Fase 5, D-03/D-04) — gerado quando confirmedAt é setado. */
+  shareSlug?: string;
   title: string;
   /** Tradução lazy do intro para inglês (gerada sob demanda na primeira request lang=en). */
   introEn?: string;
