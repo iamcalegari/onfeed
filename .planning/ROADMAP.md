@@ -128,12 +128,28 @@ Plans:
 
 **Plans**: 6 plans
 Plans:
+**Wave 1**
 
 - [ ] 05-01-PLAN.md — [BLOCKING] shareSlug BSON+type+unique/sparse index + env.import.promoteConfidence + setup:db sync (SOC-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 05-02-PLAN.md — promoteImportToPublic (visibility flip, source kept) + widened maybePromote (confidence+confirmedAt gate, owner self-like excluded) (SOC-04/05)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 05-03-PLAN.md — shareSlug gen at confirm + getRecipeByShareSlug + public GET /recipes/share/:token (no existence leak, IDOR-safe) (SOC-01/02)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 05-04-PLAN.md — hybridSearch widening (owner-private + public-promoted imports, D-14 safe) + "🎬 sua importação" badges (RCP-04)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 05-05-PLAN.md — public /r/[token] Next page + middleware allowlist + LikeButton sign-in redirect + ShareButton token wiring (SOC-02/03)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 05-06-PLAN.md — verify citizenship reuse (adapt/shopping/cook) + SOC-01/05 regression + import README (RCP-01/02/03)
 
 ## Progress
