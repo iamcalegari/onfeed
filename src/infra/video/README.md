@@ -9,13 +9,16 @@ Namespace de infraestrutura para o pipeline de import de vídeo (Instagram/
 TikTok/YouTube). Cada módulo é um limite de sistema externo/binário (ffmpeg,
 yt-dlp, Groq, OpenAI) ou uma unidade de lógica pura. `pipeline.ts` é a única
 exceção — é a orquestração que compõe todos os outros módulos e depende do
-documento `[[Import|ImportJob]]`, consumida por `[[Workers|import-worker.ts]]`.
+documento [[Import|ImportJob]], consumida por [[Workers|import-worker.ts]].
 
 > [!INFO]
 > Este namespace é construído em ondas ao longo da Fase 1. Este README cobre
-> o que existe após o Plano 01-05: `pipeline.ts` orquestra os adapters de
+> o estado após o Plano 01-06 (deploy): `pipeline.ts` orquestra os adapters de
 > download/VAD/transcrição/keyframe (Planos 01-02/01-03) num único fluxo por
-> job, consumido pelo worker standalone (`src/workers/import-worker.ts`).
+> job, consumido pelo worker standalone (`src/workers/import-worker.ts`), que
+> agora roda deployado como Render Background Worker via
+> `Dockerfile.import-worker` (não a imagem da API — o toolchain Python+ffmpeg+
+> yt-dlp só existe nessa imagem dedicada).
 
 ## Arquivos
 
@@ -30,7 +33,44 @@ documento `[[Import|ImportJob]]`, consumida por `[[Workers|import-worker.ts]]`.
 | `transcription.port.ts` | Orquestrador de transcrição (PIPE-02, D-04): `transcribe()` tenta Groq, cai para OpenAI em qualquer falha (fallback é try/catch em runtime, não troca por env). Guarda de tamanho (25MB, tier free Groq) roteia direto ao fallback antes de chamar o SDK. `TranscriptionError` tipado se ambos falharem |
 | `groq.transcriber.ts` | Adapter Groq (`whisper-large-v3-turbo`, hint de idioma `pt`) — primário |
 | `openai.transcriber.ts` | Adapter OpenAI (`whisper-1`, hint de idioma `pt`) — fallback, acionado só quando o Groq falha |
-| `pipeline.ts` | Orquestração por-job (PIPE-01..05, PIPE-07): `processImportJob(job)` compõe breaker → download → VAD → transcrever/pular → extracting (stub) → keyframe → S3 → cleanup, escrevendo status do `[[Import\|ImportJob]]` a cada fronteira de etapa. `try/finally` remove o diretório `mkdtemp`'d do job incondicionalmente (PIPE-05 camada 1) |
+| `pipeline.ts` | Orquestração por-job (PIPE-01..05, PIPE-07): `processImportJob(job)` compõe breaker → download → VAD → transcrever/pular → extracting (stub) → keyframe → S3 → cleanup, escrevendo status do [[Import\|ImportJob]] a cada fronteira de etapa. `try/finally` remove o diretório `mkdtemp`'d do job incondicionalmente (PIPE-05 camada 1) |
+
+> [!WARNING] Fronteira de command injection: ffmpeg via `execFile` + args array
+> `ffmpeg.exec.ts` é o único lugar que invoca o binário ffmpeg, sempre via
+> `child_process.execFile(FFMPEG_BIN, [...args])` — nunca `exec()` com string
+> interpolada. Isso é a fronteira que impede que um valor vindo do usuário
+> (URL, nome de arquivo derivado do `jobId`) seja interpretado como shell.
+> `fluent-ffmpeg` foi deliberadamente descartado (arquivado desde mai/2025,
+> não funciona mais de forma confiável com ffmpeg atual — ver
+> `01-RESEARCH.md` Pitfall 0) — os wrappers genéricos desse tipo são
+> exatamente a abstração que a própria comunidade Node acabou de depreciar;
+> este namespace usa funções pequenas e fixas por operação (`extractAudio`,
+> `silencedetect`, extração de keyframe) em vez de um builder genérico.
+
+> [!INFO] Cleanup em duas camadas + retenção "só o keyframe" (PIPE-05, D-09/D-10)
+> Vídeo e áudio brutos **nunca** tocam o S3 — o único upload do pipeline é o
+> keyframe normalizado (`imports/{jobId}/keyframe.jpg`, via `putImage`
+> reusando `image.service.toThumbnail`). A garantia de limpeza local tem duas
+> camadas: (1) `try/finally` em `pipeline.ts` remove o diretório `mkdtemp`'d
+> do job incondicionalmente, em sucesso ou erro; (2) `sweepStaleTempDirs()`
+> em `src/workers/import-worker.ts` varre o `tmpdir()` no boot do worker e
+> remove diretórios `import-*` órfãos — o `finally` sozinho não sobrevive a
+> um `SIGKILL`/OOM/restart forçado do Render, só a segunda camada cobre esse
+> caso. Retém-se apenas keyframe + transcrição (texto derivado) + metadados
+> de origem (plataforma, URL, @ do autor) — nunca o vídeo/áudio em si
+> (postura legal: não re-hospedar mídia de terceiros).
+
+> [!TIP] Fallback Groq→OpenAI e o skip de "sem fala" (D-04, D-06)
+> `transcription.port.ts` tenta Groq (`whisper-large-v3-turbo`, primário)
+> primeiro; qualquer falha (erro de rede, tamanho de arquivo, resposta
+> inválida) cai para OpenAI (`whisper-1`) via try/catch em runtime — não é
+> uma troca por env var, é sempre "tenta o primário, cai pro fallback nesta
+> chamada". Antes de gastar dinheiro com qualquer um dos dois, `vad.ts` roda
+> `ffmpeg silencedetect` como pré-filtro independente: um clipe majoritariamente
+> silêncio/música é marcado `noSpeechDetected: true` e a transcrição é
+> **pulada inteiramente** — não se confia no `no_speech_prob` do próprio
+> Whisper, que é documentadamente pouco confiável em segmentos alucinados
+> (ver `01-RESEARCH.md` Common Pitfalls §3).
 
 ## Convenção de testes
 

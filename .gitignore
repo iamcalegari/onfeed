@@ -14,3 +14,6 @@ data/archive/
 
 # GSD research websearch cache
 .planning/research/.cache/
+
+
+import-test-output/
