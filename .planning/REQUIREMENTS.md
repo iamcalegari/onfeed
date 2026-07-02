@@ -25,8 +25,8 @@ Núcleo do MVP: **colar link → receita confiável**. Extensão de browser, car
 
 ### Extração estruturada
 
-- [ ] **EXT-01**: Claude extrai da transcrição + caption: título, ingredientes **com quantidade + unidade**, passo a passo ordenado e dicas
-- [ ] **EXT-02**: Cada campo extraído carrega um sinal de confiança/grounding (declarado na fonte vs inferido pelo LLM)
+- [x] **EXT-01**: Claude extrai da transcrição + caption: título, ingredientes **com quantidade + unidade**, passo a passo ordenado e dicas
+- [x] **EXT-02**: Cada campo extraído carrega um sinal de confiança/grounding (declarado na fonte vs inferido pelo LLM)
 - [x] **EXT-03**: Ingredientes extraídos passam pela canonicalização existente (match exato → semântico → pending)
 - [x] **EXT-04**: A receita extraída recebe embedding (Voyage) e entra na busca híbrida I/E/T/N como qualquer receita
 - [x] **EXT-05**: Extração de baixa confiança global é marcada e roteada para revisão obrigatória (nunca publica silenciosamente)
@@ -116,8 +116,8 @@ Mapeamento confirmado pelo roadmapper em `.planning/ROADMAP.md` (2026-07-01).
 | PIPE-06 | Phase 1 (Video Pipeline Foundation) | Complete |
 | PIPE-07 | Phase 1 (Video Pipeline Foundation) | Complete |
 | CAP-02 | Phase 1 (Video Pipeline Foundation) | Complete |
-| EXT-01 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
-| EXT-02 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
+| EXT-01 | Phase 2 (Structured Extraction & Recipe Persistence) | Complete |
+| EXT-02 | Phase 2 (Structured Extraction & Recipe Persistence) | Complete |
 | EXT-03 | Phase 2 (Structured Extraction & Recipe Persistence) | Complete |
 | EXT-04 | Phase 2 (Structured Extraction & Recipe Persistence) | Complete |
 | EXT-05 | Phase 2 (Structured Extraction & Recipe Persistence) | Complete |
