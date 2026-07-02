@@ -67,9 +67,17 @@ export function TopBar({ clerkEnabled }: { clerkEnabled: boolean }) {
   return (
     <header
       style={{
-        position: "sticky", top: "env(safe-area-inset-top)", zIndex: 30,
+        // top:0 + padding-top do safe-area (e NÃO top:env(...)): com
+        // viewport-fit=cover, prender a barra ABAIXO da status bar deixa uma
+        // faixa transparente em cima — o conteúdo rolado aparecia atrás do
+        // relógio do iOS, "por cima" da barra. O margin negativo anula o
+        // padding-top do body para a altura em fluxo não mudar.
+        position: "sticky", top: 0, zIndex: 30,
+        marginTop: "calc(-1 * env(safe-area-inset-top))",
+        paddingTop: "env(safe-area-inset-top)",
         background: "var(--t-bg-tab-bar)",
         backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
         borderBottom: "1px solid var(--t-bd-card)",
       }}
     >
