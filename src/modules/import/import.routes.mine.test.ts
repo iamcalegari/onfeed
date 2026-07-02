@@ -8,14 +8,27 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // — nunca uma chamada direta a hybridSearch com sources:['imported'] que
 // poderia esquecer ownerId (D-14, Anti-pattern). Mesma abordagem de mock de
 // módulo de import.routes.confirm.test.ts.
+vi.mock("@/config/env.js", () => ({
+  env: { import: { dailyLimitFree: 3, dailyLimitPro: 50 } },
+}));
+
 vi.mock("@/modules/auth/auth.guard.js", () => ({
   getUserId: vi.fn(() => "user_A"),
   requireAuth: vi.fn(async () => {}),
 }));
 
+vi.mock("@/modules/billing/entitlement.repository.js", () => ({
+  isProUser: vi.fn(async () => false),
+}));
+
+vi.mock("@/modules/usage/usage.repository.js", () => ({
+  consumeDailyImportQuota: vi.fn(),
+}));
+
 vi.mock("./import-job.repository.js", () => ({
   getImportJob: vi.fn(),
   createImportJob: vi.fn(),
+  findExistingSuccessfulImport: vi.fn(),
 }));
 
 vi.mock("./import.service.js", () => ({

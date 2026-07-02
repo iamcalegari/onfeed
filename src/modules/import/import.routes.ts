@@ -2,8 +2,15 @@ import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { type Static, Type } from "@sinclair/typebox";
 import type { FastifyPluginAsync } from "fastify";
 
+import { env } from "@/config/env.js";
 import { getUserId, requireAuth } from "@/modules/auth/auth.guard.js";
-import { createImportJob, getImportJob } from "./import-job.repository.js";
+import { isProUser } from "@/modules/billing/entitlement.repository.js";
+import { consumeDailyImportQuota } from "@/modules/usage/usage.repository.js";
+import {
+  createImportJob,
+  findExistingSuccessfulImport,
+  getImportJob,
+} from "./import-job.repository.js";
 import {
   confirmImportedRecipe,
   detectPlatform,
@@ -86,6 +93,31 @@ export const importRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const normalizedUrl = normalizeUrl(url);
+
+      // Dedup (CAP-03, D-07 ordering): SEMPRE depois do gate de SSRF, SEMPRE
+      // antes do gate de quota. Um hit não custa nada ao usuário — nem
+      // enfileira um novo job, nem consome a cota diária (D-07). O lookup é
+      // owner-scoped dentro do próprio filtro Mongo (T-04-07/D-01).
+      const existing = await findExistingSuccessfulImport(userId, normalizedUrl);
+      if (existing?.recipeId) {
+        return reply.code(200).send({ recipeId: existing.recipeId, deduped: true });
+      }
+
+      // Gate de custo (COST-01/COST-03): mesma reserva atômica de vaga
+      // (reserve-at-submission) e a mesma mensagem de upsell PRO do gate de
+      // adapt em recipe.routes.ts — mirror verbatim, trocando só a chave de
+      // config e o texto (D-04).
+      const pro = await isProUser(userId);
+      const limit = pro ? env.import.dailyLimitPro : env.import.dailyLimitFree;
+      const quota = await consumeDailyImportQuota(userId, limit);
+      if (!quota.allowed) {
+        return reply.tooManyRequests(
+          pro
+            ? `Limite diário de importações atingido (${quota.limit}/dia). Tente amanhã.`
+            : `Você usou suas ${quota.limit} importações grátis de hoje. Assine o onFeed Pro para importar mais.`,
+        );
+      }
+
       const job = await createImportJob(userId, url, normalizedUrl, platform);
       await enqueueImportJob(job._id!);
 
