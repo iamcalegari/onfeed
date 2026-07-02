@@ -19,6 +19,15 @@ vi.mock("./recipe.model.js", () => ({
   },
 }));
 
+// getRecipeById (T-03-05/T-03-06) importa getImportJob para resolver
+// ownership de imports privados (createdBy[] vazio) via importJobId →
+// ImportJob.userId — mockado para não arrastar import-job.model.ts (que
+// conecta ao Mongo real no module-load, mesmo gotcha do comentário acima).
+const getImportJob = vi.fn();
+vi.mock("@/modules/import/import-job.repository.js", () => ({
+  getImportJob: (...args: unknown[]) => getImportJob(...args),
+}));
+
 const { hybridSearch, getRecipeById, DEFAULT_SEARCH_SOURCES } = await import(
   "./recipe.repository.js"
 );
@@ -112,11 +121,74 @@ describe("getRecipeById — IDOR-safe owner overload (D-14 / T-02-07)", () => {
   it("resolves null for a non-owner requesting another user's private recipe (no leak via existence check)", async () => {
     // O driver Mongo real não retornaria o doc porque o filtro combinado
     // ($or) já exclui o caso "private + não é o dono" — aqui simulamos
-    // exatamente esse retorno vazio do banco.
+    // exatamente esse retorno vazio do banco. Como o candidato de fallback
+    // (findById) não é mockado aqui, resolve undefined → null (mesmo path
+    // de "não existe").
     find.mockResolvedValue(null);
 
     const result = await getRecipeById("507f1f77bcf86cd799439011", "user_B");
 
     expect(result).toBeNull();
+  });
+
+  it("resolves ownership of a private IMPORT (empty createdBy[]) via importJobId → ImportJob.userId for the owner (T-03-05/T-03-06)", async () => {
+    // Fast-path $or não encontra (createdBy[] vazio no import) → fallback
+    // via findById + getImportJob.
+    find.mockResolvedValue(null);
+    findById.mockResolvedValue({
+      _id: "recipe1",
+      title: "Risoto",
+      visibility: "private",
+      importJobId: "job_1",
+    });
+    getImportJob.mockResolvedValue({ _id: "job_1", userId: "user_A" });
+
+    const result = await getRecipeById("507f1f77bcf86cd799439011", "user_A");
+
+    expect(getImportJob).toHaveBeenCalledWith("job_1");
+    expect(result).toEqual({
+      _id: "recipe1",
+      title: "Risoto",
+      visibility: "private",
+      importJobId: "job_1",
+    });
+  });
+
+  it("resolves null for a different user requesting a private import (owner mismatch via importJobId)", async () => {
+    find.mockResolvedValue(null);
+    findById.mockResolvedValue({
+      _id: "recipe1",
+      title: "Risoto",
+      visibility: "private",
+      importJobId: "job_1",
+    });
+    getImportJob.mockResolvedValue({ _id: "job_1", userId: "user_A" });
+
+    const result = await getRecipeById("507f1f77bcf86cd799439011", "user_B");
+
+    expect(result).toBeNull();
+  });
+
+  it("resolves null for an anonymous caller (no userId) requesting a private import", async () => {
+    findById.mockResolvedValue({
+      _id: "recipe1",
+      title: "Risoto",
+      visibility: "private",
+      importJobId: "job_1",
+    });
+
+    const result = await getRecipeById("507f1f77bcf86cd799439011");
+
+    // Sem userId, getRecipeById nem tenta o fast-path $or (early branch),
+    // vai direto ao findById cru — mas o caller (a rota) é quem decide
+    // 404; aqui validamos só o retorno bruto do repository sem userId
+    // (comportamento inalterado, não filtra por visibility nesse ramo).
+    expect(getImportJob).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      _id: "recipe1",
+      title: "Risoto",
+      visibility: "private",
+      importJobId: "job_1",
+    });
   });
 });
