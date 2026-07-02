@@ -1,4 +1,5 @@
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
+import { randomBytes } from "node:crypto";
 import { ObjectId } from "mongodb";
 
 import { env } from "@/config/env.js";
@@ -183,6 +184,10 @@ export async function confirmImportedRecipe(
         steps,
         reviewRequired: false,
         confirmedAt: new Date(),
+        // Token secreto CSPRNG p/ o link público (D-03/D-04), gerado junto
+        // com confirmedAt numa única escrita; nunca regerado (idempotência
+        // via o early-return de confirmedAt acima).
+        shareSlug: randomBytes(24).toString("base64url"),
         updatedAt: new Date(),
       },
     },
