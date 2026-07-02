@@ -13,9 +13,11 @@ import { RecipeModel } from "./recipe.model.js";
 import type {
   Nutrition,
   Recipe,
+  RecipeGrounding,
   RecipeIngredient,
   RecipeSource,
   RecipeStep,
+  RecipeVisibility,
 } from "./recipe.types.js";
 
 export interface IngestRecipeInput extends RawRecipeInput {
@@ -35,6 +37,19 @@ export interface IngestOptions {
   source: RecipeSource;
   parentRecipeId?: string;
   createdBy?: import("./recipe.types.js").RecipeCreator[];
+  /** Fase 2 (onFeed Import) — default 'public' preserva os callers existentes. */
+  visibility?: RecipeVisibility;
+  /** Fase 2 — back-reference ao ImportJob de origem. */
+  importJobId?: string;
+  /** Fase 2 — metadados desnormalizados do post/vídeo de origem. */
+  sourceMeta?: {
+    platform: string;
+    authorHandle?: string;
+    authorUrl?: string;
+    sourceUrl: string;
+  };
+  /** Fase 2 — grounding por campo da extração importada. */
+  grounding?: RecipeGrounding;
 }
 
 /**
@@ -134,6 +149,12 @@ export async function persistExtractedRecipe(
     ...(opts.parentRecipeId && { parentRecipeId: opts.parentRecipeId }),
     ...(opts.createdBy && { createdBy: opts.createdBy }),
     source: opts.source,
+    // default 'public' preserva o comportamento de todo caller existente
+    // (catálogo/adapt/batch) — só imports (Fase 2) passam opts.visibility.
+    visibility: opts.visibility ?? "public",
+    ...(opts.importJobId && { importJobId: opts.importJobId }),
+    ...(opts.sourceMeta && { sourceMeta: opts.sourceMeta }),
+    ...(opts.grounding && { grounding: opts.grounding }),
     embeddingText,
     embedding,
     embeddingModel: env.voyage.model,
@@ -255,6 +276,7 @@ export async function persistExtractedRecipesBatch(
         ...((b.input.nutrition ?? b.extracted.nutrition ?? null) && { nutrition: b.input.nutrition ?? b.extracted.nutrition! }),
         ...(b.input.externalId && { externalId: b.input.externalId }),
         source: opts.source,
+        visibility: opts.visibility ?? "public",
         embeddingText: b.embeddingText,
         embedding,
         embeddingModel: env.voyage.model,
