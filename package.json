@@ -26,6 +26,7 @@
     "db:bootstrap": "tsx --env-file=.env src/scripts/db-prepare.ts bootstrap",
     "db:migrate": "tsx --env-file=.env src/scripts/db-prepare.ts migrate",
     "db:sync": "tsx --env-file=.env src/scripts/db-prepare.ts sync",
+    "fix:search-index": "tsx --env-file=.env src/scripts/update-search-index.ts",
     "s3:up": "docker compose up -d",
     "s3:down": "docker compose down",
     "typecheck": "tsc --noEmit",

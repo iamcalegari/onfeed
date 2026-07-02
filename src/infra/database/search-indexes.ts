@@ -86,6 +86,23 @@ export async function setupSearchIndexes(): Promise<void> {
 }
 
 /**
+ * Atualiza a DEFINIÇÃO de um search index já existente (o `ensureSearchIndex`
+ * só cria quando falta — não altera índices existentes). Necessário quando se
+ * adicionam filter fields novos (ex: D-14 `visibility`/`createdBy.userId`) a um
+ * índice já criado em produção: sem isso, os novos paths de filtro ficam
+ * silenciosamente inertes no $vectorSearch. O rebuild é assíncrono no Atlas.
+ */
+export async function updateRecipeVectorIndex(): Promise<void> {
+  const collection = database.getCollection("recipes");
+  if (!collection) throw new Error("Coleção 'recipes' não encontrada");
+  await collection.updateSearchIndex(RECIPE_VECTOR_INDEX, recipeVectorIndexDefinition.definition);
+  console.log(
+    `[search-index] '${RECIPE_VECTOR_INDEX}' atualizado com os filter fields atuais ` +
+      `(visibility, createdBy.userId). Rebuild assíncrono no Atlas (~minutos até 'queryable').`,
+  );
+}
+
+/**
  * Espera um search index ficar `queryable` (a construção no Atlas é assíncrona).
  * Crucial antes da ingestão: o fallback semântico da canonicalização depende do
  * índice de ingredientes — se ainda estiver "building", todo termo novo vira um
