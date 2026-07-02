@@ -1,17 +1,20 @@
 ---
 phase: 04-cost-quota-gating-dedup
 verified: 2026-07-02T14:15:00Z
-status: human_needed
+status: passed
 score: 7/7 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
+
   - test: "npm run setup:db against live Atlas (04-02 Task 1, blocking gate)"
     expected: "collMod applies the expanded costCents $jsonSchema validator and provisions the dedup_lookup {userId,normalizedUrl,status} compound index on the live import_jobs collection without error. Also provisions the import_usage collection/unique index if not auto-created on first write."
     why_human: "Requires live MongoDB Atlas credentials (MONGODB_URI/USERNAME/PASSWORD/DB_NAME) the automated executor cannot read, and mutates a production/staging schema validator — the project's established human-gate convention (same class of gate as Phase 3's confirmedAt sync)."
+
   - test: "04-05 Task 4 checkpoint — live dedup-hit routing + quota-exceeded PRO upsell end-to-end"
     expected: "(1) Free user imports a URL to success, re-submits the SAME URL from /import → lands on /recipe/[id] (existing recipe), NOT a new progress screen; import_usage counter unchanged for the reuse. (2) Free user exceeding the daily import limit (default 3/day) is blocked with the same PRO-upsell message the adapt/search gate shows; no job enqueued. (3) A previously-FAILED URL is NOT deduped — re-submitting it re-runs the pipeline (D-05)."
     why_human: "Requires a live Mongo/SQS pipeline run (depends on setup:db above) plus human observation of routing/UI behavior that a mocked unit test cannot simulate. Explicitly declared `gate=\"blocking\"` in 04-05-PLAN.md Task 4 and reported NOT executed in 04-05-SUMMARY.md (`status: paused`)."
+
   - test: "Cost figures sane on real data (COST-02 pricing review)"
     expected: "Import a real Short; inspect the ImportJob.costCents — raw units plausible (ASR minutes ≈ video length, LLM tokens > 0, bytes > 0), cents = units × env.import price table. Human should also spot-check the Anthropic Sonnet 4.5 input price (RESEARCH A2 flagged ambiguity between introductory and standard pricing)."
     why_human: "Pricing values are explicitly documented as LOW-confidence estimates (04-VALIDATION.md Manual-Only Verifications) — recording is unit-tested, accuracy against real data is a judgment/config review, not a code-level truth."

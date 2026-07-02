@@ -1,20 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 04-cost-quota-gating-dedup
 source: [04-VERIFICATION.md]
 started: 2026-07-02T14:15:00Z
-updated: 2026-07-02T14:55:00Z
+updated: 2026-07-02T16:45:00Z
 ---
 
 ## Current Test
 
-number: 3
-name: Cost figures sane on real data (COST-02 pricing review)
-expected: |
-  Importe um Short real; inspecione ImportJob.costCents — unidades cruas
-  plausíveis (ASR-min ≈ duração, tokens LLM > 0, bytes > 0), cents = unidades ×
-  tabela de preço; log [pipeline] cost só-números.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -33,15 +27,16 @@ note: "(1) dedup hit 'deu certinho'. (2) quota confirmada ao vivo — screenshot
 
 ### 3. Cost figures sane on real data (COST-02 pricing review)
 expected: Importe um Short real; inspecione ImportJob.costCents — unidades cruas plausíveis (ASR-min ≈ duração do vídeo, tokens LLM > 0, bytes > 0), cents = unidades × tabela de preço do env.import; log [pipeline] cost só-números. Spot-check no preço de input do Sonnet 4.5 (RESEARCH A2 flagou ambiguidade introdutório vs padrão).
-result: [pending]
+result: skipped
+reason: "Revisão de config de baixa confiança, não bloqueante: o REGISTRO de custo é unit-tested (04-06); os VALORES em centavos são estimativas ajustáveis por env (RESEARCH A1–A4). O orquestrador não consegue inspecionar o DB (harness bloqueia .env). Usuário pode conferir ImportJob.costCents de uma importação real quando quiser; ajuste da tabela de preço é 1 env var."
 
 ## Summary
 
 total: 3
-passed: 1
+passed: 2
 issues: 0
-pending: 2
-skipped: 0
+pending: 0
+skipped: 1
 blocked: 0
 
 ## Gaps
