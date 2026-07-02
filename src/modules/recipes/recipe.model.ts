@@ -119,6 +119,10 @@ const schema: ModelValidationSchema = {
     sourceMeta: sourceMetaSchema,
     reviewRequired: { bsonType: "bool" },
     confidenceScore: { bsonType: "number" },
+    // Fase 3 (Capture/Review UI) — setado apenas por confirmImportedRecipe
+    // no PATCH de confirmação explícita do usuário (REV-04). Optional: nenhum
+    // doc pré-existente (catálogo ou import ainda não confirmado) o possui.
+    confirmedAt: { bsonType: "date" },
     equipment: {
       bsonType: "array",
       items: {
