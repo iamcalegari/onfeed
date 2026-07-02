@@ -19,30 +19,40 @@ function isLikelyUrl(text: string): boolean {
  * via evento nativo `paste`) + "Iniciar importação" (enfileira e navega pro
  * progresso). Ver 03-RESEARCH.md Pattern 3 / Pitfall 1.
  */
-export function PasteLinkButton() {
+export function PasteLinkButton({ initialUrl = "" }: { initialUrl?: string }) {
   const router = useRouter();
-  const [url, setUrl] = useState("");
-  const [touched, setTouched] = useState(false);
+  const [url, setUrl] = useState(initialUrl);
+  const [touched, setTouched] = useState(initialUrl.trim().length > 0);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Feedback da colagem via botão: antes falhava em silêncio (usuário via só o
+  // affordance nativo do browser e achava que "não colou"). Agora explica.
+  const [pasteHint, setPasteHint] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const trimmed = url.trim();
   const showInvalidHint = touched && trimmed.length > 0 && !isLikelyUrl(trimmed);
 
   function handlePasteClick() {
+    setPasteHint(null);
     // readText() precisa ser o primeiro await no handler — se algo assíncrono
     // rodar antes, alguns navegadores quebram a cadeia de user-activation.
     navigator.clipboard
       ?.readText()
       .then((text) => {
-        if (text && isLikelyUrl(text)) {
-          setUrl(text);
+        const clean = text?.trim();
+        if (clean && isLikelyUrl(clean)) {
+          setUrl(clean);
           setTouched(true);
+          setPasteHint(null);
+        } else {
+          // Colou, mas não é um link de vídeo reconhecível.
+          setPasteHint("Nada de link reconhecido na área de transferência — cole a URL do vídeo no campo.");
         }
       })
       .catch(() => {
-        // Falha silenciosa (negado/indisponível) — Safari nega por padrão.
-        // Nunca mostrar erro aqui; o evento onPaste do input é o fallback.
+        // Negado/indisponível — Safari/iOS negam por padrão. O onPaste do input
+        // segue funcionando; orientamos a colar à mão em vez de falhar mudo.
+        setPasteHint("Seu navegador bloqueou a colagem automática — toque e segure no campo para colar.");
       });
   }
 
@@ -77,6 +87,7 @@ export function PasteLinkButton() {
           onChange={(e) => {
             setUrl(e.target.value);
             setTouched(true);
+            setPasteHint(null);
           }}
           onPaste={handleNativePaste}
           onKeyDown={(e) => {
@@ -101,6 +112,10 @@ export function PasteLinkButton() {
         <p className="text-xs text-fat leading-relaxed">
           Não reconhecemos esse link. Cole a URL de um vídeo do Instagram, TikTok ou YouTube.
         </p>
+      )}
+
+      {pasteHint && !showInvalidHint && (
+        <p className="text-xs text-carvao/55 leading-relaxed">{pasteHint}</p>
       )}
 
       <button

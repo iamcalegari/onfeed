@@ -7,9 +7,22 @@ import { getMe } from "@/lib/api";
 
 export const metadata = { title: "Importar receita" };
 
-export default async function ImportPage() {
+const LIKELY_URL_RE =
+  /^https?:\/\/(www\.)?(instagram\.com|tiktok\.com|vm\.tiktok\.com|youtube\.com|youtu\.be)\//i;
+
+export default async function ImportPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ url?: string }>;
+}) {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
+
+  // Prefill vindo do atalho clipboard-aware (ImportShortcut): só aceitamos aqui
+  // se bater no reconhecimento client-side — link cru de query nunca é o gate
+  // (o detectPlatform() do backend valida de verdade na submissão).
+  const { url } = await searchParams;
+  const prefillUrl = typeof url === "string" && LIKELY_URL_RE.test(url.trim()) ? url.trim() : "";
 
   // Cota de importação do dia — mostra "X/N grátis hoje" ANTES de o usuário
   // bater no gate (COST-03 UX): free descobre o limite de forma proativa, não
@@ -54,7 +67,7 @@ export default async function ImportPage() {
         </p>
       )}
 
-      <PasteLinkButton />
+      <PasteLinkButton initialUrl={prefillUrl} />
     </div>
   );
 }
