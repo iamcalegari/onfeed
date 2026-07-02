@@ -50,6 +50,10 @@ export interface IngestOptions {
   };
   /** Fase 2 — grounding por campo da extração importada. */
   grounding?: RecipeGrounding;
+  /** Fase 2 — de computeConfidence; consumido pela UI de revisão (Fase 3). */
+  reviewRequired?: boolean;
+  /** Fase 2 — de computeConfidence, 0..1; consumido pela UI de revisão (Fase 3). */
+  confidenceScore?: number;
 }
 
 /**
@@ -155,6 +159,8 @@ export async function persistExtractedRecipe(
     ...(opts.importJobId && { importJobId: opts.importJobId }),
     ...(opts.sourceMeta && { sourceMeta: opts.sourceMeta }),
     ...(opts.grounding && { grounding: opts.grounding }),
+    ...(opts.reviewRequired !== undefined && { reviewRequired: opts.reviewRequired }),
+    ...(opts.confidenceScore !== undefined && { confidenceScore: opts.confidenceScore }),
     embeddingText,
     embedding,
     embeddingModel: env.voyage.model,
