@@ -126,7 +126,7 @@ Plans:
   4. The promoted public variant retains credit to both the original creator and the importing user (`createdBy[]`).
   5. An imported recipe can be macro-adapted (`adaptRecipe`), contributes missing ingredients to the shopping list, runs in step-by-step cook mode with timers, and appears in search/swipe results with an I/E/T/N match score — identically to any other recipe in the catalog.
 
-**Plans**: 4/6 plans executed
+**Plans**: 5/6 plans executed
 Plans:
 **Wave 1**
 
@@ -146,7 +146,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 05-05-PLAN.md — public /r/[token] Next page + middleware allowlist + LikeButton sign-in redirect + ShareButton token wiring (SOC-02/03)
+- [x] 05-05-PLAN.md — public /r/[token] Next page + middleware allowlist + LikeButton sign-in redirect + ShareButton token wiring (SOC-02/03)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
@@ -163,7 +163,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Structured Extraction & Recipe Persistence | 5/5 | Complete   | 2026-07-02 |
 | 3. Capture & Mandatory Review UI | 5/5 | Complete    | 2026-07-02 |
 | 4. Cost/Quota Gating & Dedup | 6/6 | Complete    | 2026-07-02 |
-| 5. Publish, Promotion & Full Citizenship | 4/6 | In Progress|  |
+| 5. Publish, Promotion & Full Citizenship | 5/6 | In Progress|  |
 
 ## Future / v2 (Not in This Roadmap)
 

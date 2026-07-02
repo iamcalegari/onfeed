@@ -6,14 +6,14 @@ current_phase: 5
 current_phase_name: Publish, Promotion & Full Citizenship
 status: executing
 stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-07-02T19:46:03.574Z"
+last_updated: "2026-07-02T19:55:25.498Z"
 last_activity: 2026-07-02
 last_activity_desc: Phase 5 execution started
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 28
-  completed_plans: 26
+  completed_plans: 27
   percent: 80
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 ## Current Position
 
 Phase: 5 (Publish, Promotion & Full Citizenship) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-07-02 — Phase 5 execution started
 
@@ -69,6 +69,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 05 P02 | 20min | 3 tasks | 4 files |
 | Phase 05 P03 | 6min | 3 tasks | 8 files |
 | Phase 05 P04 | 25min | 3 tasks | 5 files |
+| Phase 05-publish-promotion-full-citizenship P05 | 6min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 05-03]: GET /recipes/share/:token retorna { recipe, likes: { count, liked } } -- recipe.visibility incluída para o front aplicar o redirect canônico D-12
 - [Phase 05]: hybridSearch DEFAULTS.sources now includes 'imported' -- safe because the $vectorSearch.filter visibility guard is unconditional (excludes private with no ownerId, owner-scoped $or with ownerId), superseding Phase 2's 'never add imported unconditionally' invariant — Plan 05-04 Task 1
 - [Phase 05]: route-level ownerId wiring into searchRecipes/hybridSearch is out of Plan 05-04's scope -- only the repository-level filter was made correct/safe; searchRecipes still does not pass ownerId today — Plan 05-04, flagged for Plan 06
+- [Phase 05-05]: Sign-in redirect uses the project's existing /sign-in route with a redirect_url query param (Clerk-documented convention) -- no Clerk-hosted modal/openSignIn invented
+- [Phase 05-05]: /r/[token] page duplicates recipe/[id]'s read-only JSX verbatim instead of extracting a shared component -- kept recipe/[id]/page.tsx diff to the single ShareButton getUrl line in files_modified scope
+- [Phase 05-05]: Account-only CTAs (adaptar/registrar no dia/modo cozinha) on the public page are static sign-in-routed links, not the real AdaptButton/AddToPlanButton/LogMealButton components -- those execute real actions with no auth gate and were out of files_modified scope
 
 ### Pending Todos
 
@@ -135,6 +139,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-02T19:45:24.118Z
+Last session: 2026-07-02T19:55:08.590Z
 Stopped at: Completed 05-03-PLAN.md
 Resume file: None
