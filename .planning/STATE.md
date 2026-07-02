@@ -6,14 +6,14 @@ current_phase: 5
 current_phase_name: Publish, Promotion & Full Citizenship
 status: executing
 stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-07-02T19:35:50.437Z"
+last_updated: "2026-07-02T19:46:03.574Z"
 last_activity: 2026-07-02
 last_activity_desc: Phase 5 execution started
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 28
-  completed_plans: 25
+  completed_plans: 26
   percent: 80
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 ## Current Position
 
 Phase: 5 (Publish, Promotion & Full Citizenship) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-07-02 — Phase 5 execution started
 
@@ -68,6 +68,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 05 P01 | 15min | 2 tasks | 4 files |
 | Phase 05 P02 | 20min | 3 tasks | 4 files |
 | Phase 05 P03 | 6min | 3 tasks | 8 files |
+| Phase 05 P04 | 25min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 05-03]: shareSlug usa randomBytes(24).toString('base64url') (192 bits) na mesma $set de confirmedAt -- token gerado sem ação de publish separada, idempotência herdada do guard existente
 - [Phase ?]: [Phase 05-03]: getRecipeByShareSlug é lookup puro sem branch de visibility/ownership -- o shareSlug secreto é a única autorização (D-03), mais simples que o idioma de 3 assinaturas de getRecipeById
 - [Phase ?]: [Phase 05-03]: GET /recipes/share/:token retorna { recipe, likes: { count, liked } } -- recipe.visibility incluída para o front aplicar o redirect canônico D-12
+- [Phase 05]: hybridSearch DEFAULTS.sources now includes 'imported' -- safe because the $vectorSearch.filter visibility guard is unconditional (excludes private with no ownerId, owner-scoped $or with ownerId), superseding Phase 2's 'never add imported unconditionally' invariant — Plan 05-04 Task 1
+- [Phase 05]: route-level ownerId wiring into searchRecipes/hybridSearch is out of Plan 05-04's scope -- only the repository-level filter was made correct/safe; searchRecipes still does not pass ownerId today — Plan 05-04, flagged for Plan 06
 
 ### Pending Todos
 
@@ -132,6 +135,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-02T19:35:50.430Z
+Last session: 2026-07-02T19:45:24.118Z
 Stopped at: Completed 05-03-PLAN.md
 Resume file: None
