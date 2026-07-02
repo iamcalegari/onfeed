@@ -131,3 +131,11 @@ None - no external service configuration required.
 ---
 *Phase: 02-structured-extraction-recipe-persistence*
 *Completed: 2026-07-02*
+
+## Self-Check: PASSED
+
+- FOUND: src/modules/import/import.confidence.ts
+- FOUND: src/modules/import/import.confidence.test.ts
+- FOUND: .planning/phases/02-structured-extraction-recipe-persistence/02-04-SUMMARY.md
+- FOUND: e94347c (Task 1 commit)
+- FOUND: 2a7f59e (Task 2 commit)
