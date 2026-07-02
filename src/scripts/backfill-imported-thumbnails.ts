@@ -8,8 +8,8 @@
  * ImportJob. Este script propaga job.keyframeUrl → recipe.thumbnailUrl.
  *
  * Uso:
- *   npx tsx src/scripts/backfill-imported-thumbnails.ts            # dry-run
- *   APPLY=1 npx tsx src/scripts/backfill-imported-thumbnails.ts    # aplica
+ *   yarn backfill:import-thumbnails            # dry-run
+ *   APPLY=1 yarn backfill:import-thumbnails    # aplica
  */
 import { ObjectId } from "mongodb";
 

@@ -22,6 +22,7 @@
     "migrate:quantities": "tsx --env-file=.env src/scripts/migrate-ingredient-quantities.ts",
     "migrate:drinks": "tsx --env-file=.env src/scripts/migrate-drinks-occasion.ts",
     "migrate:thumbnails": "tsx --env-file=.env src/scripts/migrate-thumbnail-urls.ts",
+    "backfill:import-thumbnails": "tsx --env-file=.env src/scripts/backfill-imported-thumbnails.ts",
     "infer:dietary-tags": "tsx --env-file=.env src/scripts/infer-dietary-tags.ts",
     "db:bootstrap": "tsx --env-file=.env src/scripts/db-prepare.ts bootstrap",
     "db:migrate": "tsx --env-file=.env src/scripts/db-prepare.ts migrate",
