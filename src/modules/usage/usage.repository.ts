@@ -63,6 +63,14 @@ export async function consumeDailyImportQuota(
   return { allowed: count <= limit, count, limit };
 }
 
+/** Lê (sem incrementar) quantas importações o usuário já fez hoje — para o /me
+ * (mostra a cota "X/N hoje" na tela de importar antes de o usuário bater no gate). */
+export async function getDailyImportCount(userId: string): Promise<number> {
+  const day = new Date().toISOString().slice(0, 10);
+  const doc = (await ImportUsageModel.find({ userId, day })) as { count?: number } | null;
+  return doc?.count ?? 0;
+}
+
 /**
  * Devolve (decrementa) a vaga de import reservada no dia `day` — o dia em que
  * o slot foi RESERVADO, nunca "hoje" às cegas (um refund pode acontecer num

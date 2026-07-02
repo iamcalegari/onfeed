@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 
 import { env } from "@/config/env.js";
 import { getEntitlement } from "@/modules/billing/entitlement.repository.js";
-import { getDailyAdaptCount } from "@/modules/usage/usage.repository.js";
+import { getDailyAdaptCount, getDailyImportCount } from "@/modules/usage/usage.repository.js";
 
 import { getUserId } from "./auth.guard.js";
 
@@ -18,13 +18,17 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       return { userId: null, authenticated: false, plan: "free", isPro: false };
     }
 
-    const [ent, adaptUsed] = await Promise.all([
+    const [ent, adaptUsed, importUsed] = await Promise.all([
       getEntitlement(userId),
       getDailyAdaptCount(userId),
+      getDailyImportCount(userId),
     ]);
     const adaptDaily = ent.isPro
       ? env.anthropic.adaptDailyLimitPro
       : env.anthropic.adaptDailyLimitFree;
+    const importDaily = ent.isPro
+      ? env.import.dailyLimitPro
+      : env.import.dailyLimitFree;
 
     return {
       userId,
@@ -32,8 +36,13 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       plan: ent.plan,
       isPro: ent.isPro,
       currentPeriodEnd: ent.currentPeriodEnd,
-      limits: { adaptDaily },
-      usage: { adaptUsed, adaptLeft: Math.max(0, adaptDaily - adaptUsed) },
+      limits: { adaptDaily, importDaily },
+      usage: {
+        adaptUsed,
+        adaptLeft: Math.max(0, adaptDaily - adaptUsed),
+        importUsed,
+        importLeft: Math.max(0, importDaily - importUsed),
+      },
     };
   });
 };

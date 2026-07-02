@@ -270,8 +270,8 @@ export interface MeResponse {
   plan: "free" | "pro";
   isPro: boolean;
   currentPeriodEnd?: string | null;
-  limits?: { adaptDaily: number };
-  usage?: { adaptUsed: number; adaptLeft: number };
+  limits?: { adaptDaily: number; importDaily?: number };
+  usage?: { adaptUsed: number; adaptLeft: number; importUsed?: number; importLeft?: number };
 }
 
 /** Entitlement + uso do dia, direto do backend. */
