@@ -31,6 +31,7 @@ import { extractImportedRecipe } from "@/modules/import/import.extraction.js";
 import { computeConfidence } from "@/modules/import/import.confidence.js";
 import { mapExtractedToRecipe } from "@/modules/import/import.recipe-mapping.js";
 import { persistExtractedRecipe } from "@/modules/recipes/recipe.ingestion.js";
+import { refundDailyImportQuota } from "@/modules/usage/usage.repository.js";
 import { DownloadError, downloadVideo, type DownloadFailureReason } from "./ytdlp.downloader.js";
 import { extractAudio } from "./ffmpeg.exec.js";
 import { detectSilenceRatio, NO_SPEECH_RATIO_THRESHOLD } from "./vad.js";
@@ -139,6 +140,17 @@ async function failJob(job: ImportJob, reason: ImportFailureReason, rawDetail?: 
     failureReason: reason,
     errorMessage: USER_SAFE_MESSAGES[reason],
   });
+
+  // Devolve a vaga de cota reservada (COST-01/D-07). failJob é o ÚNICO
+  // caminho de código que escreve status:"failed", e o guard no-op de
+  // TERMINAL_STATUSES do worker (import-worker.ts) impede que o pipeline
+  // rode de novo para um job já terminal — então este refund acontece
+  // exatamente uma vez por job, mesmo sob redelivery at-least-once da SQS.
+  // Chave pelo dia RESERVADO (job.insertedAt), NUNCA new Date(): um job que
+  // falha depois da virada UTC em relação à submissão devolveria a vaga no
+  // contador do dia errado se usasse "hoje".
+  const day = job.insertedAt.toISOString().slice(0, 10);
+  await refundDailyImportQuota(job.userId, day);
 }
 
 /**

@@ -56,6 +56,15 @@ vi.mock("@/modules/import/import-job.repository.js", () => ({
   getImportJob: (...args: unknown[]) => getImportJob(...args),
 }));
 
+// Quota de import (Plano 01/06) — refundDailyImportQuota é mockado para não
+// tocar o Model real do mongoat (evita o gotcha "Database not found" —
+// import-usage.model.ts registra o Model no module-load); cada teste de
+// refund verifica a chamada via este spy.
+const refundDailyImportQuota = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/modules/usage/usage.repository.js", () => ({
+  refundDailyImportQuota: (...args: unknown[]) => refundDailyImportQuota(...args),
+}));
+
 // Downloader (Plan 03) — mockado por padrão em modo sucesso; cada teste
 // sobrescreve o comportamento necessário.
 const downloadVideo = vi.fn();
@@ -320,6 +329,57 @@ describe("processImportJob — anti_bot_blocked failure (PIPE-07)", () => {
     const leftovers = await findLeftoverJobDirs("job1");
     expect(leftovers).toEqual([]);
     expect(existsSync(path.join(tmpdir(), "import-job1-"))).toBe(false);
+  });
+});
+
+describe("failJob — refund da cota reservada (COST-01/D-07)", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+    getImportJob.mockReset();
+    downloadVideo.mockReset();
+    isOpen.mockReset().mockReturnValue(false);
+    refundDailyImportQuota.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("refunda exatamente uma vez, com userId e o dia RESERVADO (job.insertedAt), quando o job falha", async () => {
+    const insertedAt = new Date("2026-07-01T23:50:00.000Z"); // véspera da virada UTC
+    downloadVideo.mockRejectedValue(
+      new DownloadError("anti_bot_blocked", "Sign in to confirm you're not a bot"),
+    );
+
+    await processImportJob(baseJob({ insertedAt }) as never);
+
+    expect(refundDailyImportQuota).toHaveBeenCalledTimes(1);
+    expect(refundDailyImportQuota).toHaveBeenCalledWith("user_1", "2026-07-01");
+  });
+
+  it("NÃO refunda duas vezes quando a mesma mensagem SQS é redelivered para um job já failed (no-op via TERMINAL_STATUSES)", async () => {
+    downloadVideo.mockRejectedValue(
+      new DownloadError("anti_bot_blocked", "Sign in to confirm you're not a bot"),
+    );
+    getImportJob.mockResolvedValue(baseJob({ status: "queued" }));
+
+    // 1ª entrega: processa e falha -> refund único.
+    await handleImportMessage(JSON.stringify({ jobId: "job1" }));
+    expect(refundDailyImportQuota).toHaveBeenCalledTimes(1);
+
+    // Redelivery: o doc já está failed (fonte da verdade é o Mongo, não o
+    // payload SQS) -> handleImportMessage faz no-op via TERMINAL_STATUSES,
+    // processImportJob/failJob NUNCA rodam de novo.
+    getImportJob.mockResolvedValue(baseJob({ status: "failed" }));
+    await handleImportMessage(JSON.stringify({ jobId: "job1" }));
+
+    expect(refundDailyImportQuota).toHaveBeenCalledTimes(1);
+    expect(downloadVideo).toHaveBeenCalledTimes(1);
+  });
+
+  it("chave do refund é o dia de insertedAt, não a data atual (RESEARCH Pattern 2 anti-pattern)", async () => {
+    const insertedAt = new Date("2020-01-15T10:00:00.000Z");
+    downloadVideo.mockRejectedValue(new DownloadError("rate_limited", "429 Too Many Requests"));
+
+    await processImportJob(baseJob({ insertedAt }) as never);
+
+    expect(refundDailyImportQuota).toHaveBeenCalledWith("user_1", "2020-01-15");
   });
 });
 
