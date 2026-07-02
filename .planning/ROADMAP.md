@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Structured Extraction & Recipe Persistence** - Claude turns transcript+caption into a confidence-graded structured recipe, persisted as the user's first private imported recipe (completed 2026-07-02)
 - [x] **Phase 3: Capture & Mandatory Review UI** - Paste-link entry point, live status polling, and a mandatory review/edit screen before any recipe is considered saved (completed 2026-07-02)
 - [x] **Phase 4: Cost/Quota Gating & Dedup** - Quota reserved at submission, duplicate URLs served from cache, per-stage cost telemetry live before real volume (completed 2026-07-02)
-- [ ] **Phase 5: Publish, Promotion & Full Citizenship** - Private recipe gets a shareable link, likes drive promotion (gated on confidence too), and imported recipes behave like any other recipe across search, macros, shopping list, and cook mode
+- [x] **Phase 5: Publish, Promotion & Full Citizenship** - Private recipe gets a shareable link, likes drive promotion (gated on confidence too), and imported recipes behave like any other recipe across search, macros, shopping list, and cook mode (completed 2026-07-02)
 
 ## Phase Details
 
@@ -126,7 +126,7 @@ Plans:
   4. The promoted public variant retains credit to both the original creator and the importing user (`createdBy[]`).
   5. An imported recipe can be macro-adapted (`adaptRecipe`), contributes missing ingredients to the shopping list, runs in step-by-step cook mode with timers, and appears in search/swipe results with an I/E/T/N match score — identically to any other recipe in the catalog.
 
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans complete
 Plans:
 **Wave 1**
 
@@ -150,7 +150,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 05-06-PLAN.md — verify citizenship reuse (adapt/shopping/cook) + SOC-01/05 regression + import README (RCP-01/02/03)
+- [x] 05-06-PLAN.md — verify citizenship reuse (adapt/shopping/cook) + SOC-01/05 regression + import README (RCP-01/02/03)
 
 ## Progress
 
@@ -163,7 +163,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Structured Extraction & Recipe Persistence | 5/5 | Complete   | 2026-07-02 |
 | 3. Capture & Mandatory Review UI | 5/5 | Complete    | 2026-07-02 |
 | 4. Cost/Quota Gating & Dedup | 6/6 | Complete    | 2026-07-02 |
-| 5. Publish, Promotion & Full Citizenship | 5/6 | In Progress|  |
+| 5. Publish, Promotion & Full Citizenship | 6/6 | Complete   | 2026-07-02 |
 
 ## Future / v2 (Not in This Roadmap)
 

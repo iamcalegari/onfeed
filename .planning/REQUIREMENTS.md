@@ -40,9 +40,9 @@ Núcleo do MVP: **colar link → receita confiável**. Extensão de browser, car
 
 ### Cidadania no catálogo
 
-- [ ] **RCP-01**: A receita importada é adaptável aos macros do usuário (reusa adaptRecipe)
-- [ ] **RCP-02**: A receita importada pode ter ingredientes faltantes adicionados à lista de compras
-- [ ] **RCP-03**: A receita importada funciona no modo cozinha passo a passo (com timer)
+- [x] **RCP-01**: A receita importada é adaptável aos macros do usuário (reusa adaptRecipe)
+- [x] **RCP-02**: A receita importada pode ter ingredientes faltantes adicionados à lista de compras
+- [x] **RCP-03**: A receita importada funciona no modo cozinha passo a passo (com timer)
 - [x] **RCP-04**: A receita importada aparece nos resultados de busca e no swipe deck com match score I/E/T/N
 
 ### Social, atribuição e promoção
@@ -135,9 +135,9 @@ Mapeamento confirmado pelo roadmapper em `.planning/ROADMAP.md` (2026-07-01).
 | SOC-03 | Phase 5 (Publish, Promotion & Full Citizenship) | Complete |
 | SOC-04 | Phase 5 (Publish, Promotion & Full Citizenship) | Complete |
 | SOC-05 | Phase 5 (Publish, Promotion & Full Citizenship) | Complete |
-| RCP-01 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
-| RCP-02 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
-| RCP-03 | Phase 5 (Publish, Promotion & Full Citizenship) | Pending |
+| RCP-01 | Phase 5 (Publish, Promotion & Full Citizenship) | Complete |
+| RCP-02 | Phase 5 (Publish, Promotion & Full Citizenship) | Complete |
+| RCP-03 | Phase 5 (Publish, Promotion & Full Citizenship) | Complete |
 | RCP-04 | Phase 5 (Publish, Promotion & Full Citizenship) | Complete |
 
 **Coverage:**

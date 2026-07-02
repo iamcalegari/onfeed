@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 5
 current_phase_name: Publish, Promotion & Full Citizenship
-status: executing
+status: verifying
 stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-07-02T19:55:25.498Z"
+last_updated: "2026-07-02T20:02:30.174Z"
 last_activity: 2026-07-02
 last_activity_desc: Phase 5 execution started
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 28
-  completed_plans: 27
-  percent: 80
+  completed_plans: 28
+  percent: 100
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 
 Phase: 5 (Publish, Promotion & Full Citizenship) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-02 — Phase 5 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -70,6 +70,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 05 P03 | 6min | 3 tasks | 8 files |
 | Phase 05 P04 | 25min | 3 tasks | 5 files |
 | Phase 05-publish-promotion-full-citizenship P05 | 6min | 3 tasks | 6 files |
+| Phase 05-publish-promotion-full-citizenship P06 | 20min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -118,6 +119,9 @@ Recent decisions affecting current work:
 - [Phase 05-05]: Sign-in redirect uses the project's existing /sign-in route with a redirect_url query param (Clerk-documented convention) -- no Clerk-hosted modal/openSignIn invented
 - [Phase 05-05]: /r/[token] page duplicates recipe/[id]'s read-only JSX verbatim instead of extracting a shared component -- kept recipe/[id]/page.tsx diff to the single ShareButton getUrl line in files_modified scope
 - [Phase 05-05]: Account-only CTAs (adaptar/registrar no dia/modo cozinha) on the public page are static sign-in-routed links, not the real AdaptButton/AddToPlanButton/LogMealButton components -- those execute real actions with no auth gate and were out of files_modified scope
+- [Phase ?]: [Phase 05-06]: adaptRecipe test mocks at module boundary (RecipeModel/ingredient.service/voyage/anthropic), mirroring recipe.ingestion.test.ts, to exercise the real internal call chain and prove imported-vs-curated insert shape parity
+- [Phase ?]: [Phase 05-06]: SOC-05 verified against promoteImportToPublic's captured $set/filter shape (not.toHaveProperty on source/createdBy/sourceMeta) rather than a before/after object snapshot -- stronger structural guarantee
+- [Phase ?]: [Phase 05-06]: No latent source-special-casing found in adaptRecipe/getRecipeById/persistExtractedRecipe -- D-11 direct reuse confirmed to hold as designed, nothing to flag as a gap
 
 ### Pending Todos
 
@@ -139,6 +143,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-02T19:55:08.590Z
+Last session: 2026-07-02T20:02:30.167Z
 Stopped at: Completed 05-03-PLAN.md
 Resume file: None
