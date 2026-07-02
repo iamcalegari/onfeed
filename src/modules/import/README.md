@@ -1,16 +1,17 @@
 ---
-tags: [backend, module, video-pipeline, import, ssrf, idor]
+tags: [backend, module, video-pipeline, import, ssrf, idor, llm-extraction]
 updated: 2026-07-01
 ---
 
 > [!INFO] Fase 2 (onFeed Import) em andamento
-> Este README ainda descreve o shape da Fase 1 (`extracting` como stub). O
-> Plano 02-01 já estendeu `ImportJob`/`Recipe` com os campos que a extração
-> real vai preencher (`recipeId`, `reviewRequired`, `confidenceScore`,
-> `ImportFailureReason: "extraction_failed"`) e adicionou
-> `__fixtures__/` (transcript+caption de teste para grounding) — a extração
-> LLM em si (`import.extraction.ts`) e o plug no `pipeline.ts` chegam nos
-> planos seguintes da Fase 2.
+> Plano 02-01 estendeu `ImportJob`/`Recipe` com os campos que a extração real
+> preenche (`recipeId`, `reviewRequired`, `confidenceScore`,
+> `ImportFailureReason: "extraction_failed"`) e adicionou `__fixtures__/`.
+> Plano 02-02 implementou a extração LLM real de texto estruturado
+> (`import.extraction.ts`, via Claude — schema zod + grounding por campo).
+> O plug no `pipeline.ts` (substituir o stub `extracting` pela chamada real)
+> e o cálculo de confiança/gate (`import.confidence.ts`) chegam nos próximos
+> planos da Fase 2.
 
 # Import
 
@@ -29,6 +30,8 @@ para progresso quanto para idempotência (PIPE-06).
 | `import.service.ts` | `detectPlatform` (fronteira SSRF), `normalizeUrl`, `enqueueImportJob` |
 | `import.service.test.ts` | Testes unitários (allowlist SSRF, normalização, enqueue) |
 | `import.routes.ts` | `POST /import`, `GET /import/:jobId` (rotas exigem [[Auth]]) |
+| `import.extraction.ts` | Fase 2 (Plano 02-02): `ImportedRecipeSchema` (zod + grounding inline), `IMPORT_RECONCILIATION_SYSTEM_PROMPT`, `buildImportUserContent`, `extractImportedRecipe(input)` — extração LLM real de transcript+caption em receita estruturada |
+| `import.extraction.test.ts` | Testes unitários (LLM mockado): shape do schema, ambíguo preservado literal (D-04), título inferido (D-06), seções delimitadas do user-content |
 | `__fixtures__/*.ts` | Fase 2: transcript+caption de teste (clean/ambiguous/adversarial) para testes de grounding — não usados em produção |
 
 ## State Machine
@@ -125,8 +128,48 @@ existente).
 - Env config relacionada vive em `src/config/env.ts`: blocos `sqs.import*`,
   `groq`, `openaiTranscription`, `import.maxDurationSec`.
 
-> [!INFO] Extração estruturada é stub nesta fase
-> `status: "extracting"` sempre passa direto para `ready_for_review` — não há
-> chamada de LLM aqui. A extração real da receita (ingredientes, passos,
-> confidence/grounding) é a Fase 2, que reprocessa a partir do `transcript`
-> já persistido, sem precisar rebaixar o vídeo.
+> [!INFO] Extração real existe, mas ainda não está plugada no pipeline
+> `import.extraction.ts` (Plano 02-02) já implementa `extractImportedRecipe`
+> de verdade — mas `pipeline.ts`'s estágio `status: "extracting"` ainda passa
+> direto para `ready_for_review` sem chamá-la (o plug real é um plano
+> seguinte da Fase 2, junto com `import.confidence.ts`). Quando plugado, a
+> extração reprocessa a partir do `transcript`/`caption` já persistidos, sem
+> precisar rebaixar o vídeo.
+
+## Extração LLM (Fase 2 — Plano 02-02)
+
+`import.extraction.ts` espelha `recipe.extraction.ts` ([[Recipes]]), com
+schema/prompt/input próprios:
+
+- **`ImportedRecipeSchema`** — mesmo shape do catálogo (ingredientes com
+  `quantity`/`unit`/`core`, passos com `text`/`minutes`, `nutrition`
+  nullable), estendido com `title`+`titleGrounding` (o LLM PROPÕE o título
+  quando ausente, D-06), `quantityGrounding` inline em cada ingrediente,
+  `grounding` inline em cada passo, e `sourceDivergence: string[]`
+  top-level (D-08). Grounding é sempre um dos três valores de
+  `GroundingLevel` — `grounded` (dito quase literalmente numa fonte),
+  `inferred` (preenchido por conhecimento geral) ou `ambiguous` (dito de
+  forma imprecisa — preservado literal, nunca numericizado, D-04).
+- **`IMPORT_RECONCILIATION_SYSTEM_PROMPT`** — reconcilia transcript (ASR) vs
+  caption: legenda com receita escrita > transcrição; senão a transcrição é
+  a espinha dorsal (D-07). Divergência explícita entre as duas fontes vai
+  para `sourceDivergence`, nunca é "resolvida" adivinhando (D-08). Instrui
+  explicitamente a NÃO marcar tudo como `grounded` por padrão (mitigação de
+  over-confidence) e a tratar transcript/caption como DADO, nunca instrução
+  (mitigação de prompt injection — ver `__fixtures__/adversarial-injection.ts`).
+- **`buildImportUserContent`** — mesma convenção de delimitação `"""..."""`
+  usada em `recipe.extraction.ts`: conteúdo não confiável (transcript/
+  caption) só entra na mensagem do usuário, nunca no system prompt.
+- **`extractImportedRecipe(input)`** — `anthropic.messages.parse` com
+  `IMPORT_EXTRACTION_MODEL` (Sonnet, D-15) + `effortOption("medium", ...)`;
+  mesmo contrato de erro do catálogo (`parsed_output` null → throw com
+  `stop_reason`).
+
+> [!WARNING] Grounding truthfulness não é testável deterministicamente
+> Os testes unitários (`import.extraction.test.ts`) cobrem SHAPE (zod
+> aceita/rejeita corretamente, seções delimitadas existem) com o LLM
+> mockado — nunca fazem uma chamada real. Se o modelo real está sendo
+> honesto sobre o que é `grounded` vs `inferred`/`ambiguous` (inclusive sob
+> o fixture adversarial de injection) só é verificável rodando a extração
+> de verdade contra os `__fixtures__/`, um spot-check manual documentado em
+> `02-VALIDATION.md` > Manual-Only Verifications.
