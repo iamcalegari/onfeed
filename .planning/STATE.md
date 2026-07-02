@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 2
-current_phase_name: Structured Extraction & Recipe Persistence
-status: verifying
+current_phase: 03
+current_phase_name: capture-mandatory-review-ui
+status: executing
 stopped_at: Phase 3 plans verified (5 plans, VERIFICATION PASSED)
-last_updated: "2026-07-02T05:02:08.069Z"
+last_updated: "2026-07-02T05:04:38.170Z"
 last_activity: 2026-07-02
-last_activity_desc: Phase 2 execution started
+last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 5
   completed_phases: 2
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-01)
 
 **Core value:** Transformar um vídeo de receita do feed do usuário em uma receita real, correta e acionável (ingredientes com quantidade, passo a passo e dicas fiéis) dentro do onFeed. Se a extração for imprecisa, nada mais importa.
-**Current focus:** Phase 2 — Structured Extraction & Recipe Persistence
+**Current focus:** Phase 03 — capture-mandatory-review-ui
 
 ## Current Position
 
-Phase: 2 (Structured Extraction & Recipe Persistence) — EXECUTING
-Plan: 5 of 5
-Status: Phase complete — ready for verification
-Last activity: 2026-07-02 — Phase 2 execution started
+Phase: 03 (capture-mandatory-review-ui) — EXECUTING
+Plan: 1 of 5
+Status: Executing Phase 03
+Last activity: 2026-07-02 — Phase 03 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
