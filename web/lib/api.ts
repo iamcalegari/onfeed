@@ -338,8 +338,18 @@ export async function subscribePro(
 
 // --- onFeed Import (Fase 3 — captura + revisão obrigatória) ---
 
-/** Inicia a importação de um vídeo (Instagram/TikTok/YouTube). Retorna o jobId para polling. */
-export async function startImport(url: string): Promise<{ jobId: string }> {
+/**
+ * Inicia a importação de um vídeo (Instagram/TikTok/YouTube).
+ *
+ * Retorna uma união discriminada: um 202 novo `{ jobId }` (fluxo normal, vai
+ * pra tela de progresso) ou um 200 de dedup `{ deduped: true, recipeId }`
+ * quando o backend já tem um import bem-sucedido dessa mesma URL para este
+ * usuário (CAP-03) — nesse caso não há job novo, então o caller deve rotear
+ * direto pra receita existente em vez de pro polling.
+ */
+export async function startImport(
+  url: string,
+): Promise<{ jobId: string } | { deduped: true; recipeId: string }> {
   const res = await fetch(`${API_BASE}/api/v1/import`, {
     method: "POST",
     headers: { "content-type": "application/json", ...(await authHeaders()) },
@@ -347,9 +357,16 @@ export async function startImport(url: string): Promise<{ jobId: string }> {
     cache: "no-store",
   });
   if (!res.ok) {
+    // Cobre também o 429 de cota diária excedida — a mensagem do backend já
+    // vem com o upsell PRO (mirror do gate de adapt), reaproveitado aqui sem
+    // UI nova.
     throw new Error(`Import falhou: ${res.status} ${await res.text()}`);
   }
-  return res.json() as Promise<{ jobId: string }>;
+  const body = (await res.json()) as { jobId?: string; deduped?: boolean; recipeId?: string };
+  if (body.deduped && body.recipeId) {
+    return { deduped: true, recipeId: body.recipeId };
+  }
+  return { jobId: body.jobId! };
 }
 
 /** Lê o status atual de um job de importação (usado pelo polling). */

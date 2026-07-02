@@ -102,13 +102,26 @@ export async function rateRecipeAction(
 
 // --- onFeed Import (Fase 3 — captura + revisão obrigatória) ---
 
-/** Inicia a importação de um vídeo — server action chamada pelo formulário de URL. */
+/**
+ * Inicia a importação de um vídeo — server action chamada pelo formulário de
+ * URL. Resultado é uma união discriminada de 3 casos: job novo enfileirado
+ * (fluxo normal), dedup hit (URL já importada com sucesso antes, CAP-03 —
+ * sem job novo, o caller deve rotear pra receita existente), ou erro
+ * (inclui o 429 de cota excedida, cuja mensagem já traz o upsell PRO).
+ */
 export async function startImportAction(
   url: string,
-): Promise<{ ok: true; jobId: string } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; jobId: string }
+  | { ok: true; deduped: true; recipeId: string }
+  | { ok: false; error: string }
+> {
   try {
-    const { jobId } = await startImport(url);
-    return { ok: true, jobId };
+    const result = await startImport(url);
+    if ("deduped" in result) {
+      return { ok: true, deduped: true, recipeId: result.recipeId };
+    }
+    return { ok: true, jobId: result.jobId };
   } catch (e) {
     return {
       ok: false,
