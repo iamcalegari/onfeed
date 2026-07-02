@@ -31,6 +31,7 @@ import { extractImportedRecipe } from "@/modules/import/import.extraction.js";
 import { computeConfidence } from "@/modules/import/import.confidence.js";
 import { mapExtractedToRecipe } from "@/modules/import/import.recipe-mapping.js";
 import { persistExtractedRecipe } from "@/modules/recipes/recipe.ingestion.js";
+import { setThumbnail } from "@/modules/recipes/recipe.repository.js";
 import { refundDailyImportQuota } from "@/modules/usage/usage.repository.js";
 import { DownloadError, downloadVideo, type DownloadFailureReason } from "./ytdlp.downloader.js";
 import { extractAudio } from "./ffmpeg.exec.js";
@@ -315,6 +316,14 @@ export async function processImportJob(job: ImportJob): Promise<void> {
       downloadResult.meta.durationSec,
     );
     const keyframeUrl = await putImage(`imports/${id}/keyframe.jpg`, keyframeBuffer, "image/jpeg");
+
+    // Propaga o keyframe como thumbnail da receita. persistExtractedRecipe (acima)
+    // gravou thumbnailUrl vazio: o keyframe só é extraído AQUI, depois do persist
+    // (D-10 — só sobe ao S3 após a extração LLM ter sucesso), então no momento do
+    // mapExtractedToRecipe o job.keyframeUrl ainda era undefined. Sem este passo a
+    // receita nasce sem imagem e o front cai na geração por IA (que não conhece o
+    // prato e produz thumbnails genéricas — ex.: carbonara virando sopa).
+    await setThumbnail(recipeId, keyframeUrl);
 
     // Custo de embedding acontece dentro de persistExtractedRecipe — esta
     // versão não expõe tokens/dims de volta ao pipeline, então o estágio

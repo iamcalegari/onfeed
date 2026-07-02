@@ -1,6 +1,6 @@
 ---
 tags: [backend, infra, images]
-updated: 2026-06-22
+updated: 2026-07-02
 ---
 
 # Image Service
@@ -30,17 +30,29 @@ ensureThumbnail(recipe)
 
 ## buildPrompt
 
-> [!WARNING] Não incluir o título da receita no prompt
-> Títulos traduzidos literalmente causam hallucinations (ex: "Souris d'Agneau" → imagens de ratos). O prompt usa apenas os ingredientes `core && !isStaple`, limitado a 5.
+> [!INFO] O título da receita ENTRA no prompt (fix jul/2026)
+> Sem o título, só ingredientes soltos geram algo genérico — carbonara (ovo,
+> queijo, guanciale) sem "massa" no prompt virava sopa de ovo. O título dá ao
+> modelo o FORMATO do prato. O risco de traduções literais alucinarem (ex:
+> "Souris d'Agneau" → imagens de ratos), razão da omissão original, é
+> neutralizado pelo `negativePrompt` (animals, mice, rats...). Os ingredientes
+> continuam `core && !isStaple`, limitado a 5.
 
 ```
-prompt: "appetizing realistic food photography, a plated dish made with {ings}, 
+prompt: "appetizing realistic food photography, {title}, a plated dish made with {ings}, 
          natural light, top-down view, neutral linen background, editorial food styling"
 
 negativePrompt: "animals, mice, rats, insects, people, faces, cartoon, 
                  illustration, text, watermark, logo, blurry, raw uncooked meat,
                  unrelated ingredients, random garnish"
 ```
+
+> [!TIP] Receitas importadas usam o keyframe do vídeo, não o Bedrock
+> Para `source: "imported"`, a thumbnail primária é o keyframe real extraído
+> do vídeo (`pipeline.ts` → `setThumbnail`, ver [[Video Infra]]) — a geração
+> por IA daqui é só o fallback quando não há keyframe. Backfill de receitas
+> antigas: `src/scripts/backfill-imported-thumbnails.ts` (dry-run por padrão,
+> `APPLY=1` grava).
 
 ## Modelos Bedrock
 

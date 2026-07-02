@@ -60,6 +60,17 @@ documento [[Import|ImportJob]], consumida por [[Workers|import-worker.ts]].
 > de origem (plataforma, URL, @ do autor) — nunca o vídeo/áudio em si
 > (postura legal: não re-hospedar mídia de terceiros).
 
+> [!WARNING] Keyframe → `recipe.thumbnailUrl` via `setThumbnail` (fix jul/2026)
+> O keyframe só é extraído DEPOIS de `persistExtractedRecipe` (D-10 — nada
+> sobe ao S3 antes de a extração LLM ter sucesso), então no momento do
+> `mapExtractedToRecipe` o `job.keyframeUrl` ainda é `undefined` e a receita
+> nasce com `thumbnailUrl: ""`. Por isso `pipeline.ts` chama
+> `setThumbnail(recipeId, keyframeUrl)` logo após o `putImage` — sem esse
+> passo, o frame real do vídeo era pago em S3 e descartado, e o front caía na
+> geração por IA (que não conhece o prato — carbonara virava sopa de ovo).
+> Backfill de receitas anteriores ao fix:
+> `src/scripts/backfill-imported-thumbnails.ts`.
+
 > [!TIP] Fallback Groq→OpenAI e o skip de "sem fala" (D-04, D-06)
 > `transcription.port.ts` tenta Groq (`whisper-large-v3-turbo`, primário)
 > primeiro; qualquer falha (erro de rede, tamanho de arquivo, resposta

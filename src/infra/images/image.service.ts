@@ -38,9 +38,14 @@ function buildPrompt(recipe: Pick<Recipe, "title" | "ingredients" | "occasions">
     : recipe.ingredients.filter((i) => !i.isStaple)
   ).slice(0, 5).map((i) => i.name);
 
-  // Não inclui recipe.title no prompt: títulos traduzidos literalmente
-  // (ex: "souris d'agneau" → "mice") causam hallucinations no modelo.
+  // Inclui o nome do prato (recipe.title): sem ele, só ingredientes soltos geram
+  // algo genérico — carbonara (ovo, queijo, guanciale) sem "massa" no prompt vira
+  // sopa de ovo. O título dá ao modelo o FORMATO do prato. O negativePrompt abaixo
+  // (animals, mice, rats) neutraliza o risco de traduções literais estranhas
+  // (ex: "souris d'agneau" → "mice"), que era a razão de o título ter sido omitido.
   const ingList = ings.join(", ");
+  const dish = recipe.title?.trim();
+  const dishPrefix = dish ? `${dish}, ` : "";
   const isDrink = recipe.occasions?.includes("drinks");
 
   let subject: string;
@@ -52,19 +57,19 @@ function buildPrompt(recipe: Pick<Recipe, "title" | "ingredients" | "occasions">
     const isHot = hotKeywords.test(recipe.title);
     if (isHot) {
       subject = ingList
-        ? `a hot drink in a mug or cup, made with ${ingList}`
-        : "a cozy hot beverage in a ceramic mug";
+        ? `${dishPrefix}a hot drink in a mug or cup, made with ${ingList}`
+        : `${dishPrefix}a cozy hot beverage in a ceramic mug`;
       prompt = `appetizing realistic beverage photography, ${subject}, steam rising, natural light, 3/4 angle view, warm neutral background, editorial food styling`;
     } else {
       subject = ingList
-        ? `a refreshing cold drink in a glass, made with ${ingList}`
-        : "a refreshing homemade cold drink in a glass";
+        ? `${dishPrefix}a refreshing cold drink in a glass, made with ${ingList}`
+        : `${dishPrefix}a refreshing homemade cold drink in a glass`;
       prompt = `appetizing realistic beverage photography, ${subject}, condensation on glass, natural light, 3/4 angle view, neutral marble or linen background, editorial food styling`;
     }
   } else {
     subject = ingList
-      ? `a plated dish made with ${ingList}`
-      : "a plated homemade dish";
+      ? `${dishPrefix}a plated dish made with ${ingList}`
+      : `${dishPrefix}a plated homemade dish`;
     prompt = `appetizing realistic food photography, ${subject}, natural light, top-down view, neutral linen background, editorial food styling`;
   }
 
