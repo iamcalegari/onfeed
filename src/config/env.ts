@@ -95,6 +95,34 @@ export const env = {
   sqs: {
     queueUrl: optional("SQS_INGEST_QUEUE_URL", ""),
     enabled: Boolean(process.env.SQS_INGEST_QUEUE_URL),
+    // Fila dedicada de import (onFeed Import) — separada da fila de ingest
+    // de dataset, com DLQ próprio (ver PIPE-06).
+    importQueueUrl: optional("SQS_IMPORT_QUEUE_URL", ""),
+    importDlqUrl: optional("SQS_IMPORT_DLQ_URL", ""),
+    importEnabled: Boolean(process.env.SQS_IMPORT_QUEUE_URL),
+  },
+
+  // Transcrição primária (Groq whisper-large-v3-turbo). Opcional+enabled
+  // (não required()): o worker é um deployable separado da API, e uma key
+  // ausente deve falhar UM job (transcription_failed) em vez de derrubar
+  // o processo inteiro no boot — mesma postura do mp.enabled.
+  groq: {
+    apiKey: optional("GROQ_API_KEY", ""),
+    model: optional("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo"),
+    enabled: Boolean(process.env.GROQ_API_KEY),
+  },
+
+  // Transcrição fallback (OpenAI Whisper), acionada só se Groq falhar.
+  openaiTranscription: {
+    apiKey: optional("OPENAI_API_KEY", ""),
+    enabled: Boolean(process.env.OPENAI_API_KEY),
+  },
+
+  // Limites do pipeline de import.
+  import: {
+    // Teto de duração de vídeo aceito (segundos) — mitigação de DoS por
+    // download/transcrição de vídeos desproporcionalmente longos (~10min).
+    maxDurationSec: Number(optional("IMPORT_MAX_DURATION_SEC", "600")),
   },
 
   // Thumbnails (Bedrock + S3 + CloudFront). Tudo opcional: sem bucket/região,

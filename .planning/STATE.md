@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 1
 current_phase_name: Video Pipeline Foundation
-status: planning
-stopped_at: Phase 1 context gathered
-last_updated: "2026-07-01T17:43:38.358Z"
+status: executing
+stopped_at: Phase 2 context gathered
+last_updated: "2026-07-02T01:35:34.983Z"
 last_activity: 2026-07-01
-last_activity_desc: ROADMAP.md created for onFeed Import milestone; 31/31 v1 requirements mapped
+last_activity_desc: Phase 1 execution started
 progress:
   total_phases: 5
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 6
+  completed_plans: 6
+  percent: 20
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 
 ## Current Position
 
-Phase: 1 of 5 (Video Pipeline Foundation)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-07-01 — ROADMAP.md created for onFeed Import milestone; 31/31 v1 requirements mapped
+Phase: 1 (Video Pipeline Foundation) — EXECUTING
+Plan: 6 of 6
+Status: Ready to execute
+Last activity: 2026-07-01 — Phase 1 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -55,6 +55,10 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 01-video-pipeline-foundation P01 | 35min | 3 tasks | 10 files |
+| Phase 01 P03 | 45min | 3 tasks | 12 files |
+| Phase 01-video-pipeline-foundation P04 | 40min | 3 tasks | 6 files |
+| Phase 01 P05 | 50min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -66,6 +70,17 @@ Recent decisions affecting current work:
 - Roadmap: Import worker deploys as a Render Background Worker (`src/workers/import-worker.ts`), not Lambda — Python/native-binary toolchain (yt-dlp/ffmpeg/Whisper) and variable-duration jobs exceed Lambda's 15-min ceiling.
 - Roadmap: Phase order is risk-ordered (infra risk → extraction quality risk → UX → cost safety → promotion), not feature-ordered — de-risks the least-familiar piece (video pipeline/worker topology) first.
 - Roadmap: Public promotion (Phase 5) gates on confidence AND likes together, not likes alone — prevents low-confidence imports from reaching the public catalog via popularity alone.
+- [Phase 1]: Groq/OpenAI transcription keys use optional()+enabled (not required()) so a missing key fails one job, not the whole worker boot
+- [Phase 1]: ImportJobMessage carries only { jobId } — the Mongo ImportJob doc is the sole source of truth for progress/idempotency (PIPE-06)
+- [Phase 1]: Repository unit test mocks ImportJobModel instead of requiring a live Mongo connection — no test container introduced this phase
+- [Phase 1]: ImportJobModel allowedMethods includes METHODS.UPDATE for atomic in-place status transitions, unlike FavoriteModel
+- [Phase ?]: youtube-dl-exec named export (youtubeDl) used instead of default export — CJS/NodeNext callable-type mismatch
+- [Phase ?]: youtube-dl-exec install requires YOUTUBE_DL_SKIP_DOWNLOAD=true locally (postinstall binary fetch timeout); real binary guaranteed by worker Dockerfile (Plan 06)
+- [Phase ?]: Groq->OpenAI transcription fallback is a runtime try/catch in transcribe(), never an env-time swap; size guard (25MB) routes oversized audio straight to OpenAI
+- [Phase 01-04]: getImportJob(jobId, userId?) uses an optional second param for ownership-scoped queries, blocking IDOR on GET /import/:jobId while preserving existing single-arg callers
+- [Phase 01-04]: detectPlatform stays a strict SSRF allowlist (platform | null); a route-layer classifyRejectionReason helper distinguishes invalid_url vs unsupported_platform for CAP-02's specific-error requirement
+- [Phase ?]: DownloadFailureReason (yt-dlp error vocabulary) explicitly mapped to ImportFailureReason (ImportJob state vocabulary) via toImportFailureReason() in pipeline.ts — the two unions diverge in purpose and are never assumed to be the same type
+- [Phase ?]: handleMessage acks (returns) the SQS message on both real success and idempotent no-op; only a thrown error triggers processing_error and leaves the message for DLQ redrive
 
 ### Pending Todos
 
@@ -86,6 +101,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-01T17:43:38.339Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-video-pipeline-foundation/01-CONTEXT.md
+Last session: 2026-07-02T01:35:34.967Z
+Stopped at: Phase 2 context gathered
+Resume file: .planning/phases/02-structured-extraction-recipe-persistence/02-CONTEXT.md

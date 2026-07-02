@@ -59,3 +59,62 @@ services:
       # Definido após deploy do CloudFront (infra/scripts/bootstrap.sh imprime)
       - key: IMAGES_CDN_DOMAIN
         sync: false
+      # Definido após rodar `npm run setup:import-queue` (fila de import do worker)
+      - key: SQS_IMPORT_QUEUE_URL
+        sync: false
+
+  # Background Worker (não HTTP) — baixa/transcreve/extrai keyframe de vídeos
+  # importados (Fase 1). Dockerfile dedicado porque o toolchain Python+ffmpeg+
+  # yt-dlp não existe na imagem da API (onfeed-api acima).
+  - type: worker
+    name: onfeed-import-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile.import-worker
+    dockerContext: .
+    # Starter para validação inicial (baixo volume esperado no MVP). Standard
+    # ($25/mês) é o tier realista de produção — ffmpeg/yt-dlp são CPU-bound e
+    # 0.5 CPU é apertado para jobs concorrentes (ver 01-RESEARCH.md Pitfall 5).
+    plan: starter
+    region: oregon       # mesma região da API
+    autoDeploy: true
+    branch: main
+    # Sem healthCheckPath: workers não expõem porta HTTP.
+
+    envVars:
+      # ── Não-sensíveis ────────────────────────────────────────────────────
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_DB_NAME
+        value: recipes_on_demand
+      - key: AWS_REGION
+        value: us-east-1
+      - key: IMAGES_S3_BUCKET
+        value: on-feed-recipes-dev
+      # Concorrência do p-queue dentro do worker (jobs simultâneos de
+      # download+ffmpeg+transcrição) — cap conservador para o plano starter.
+      - key: IMPORT_WORKER_CONCURRENCY
+        value: "2"
+
+      # ── Sensíveis: defina no dashboard do Render (sync: false = não versionado)
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_USERNAME
+        sync: false
+      - key: MONGODB_PASSWORD
+        sync: false
+      # Credenciais IAM para acessar S3 (keyframe upload) e SQS (sem instance
+      # role no Render).
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      # Definidas após `npm run setup:import-queue`.
+      - key: SQS_IMPORT_QUEUE_URL
+        sync: false
+      - key: SQS_IMPORT_DLQ_URL
+        sync: false
+      # Transcrição: Groq (primário) + OpenAI (fallback) — D-04.
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
