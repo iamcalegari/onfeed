@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Video Pipeline Foundation** - ImportJob state machine + yt-dlp/ffmpeg/Whisper adapters proven end-to-end on a deployed Render Background Worker, extraction stubbed (completed 2026-07-02)
 - [x] **Phase 2: Structured Extraction & Recipe Persistence** - Claude turns transcript+caption into a confidence-graded structured recipe, persisted as the user's first private imported recipe (completed 2026-07-02)
-- [ ] **Phase 3: Capture & Mandatory Review UI** - Paste-link entry point, live status polling, and a mandatory review/edit screen before any recipe is considered saved
+- [x] **Phase 3: Capture & Mandatory Review UI** - Paste-link entry point, live status polling, and a mandatory review/edit screen before any recipe is considered saved (completed 2026-07-02)
 - [ ] **Phase 4: Cost/Quota Gating & Dedup** - Quota reserved at submission, duplicate URLs served from cache, per-stage cost telemetry live before real volume
 - [ ] **Phase 5: Publish, Promotion & Full Citizenship** - Private recipe gets a shareable link, likes drive promotion (gated on confidence too), and imported recipes behave like any other recipe across search, macros, shopping list, and cook mode
 
@@ -82,11 +82,13 @@ Plans:
 
 **Plans**: 5 plans
 Plans:
-- [ ] 03-01-PLAN.md — Backend confirm/edit: Recipe.confirmedAt (BSON+type+setup:db), PATCH /import/:jobId/recipe, GET /import/mine, ImportRecipeEditSchema, confirm-gate tests
-- [ ] 03-02-PLAN.md — GET /recipes/:id visibility guard (private import owner-only via importJobId→ImportJob.userId) + test
-- [ ] 03-03-PLAN.md — Frontend plumbing: import types, api.ts/actions.ts wrappers, useImportPolling hook, GroundingBadge
-- [ ] 03-04-PLAN.md — Capture entry (/import + PasteLinkButton) + live progress (/import/[jobId] + ImportProgress) + TopBar nav
-- [ ] 03-05-PLAN.md — Mandatory review screen (/import/[jobId]/review + ImportReviewForm) + Minhas importações (/import/mine + ImportsList)
+
+- [x] 03-01-PLAN.md — Backend confirm/edit: Recipe.confirmedAt (BSON+type+setup:db), PATCH /import/:jobId/recipe, GET /import/mine, ImportRecipeEditSchema, confirm-gate tests
+- [x] 03-02-PLAN.md — GET /recipes/:id visibility guard (private import owner-only via importJobId→ImportJob.userId) + test
+- [x] 03-03-PLAN.md — Frontend plumbing: import types, api.ts/actions.ts wrappers, useImportPolling hook, GroundingBadge
+- [x] 03-04-PLAN.md — Capture entry (/import + PasteLinkButton) + live progress (/import/[jobId] + ImportProgress) + TopBar nav
+- [x] 03-05-PLAN.md — Mandatory review screen (/import/[jobId]/review + ImportReviewForm) + Minhas importações (/import/mine + ImportsList)
+
 **UI hint**: yes
 
 ### Phase 4: Cost/Quota Gating & Dedup
@@ -127,7 +129,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Video Pipeline Foundation | 6/6 | Complete   | 2026-07-02 |
 | 2. Structured Extraction & Recipe Persistence | 5/5 | Complete   | 2026-07-02 |
-| 3. Capture & Mandatory Review UI | 0/5 | Not started | - |
+| 3. Capture & Mandatory Review UI | 5/5 | Complete    | 2026-07-02 |
 | 4. Cost/Quota Gating & Dedup | 0/TBD | Not started | - |
 | 5. Publish, Promotion & Full Citizenship | 0/TBD | Not started | - |
 

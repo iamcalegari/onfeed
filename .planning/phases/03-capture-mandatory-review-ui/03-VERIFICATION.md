@@ -1,26 +1,32 @@
 ---
 phase: 03-capture-mandatory-review-ui
 verified: 2026-07-02T03:00:00Z
-status: human_needed
+status: passed
 score: 5/5 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
+
   - test: "Clipboard 'Colar link' read under gesture + Safari/denied silent fallback"
     expected: "Chrome: copy a video URL, open /import, click 'Colar link' → field pre-fills. Safari/denied permission: click 'Colar link' → NO red error is shown; long-press paste / native onPaste still fills the field."
     why_human: "Clipboard permission behavior is browser/OS-dependent and cannot be simulated in Vitest/node (03-VALIDATION.md Manual-Only)."
+
   - test: "Grounding badge honesty against the risoto Short fixture"
     expected: "Title shows 'Confira isto — inferido'; 'a gosto' quantity shows 'Confira isto — impreciso'; explicitly spoken ingredients render with no badge (neutral)."
     why_human: "Judges the LLM extraction's real grounding output against the video content — a schema/shape check cannot prove semantic truthfulness (same category of item flagged in 02-VERIFICATION.md)."
+
   - test: "No-persist-until-confirm: edit a field, navigate away WITHOUT confirming, reopen via /import/mine"
     expected: "The edit is gone; the item still shows 'Em revisão' (reviewRequired still true, confirmedAt absent) — nothing was written to the DB by the edit alone."
     why_human: "Requires observing DB state across navigation in a running app; not visible via static code analysis alone (though the code review below found no auto-save code path)."
+
   - test: "Progress screen worker-down timeout UX"
     expected: "Stop the import worker, submit an import, watch the progress screen sit at 'Na fila'; after POLL_TIMEOUT_MS (10 min) it shows 'Isso está demorando mais que o esperado' with 'Continuar esperando' / 'Tentar outra URL' — never an indefinite silent spinner."
     why_human: "Requires an operational state (worker down) that is not a pure code path; timing-dependent (10 min real wait)."
+
   - test: "Failure path with a real blocked/unsupported URL"
     expected: "Progress screen reaches 'failed' and shows the mapped ImportFailureReason copy with a 'Tentar outra URL' action."
     why_human: "Requires a real failing download against yt-dlp/the platform; not simulable from static code."
+
   - test: "End-to-end live-DB confirm: npm run setup:db, then a real POST /import → ready_for_review → PATCH confirm → GET /import/mine shows 'Confirmada'"
     expected: "After running the pending human gate (npm run setup:db to sync Recipe.confirmedAt to the live Atlas validator), a real confirm write does not raise DocumentValidationFailure, and the createdBy fix (03-05) makes the confirmed recipe show up in 'Minhas importações'."
     why_human: "Task 2 of 03-01 is an explicit blocking-human gate (mutates the live Atlas schema validator) that was correctly never auto-run by the executor — automated tests use mocked Models and are unaffected, but this is the one remaining step before a REAL (non-mocked) confirm write succeeds end-to-end."
