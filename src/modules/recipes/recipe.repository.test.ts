@@ -76,9 +76,23 @@ describe("hybridSearch — owner-scoped $vectorSearch filter (D-14 / T-02-06)", 
     expect(vectorStage.$vectorSearch.filter.$or).toBeUndefined();
   });
 
-  it("DEFAULTS.sources (exported as DEFAULT_SEARCH_SOURCES) does not contain 'imported'", () => {
-    expect(DEFAULT_SEARCH_SOURCES).toEqual(["curated", "generated_validated", "variant", "user"]);
-    expect(DEFAULT_SEARCH_SOURCES).not.toContain("imported");
+  it("DEFAULTS.sources (exported as DEFAULT_SEARCH_SOURCES) includes 'imported' (Fase 5, D-10/D-14 — safe because the visibility guard below is unconditional)", () => {
+    expect(DEFAULT_SEARCH_SOURCES).toEqual([
+      "curated",
+      "generated_validated",
+      "variant",
+      "user",
+      "imported",
+    ]);
+    expect(DEFAULT_SEARCH_SOURCES).toContain("imported");
+  });
+
+  it("without ownerId, the filter unconditionally excludes visibility:private even though 'imported' is now in the source set (Fase 5 leak guard)", async () => {
+    await hybridSearch(minimalParams());
+
+    const [pipeline] = aggregate.mock.calls[0] as [Array<Record<string, unknown>>];
+    const vectorStage = pipeline[0] as { $vectorSearch: { filter: Record<string, unknown> } };
+    expect(vectorStage.$vectorSearch.filter.visibility).toEqual({ $ne: "private" });
   });
 
   it("cross-user isolation: user A's private imported recipe filter matches only createdBy.userId === A, never B", async () => {
