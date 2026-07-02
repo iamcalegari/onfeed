@@ -15,6 +15,7 @@ import { billingRoutes } from "@/modules/billing/billing.routes.js";
 import { mealplanRoutes } from "@/modules/mealplan/mealplan.routes.js";
 import { favoriteRoutes } from "@/modules/favorites/favorite.routes.js";
 import { ingredientRoutes } from "@/modules/ingredients/ingredient.routes.js";
+import { importRoutes } from "@/modules/import/import.routes.js";
 import { likeRoutes } from "@/modules/likes/like.routes.js";
 import { ratingRoutes } from "@/modules/ratings/rating.routes.js";
 import { pantryRoutes } from "@/modules/pantry/pantry.routes.js";
@@ -58,6 +59,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(ratingRoutes, { prefix: "/api/v1" });
   await app.register(billingRoutes, { prefix: "/api/v1" });
   await app.register(mealplanRoutes, { prefix: "/api/v1" });
+  await app.register(importRoutes, { prefix: "/api/v1" });
 
   return app;
 }

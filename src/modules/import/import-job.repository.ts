@@ -22,8 +22,23 @@ export async function createImportJob(
   } as never) as unknown as Promise<ImportJob>;
 }
 
-/** Busca um ImportJob por id; retorna null se não existir. */
-export async function getImportJob(jobId: string): Promise<ImportJob | null> {
+/**
+ * Busca um ImportJob por id.
+ *
+ * Quando `userId` é informado, a query é escopada por AMBOS os campos
+ * (`_id` + `userId`) no próprio filtro Mongo — não busca-e-compara depois.
+ * Isso é a mitigação de IDOR de GET /import/:jobId (T-04-02): um usuário
+ * que não é dono recebe o mesmo `null` de "não existe", sem vazar a
+ * existência do job de outro usuário.
+ */
+export async function getImportJob(
+  jobId: string,
+  userId?: string,
+): Promise<ImportJob | null> {
+  if (userId) {
+    const job = await ImportJobModel.find({ _id: new ObjectId(jobId), userId } as never);
+    return (job as ImportJob | null) ?? null;
+  }
   const job = await ImportJobModel.findById(jobId);
   return (job as ImportJob | null) ?? null;
 }
