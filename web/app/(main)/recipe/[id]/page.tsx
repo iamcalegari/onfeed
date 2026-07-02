@@ -225,6 +225,14 @@ export default async function RecipePage({
           <ShareButton
             title={recipe.title}
             text={`Receita de ${recipe.title} no onFeed`}
+            // Import privado ainda não promovido: compartilha o link do
+            // token (/r/[shareSlug]), não a URL autenticada /recipe/[id]
+            // (SOC-02) — em qualquer outro caso segue o default (própria URL).
+            getUrl={
+              recipe.visibility === "private" && recipe.shareSlug
+                ? () => `${window.location.origin}/r/${recipe.shareSlug}`
+                : undefined
+            }
             className="flex h-9 w-9 items-center justify-center rounded-full border border-areia bg-white/90 text-carvao/50 transition-colors hover:text-carvao"
           />
         </div>

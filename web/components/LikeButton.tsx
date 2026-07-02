@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { toggleLikeAction } from "@/app/actions";
@@ -15,12 +16,21 @@ export function LikeButton({
   initialCount: number;
   canLike: boolean;
 }) {
+  const router = useRouter();
   const [liked,   setLiked]   = useState(initialLiked);
   const [count,   setCount]   = useState(initialCount);
   const [pending, startTransition] = useTransition();
 
   function toggle() {
-    if (!canLike || pending) return;
+    if (pending) return;
+    // Deslogado: curtir exige conta (D-01) — redireciona pro sign-in em vez
+    // de no-op silencioso, e volta pra página atual depois de autenticar.
+    if (!canLike) {
+      const returnTo =
+        typeof window !== "undefined" ? window.location.pathname : "/";
+      router.push(`/sign-in?redirect_url=${encodeURIComponent(returnTo)}`);
+      return;
+    }
     const nextLiked = !liked;
     const nextCount = Math.max(0, count + (nextLiked ? 1 : -1));
     setLiked(nextLiked);
