@@ -30,8 +30,11 @@ services:
         value: stability.stable-image-core-v1:1
       - key: AWS_REGION
         value: us-east-1
+      # Lista separada por vírgula (env.ts faz split → array no plugin CORS).
+      # Mantém onfeed.vercel.app durante a migração de domínio; remova depois
+      # que onfeed.app estiver estável.
       - key: FRONTEND_ORIGIN
-        value: https://onfeed.vercel.app
+        value: https://onfeed.app,https://www.onfeed.app,https://onfeed.vercel.app
 
       # ── Sensíveis: defina no dashboard do Render (sync: false = não versionado)
       - key: MONGODB_URI

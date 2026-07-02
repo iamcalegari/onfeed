@@ -102,7 +102,7 @@
 
 - Vercel - Next.js frontend
   - Deployment: Auto-deploy from git (typical Vercel setup)
-  - URL: `https://onfeed.vercel.app` (CORS origin)
+  - URL: `https://onfeed.app` (custom domain via GoDaddy; `www.onfeed.app` + `onfeed.vercel.app` also allowed as CORS origins during migration)
   - Environment: Node.js runtime managed by Vercel
 
 **Worker (Async Ingestion):**
