@@ -20,10 +20,11 @@
  * novo) — `persistExtractedRecipe` é atômico (insere tudo ou lança, nunca
  * meia-receita), então a falha nunca deixa um recipeId pendurado no job.
  */
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import { env } from "@/config/env.js";
 import { updateImportJobStatus } from "@/modules/import/import-job.repository.js";
 import type { ImportFailureReason, ImportJob } from "@/modules/import/import-job.types.js";
 import { extractImportedRecipe } from "@/modules/import/import.extraction.js";
@@ -98,6 +99,32 @@ function logOutcome(entry: {
 }
 
 /**
+ * Helpers puros de custo (COST-02, D-08) — bytes/minutos/tokens brutos →
+ * centavos estimados, SEMPRE via a tabela de preço de `env.import` (Plano
+ * 03), NUNCA uma constante hardcoded aqui. Os valores em si são estimativas
+ * de baixa confiança para acompanhamento operacional (ver comentário em
+ * env.ts) — as unidades brutas são a fonte de verdade durável.
+ */
+function downloadBytesToCents(bytes: number): number {
+  return (bytes / 1e9) * env.import.priceCentsPerGbEgress;
+}
+
+function asrMinutesToCents(minutes: number, source: "groq" | "openai"): number {
+  const perMinute =
+    source === "openai"
+      ? env.import.priceCentsPerAsrMinuteOpenai
+      : env.import.priceCentsPerAsrMinuteGroq;
+  return minutes * perMinute;
+}
+
+function llmTokensToCents(inputTokens: number, outputTokens: number): number {
+  return (
+    (inputTokens / 1e6) * env.import.priceCentsPerMtokLlmInput +
+    (outputTokens / 1e6) * env.import.priceCentsPerMtokLlmOutput
+  );
+}
+
+/**
  * Marca o job como failed com um failureReason classificado + mensagem
  * segura ao usuário. Não lança — quem chama decide se deve rethrow (retry
  * transiente) ou retornar (falha explícita, sem retry imediato).
@@ -129,6 +156,11 @@ export async function processImportJob(job: ImportJob): Promise<void> {
   const startedAt = Date.now();
   const jobDir = await mkdtemp(path.join(tmpdir(), `import-${id}-`));
 
+  // Acumulador local de custo por-estágio (COST-02) — persistido no doc na
+  // fronteira de sucesso (ready_for_review); nunca reescrito por um novo
+  // mecanismo de escrita, sempre via updateImportJobStatus já existente.
+  const costCents: NonNullable<ImportJob["costCents"]> = {};
+
   try {
     // 1. Circuit breaker check — falha rápido sem tentar download.
     if (isOpen(job.platform)) {
@@ -144,6 +176,11 @@ export async function processImportJob(job: ImportJob): Promise<void> {
     try {
       downloadResult = await downloadVideo(job.sourceUrl, videoPath);
       recordOutcome(job.platform, true);
+      const { size: downloadBytes } = await stat(downloadResult.videoPath);
+      costCents.download = {
+        bytes: downloadBytes,
+        cents: downloadBytesToCents(downloadBytes),
+      };
     } catch (err) {
       recordOutcome(job.platform, false);
       const downloadReason: DownloadFailureReason =
@@ -185,11 +222,17 @@ export async function processImportJob(job: ImportJob): Promise<void> {
       // D-06/PIPE-02: clipe majoritariamente silencioso/música — pula a
       // chamada paga de ASR em vez de arriscar transcrição alucinada.
       noSpeechDetected = true;
+      costCents.transcription = { minutes: 0, cents: 0 };
     } else {
       try {
         const result = await transcribe(audioPath);
         transcript = result.text;
         transcriptSource = result.source;
+        const asrMinutes = durationSec / 60;
+        costCents.transcription = {
+          minutes: asrMinutes,
+          cents: asrMinutesToCents(asrMinutes, result.source),
+        };
       } catch (err) {
         if (err instanceof TranscriptionError) {
           await failJob(job, "transcription_failed", String(err));
@@ -220,11 +263,16 @@ export async function processImportJob(job: ImportJob): Promise<void> {
     let reviewRequired: boolean;
     let confidenceScore: number;
     try {
-      const extracted = await extractImportedRecipe({
+      const { recipe: extracted, usage } = await extractImportedRecipe({
         ...(transcript !== undefined && { transcript }),
         ...(downloadResult.meta.caption !== undefined && { caption: downloadResult.meta.caption }),
         noSpeechDetected,
       });
+      costCents.extraction = {
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        cents: llmTokensToCents(usage.inputTokens, usage.outputTokens),
+      };
       const confidence = computeConfidence(extracted, { noSpeechDetected });
       const { input, extracted: mappedExtracted, options } = mapExtractedToRecipe(
         extracted,
@@ -256,6 +304,16 @@ export async function processImportJob(job: ImportJob): Promise<void> {
     );
     const keyframeUrl = await putImage(`imports/${id}/keyframe.jpg`, keyframeBuffer, "image/jpeg");
 
+    // Custo de embedding acontece dentro de persistExtractedRecipe — esta
+    // versão não expõe tokens/dims de volta ao pipeline, então o estágio
+    // embedding fica omitido (undefined) em vez de re-derivado por heurística
+    // ou de logar o payload (D-08). totalCents soma só os estágios conhecidos.
+    costCents.totalCents =
+      (costCents.download?.cents ?? 0) +
+      (costCents.transcription?.cents ?? 0) +
+      (costCents.extraction?.cents ?? 0) +
+      (costCents.embedding?.cents ?? 0);
+
     // 6. ready_for_review — o ÚNICO terminal de sucesso (EXT-05); nunca um
     // status público/publicado a partir daqui.
     await updateImportJobStatus(id, {
@@ -264,7 +322,22 @@ export async function processImportJob(job: ImportJob): Promise<void> {
       recipeId,
       reviewRequired,
       confidenceScore,
+      costCents,
     });
+
+    // Telemetria de custo agregada (COST-02, D-08) — SÓ números (bytes,
+    // minutos, tokens, centavos), NUNCA transcript/caption/payload do LLM.
+    console.log(
+      "[pipeline] cost",
+      JSON.stringify({
+        platform: job.platform,
+        downloadBytes: costCents.download?.bytes,
+        asrMinutes: costCents.transcription?.minutes,
+        llmInputTokens: costCents.extraction?.inputTokens,
+        llmOutputTokens: costCents.extraction?.outputTokens,
+        totalCents: costCents.totalCents,
+      }),
+    );
 
     logOutcome({ platform: job.platform, outcome: "success", durationMs: Date.now() - startedAt });
   } finally {
