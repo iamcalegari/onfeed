@@ -3,6 +3,15 @@ tags: [backend, module, video-pipeline, import, ssrf, idor]
 updated: 2026-07-01
 ---
 
+> [!INFO] Fase 2 (onFeed Import) em andamento
+> Este README ainda descreve o shape da Fase 1 (`extracting` como stub). O
+> Plano 02-01 já estendeu `ImportJob`/`Recipe` com os campos que a extração
+> real vai preencher (`recipeId`, `reviewRequired`, `confidenceScore`,
+> `ImportFailureReason: "extraction_failed"`) e adicionou
+> `__fixtures__/` (transcript+caption de teste para grounding) — a extração
+> LLM em si (`import.extraction.ts`) e o plug no `pipeline.ts` chegam nos
+> planos seguintes da Fase 2.
+
 # Import
 
 Pipeline de import de receita a partir de vídeo (Instagram/TikTok/YouTube). O
@@ -20,6 +29,7 @@ para progresso quanto para idempotência (PIPE-06).
 | `import.service.ts` | `detectPlatform` (fronteira SSRF), `normalizeUrl`, `enqueueImportJob` |
 | `import.service.test.ts` | Testes unitários (allowlist SSRF, normalização, enqueue) |
 | `import.routes.ts` | `POST /import`, `GET /import/:jobId` (rotas exigem [[Auth]]) |
+| `__fixtures__/*.ts` | Fase 2: transcript+caption de teste (clean/ambiguous/adversarial) para testes de grounding — não usados em produção |
 
 ## State Machine
 
@@ -34,6 +44,10 @@ queued → downloading → transcribing → extracting → ready_for_review
   `rate_limited` — relevantes ao circuit breaker de [[PIPE-07]]).
 - `noSpeechDetected: true` não é necessariamente falha (D-06) — significa que o
   transcript está ausente/não confiável por design, não um bug.
+- Fase 2 (Plano 02-01): `ImportJob` ganhou `recipeId?`, `reviewRequired?`,
+  `confidenceScore?` (preenchidos após a extração real persistir a receita) e
+  `ImportFailureReason` ganhou `"extraction_failed"` (LLM não retornou
+  `parsed_output`). O plug real ainda não existe — só o shape.
 
 > [!TIP] Idempotência via _id
 > A mensagem SQS carrega só `{ jobId }` (o `_id` do Mongo, gerado pelo

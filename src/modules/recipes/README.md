@@ -1,6 +1,6 @@
 ---
 tags: [backend, module, core]
-updated: 2026-06-22
+updated: 2026-07-01
 ---
 
 # Recipes
@@ -20,6 +20,7 @@ Módulo central do sistema. Gerencia o catálogo de receitas, o pipeline de inge
 | `recipe.routes.ts` | Rotas REST: GET `/recipes/:id`, POST `/recipes/adapt`, POST `/recipes/:id/thumbnail/trigger` |
 | `recipe.batch-ingestion.ts` | Versão batch usando Anthropic Batches API (mais barato para volume alto) |
 | `recipe.sample-data.ts` | Fixtures para desenvolvimento local |
+| `recipe.ingestion.test.ts` | Fase 2: cobertura de `persistExtractedRecipe` (canonicalização/embedding reuse, default de `visibility`, threading de grounding) |
 
 ## Modelo de Dados
 
@@ -37,11 +38,24 @@ Recipe {
   ingredients: RecipeIngredient[]
   steps: RecipeStep[]    // cada step tem text + minutes (para o StepTimer)
   nutrition?: Nutrition  // calorias, proteína, carb, gordura — dimensão N
-  source: RecipeSource   // curated | generated_pending | generated_validated | user
+  source: RecipeSource   // curated | generated_pending | generated_validated | user | imported
+  visibility: RecipeVisibility // private | public — receitas importadas nascem private (Fase 2)
   embedding: number[]    // vetor Voyage (usado no hybridSearch)
   embeddingText: string  // texto que gerou o embedding (para reindexar)
 }
 ```
+
+> [!INFO] Fase 2 (onFeed Import) — campos novos, ainda sem plug de extração real
+> `visibility`, `grounding?`, `importJobId?`, `sourceMeta?`, `reviewRequired?`,
+> `confidenceScore?` foram adicionados ao schema (Plano 02-01) para suportar
+> receitas extraídas de vídeo (`source: "imported"`). `visibility` é
+> **obrigatório no tipo TS** mas fica FORA do `required` do schema BSON —
+> docs de catálogo já existentes não têm o campo; `persistExtractedRecipe`
+> aplica o default `'public'` na camada de app para todo caller que não
+> passar `opts.visibility` explicitamente. O extrator LLM em si
+> (`import.extraction.ts`) e o gate de confiança (`import.confidence.ts`)
+> chegam nos planos seguintes — este plano só estende o schema + a
+> persistência (`IngestOptions`).
 
 ## Score I/E/T/N
 
