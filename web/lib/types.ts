@@ -134,6 +134,12 @@ export interface Recipe {
   source: RecipeSource;
   parentRecipeId?: string;
   createdBy?: RecipeCreator[];
+  /** Grounding por campo — só presente em receitas source: "imported" (Fase 2/3). */
+  grounding?: RecipeGrounding;
+  /** true quando a extração ficou abaixo do limiar de confiança (Fase 2/3). */
+  reviewRequired?: boolean;
+  /** Setado apenas após o PATCH de confirmação explícita do usuário (REV-04). */
+  confirmedAt?: string;
 }
 
 /* ── Plano alimentar (CheffIA) ─────────────────────────────── */
