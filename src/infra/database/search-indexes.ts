@@ -31,6 +31,12 @@ const recipeVectorIndexDefinition = {
       { type: "filter", path: "servings" },
       { type: "filter", path: "occasions" },
       { type: "filter", path: "source" },
+      // D-14 (segurança): filtro por dono de receitas privadas importadas — um
+      // path de filtro não declarado aqui é silenciosamente ignorado pelo
+      // $vectorSearch, o que vazaria imports privados. Ver hybridSearch
+      // (recipe.repository.ts) para o uso do $or visibility/createdBy.userId.
+      { type: "filter", path: "visibility" },
+      { type: "filter", path: "createdBy.userId" },
     ],
   },
 } as const;
