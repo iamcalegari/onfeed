@@ -1,10 +1,52 @@
 import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
-import { Type } from "@sinclair/typebox";
+import { type Static, Type } from "@sinclair/typebox";
 import type { FastifyPluginAsync } from "fastify";
 
 import { getUserId, requireAuth } from "@/modules/auth/auth.guard.js";
 import { createImportJob, getImportJob } from "./import-job.repository.js";
-import { detectPlatform, enqueueImportJob, normalizeUrl } from "./import.service.js";
+import {
+  confirmImportedRecipe,
+  detectPlatform,
+  enqueueImportJob,
+  listMyImportedRecipes,
+  normalizeUrl,
+} from "./import.service.js";
+
+/**
+ * Corpo do PATCH de confirmação — SOMENTE campos de conteúdo editáveis
+ * (title/intro/ingredients[].{name,quantity,unit}/steps[].text).
+ * `additionalProperties: false` rejeita explicitamente grounding/
+ * reviewRequired/confidenceScore/canonicalId/recipeId enviados pelo client
+ * (Pitfall 5, T-03-02) — o servidor é o único a setar reviewRequired/
+ * confirmedAt (REV-04); grounding é proveniência imutável da extração.
+ */
+export const ImportRecipeEditSchema = Type.Object(
+  {
+    title: Type.String({ minLength: 1, maxLength: 200 }),
+    intro: Type.String({ maxLength: 2000 }),
+    ingredients: Type.Array(
+      Type.Object(
+        {
+          name: Type.String({ minLength: 1 }),
+          quantity: Type.Optional(Type.Number()),
+          unit: Type.Optional(Type.String()),
+        },
+        { additionalProperties: false },
+      ),
+      { minItems: 1 },
+    ),
+    steps: Type.Array(
+      Type.Object(
+        { text: Type.String({ minLength: 1 }) },
+        { additionalProperties: false },
+      ),
+      { minItems: 1 },
+    ),
+  },
+  { additionalProperties: false },
+);
+
+export type ImportRecipeEditPatch = Static<typeof ImportRecipeEditSchema>;
 
 /**
  * Distingue "não é uma URL válida" de "é uma URL válida mas de uma
