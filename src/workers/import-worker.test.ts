@@ -15,13 +15,26 @@ vi.mock("@/config/env.js", () => ({
     groq: { apiKey: "", model: "whisper-large-v3-turbo", enabled: false },
     openaiTranscription: { apiKey: "", enabled: false },
     images: { bucket: "test-bucket", region: "us-east-1", cdnDomain: "", s3Endpoint: "" },
+    sqs: { importQueueUrl: "https://sqs.us-east-1.amazonaws.com/000/import-queue" },
+    aws: { region: "us-east-1" },
   },
 }));
 
+// import-worker.ts importa @/modules/index.js (registro de models Mongoat) e
+// @/infra/database/connection.js (conecta ao Mongo) — nenhum dos dois deve
+// tocar infraestrutura real numa suite de unidade rápida.
+vi.mock("@/infra/database/connection.js", () => ({
+  connectDatabase: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/modules/index.js", () => ({}));
+vi.mock("@/infra/queue/sqs.client.js", () => ({ sqsClient: {} }));
+
 // Repositório: captura toda escrita de status sem tocar Mongo real.
 const updateImportJobStatus = vi.fn().mockResolvedValue(undefined);
+const getImportJob = vi.fn();
 vi.mock("@/modules/import/import-job.repository.js", () => ({
   updateImportJobStatus: (...args: unknown[]) => updateImportJobStatus(...args),
+  getImportJob: (...args: unknown[]) => getImportJob(...args),
 }));
 
 // Downloader (Plan 03) — mockado por padrão em modo sucesso; cada teste
@@ -84,6 +97,7 @@ vi.mock("@/infra/images/s3.image-store.js", () => ({
 
 const { processImportJob } = await import("@/infra/video/pipeline.js");
 const { DownloadError } = await import("@/infra/video/ytdlp.downloader.js");
+const { handleImportMessage, sweepStaleTempDirs } = await import("./import-worker.js");
 
 function baseJob(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -213,5 +227,82 @@ describe("processImportJob — anti_bot_blocked failure (PIPE-07)", () => {
     const leftovers = await findLeftoverJobDirs("job1");
     expect(leftovers).toEqual([]);
     expect(existsSync(path.join(tmpdir(), "import-job1-"))).toBe(false);
+  });
+});
+
+describe("handleImportMessage — idempotency (PIPE-06)", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+    getImportJob.mockReset();
+    downloadVideo.mockReset();
+    detectSilenceRatio.mockReset().mockResolvedValue(0.1);
+    transcribe.mockReset().mockResolvedValue({ text: "modo de preparo...", source: "groq" });
+    isOpen.mockReset().mockReturnValue(false);
+    extractNormalizedKeyframe.mockReset().mockResolvedValue(Buffer.from("fake-jpeg"));
+    putImage.mockReset().mockResolvedValue("https://cdn.example.com/imports/job1/keyframe.jpg");
+  });
+
+  it("is a no-op (does not call downloadVideo/process the pipeline) for a job already in ready_for_review", async () => {
+    getImportJob.mockResolvedValue(baseJob({ status: "ready_for_review" }));
+
+    await handleImportMessage(JSON.stringify({ jobId: "job1" }));
+
+    expect(getImportJob).toHaveBeenCalledWith("job1");
+    expect(downloadVideo).not.toHaveBeenCalled();
+    expect(updateImportJobStatus).not.toHaveBeenCalled();
+  });
+
+  it("is a no-op for a job already in failed", async () => {
+    getImportJob.mockResolvedValue(baseJob({ status: "failed" }));
+
+    await handleImportMessage(JSON.stringify({ jobId: "job1" }));
+
+    expect(downloadVideo).not.toHaveBeenCalled();
+  });
+
+  it("processes the pipeline for a queued job (not a no-op)", async () => {
+    getImportJob.mockResolvedValue(baseJob({ status: "queued" }));
+    downloadVideo.mockResolvedValue({
+      videoPath: "/tmp/fake/video.mp4",
+      meta: { sourceUrl: "https://www.youtube.com/watch?v=abc123", durationSec: 60 },
+    });
+
+    await handleImportMessage(JSON.stringify({ jobId: "job1" }));
+
+    expect(downloadVideo).toHaveBeenCalled();
+    expect(updateImportJobStatus).toHaveBeenCalledWith(
+      "job1",
+      expect.objectContaining({ status: "ready_for_review" }),
+    );
+  });
+
+  it("is defensively a no-op when the job is not found (redelivered message for a deleted/nonexistent job)", async () => {
+    getImportJob.mockResolvedValue(null);
+
+    await expect(handleImportMessage(JSON.stringify({ jobId: "ghost" }))).resolves.toBeUndefined();
+    expect(downloadVideo).not.toHaveBeenCalled();
+  });
+});
+
+describe("sweepStaleTempDirs — startup crash-recovery sweep (PIPE-05 layer 2)", () => {
+  it("removes leftover import-* temp dirs from a prior crashed instance", async () => {
+    const { mkdtemp } = await import("node:fs/promises");
+    const staleDir = await mkdtemp(path.join(tmpdir(), "import-stale-job-"));
+    expect(existsSync(staleDir)).toBe(true);
+
+    await sweepStaleTempDirs();
+
+    expect(existsSync(staleDir)).toBe(false);
+  });
+
+  it("does not touch unrelated tmpdir entries", async () => {
+    const { mkdtemp, rm } = await import("node:fs/promises");
+    const unrelatedDir = await mkdtemp(path.join(tmpdir(), "not-import-related-"));
+    try {
+      await sweepStaleTempDirs();
+      expect(existsSync(unrelatedDir)).toBe(true);
+    } finally {
+      await rm(unrelatedDir, { recursive: true, force: true });
+    }
   });
 });
