@@ -7,15 +7,15 @@ updated: 2026-07-01
 
 Namespace de infraestrutura para o pipeline de import de vídeo (Instagram/
 TikTok/YouTube). Cada módulo é um limite de sistema externo/binário (ffmpeg,
-yt-dlp, Groq, OpenAI) ou uma unidade de lógica pura — sem dependência do
-documento `[[Import|ImportJob]]` nem da fila SQS, para permitir teste
-unitário isolado.
+yt-dlp, Groq, OpenAI) ou uma unidade de lógica pura. `pipeline.ts` é a única
+exceção — é a orquestração que compõe todos os outros módulos e depende do
+documento `[[Import|ImportJob]]`, consumida por `[[Workers|import-worker.ts]]`.
 
 > [!INFO]
 > Este namespace é construído em ondas ao longo da Fase 1. Este README cobre
-> o que existe após o Plano 01-03 (adiciona os adapters de download yt-dlp e
-> transcrição Groq/OpenAI aos utilitários puros do Plano 01-02). O Plano
-> 01-05 (worker) é o consumidor que orquestra tudo.
+> o que existe após o Plano 01-05: `pipeline.ts` orquestra os adapters de
+> download/VAD/transcrição/keyframe (Planos 01-02/01-03) num único fluxo por
+> job, consumido pelo worker standalone (`src/workers/import-worker.ts`).
 
 ## Arquivos
 
@@ -30,6 +30,7 @@ unitário isolado.
 | `transcription.port.ts` | Orquestrador de transcrição (PIPE-02, D-04): `transcribe()` tenta Groq, cai para OpenAI em qualquer falha (fallback é try/catch em runtime, não troca por env). Guarda de tamanho (25MB, tier free Groq) roteia direto ao fallback antes de chamar o SDK. `TranscriptionError` tipado se ambos falharem |
 | `groq.transcriber.ts` | Adapter Groq (`whisper-large-v3-turbo`, hint de idioma `pt`) — primário |
 | `openai.transcriber.ts` | Adapter OpenAI (`whisper-1`, hint de idioma `pt`) — fallback, acionado só quando o Groq falha |
+| `pipeline.ts` | Orquestração por-job (PIPE-01..05, PIPE-07): `processImportJob(job)` compõe breaker → download → VAD → transcrever/pular → extracting (stub) → keyframe → S3 → cleanup, escrevendo status do `[[Import\|ImportJob]]` a cada fronteira de etapa. `try/finally` remove o diretório `mkdtemp`'d do job incondicionalmente (PIPE-05 camada 1) |
 
 ## Convenção de testes
 
@@ -58,6 +59,16 @@ unitário isolado.
 - `youtube-dl-exec` (npm) + binário `yt-dlp` — em dev local, instalar com `YOUTUBE_DL_SKIP_DOWNLOAD=true` se o postinstall não conseguir baixar o binário (timeout de rede); o Dockerfile do worker (Plano 01-06) garante o binário real no container de produção.
 - `groq-sdk` (`env.groq.apiKey`/`env.groq.model`) + `openai` (`env.openaiTranscription.apiKey`) — ambos `optional()+enabled`, nunca `required()` (worker é deployable separado da API).
 
+> [!TIP]
+> `pipeline.ts` mapeia `DownloadFailureReason` (vocabulário de erro do
+> `ytdlp.downloader.ts`) para `ImportFailureReason` (vocabulário de estado do
+> `ImportJob`) via `toImportFailureReason()` — os dois unions divergem de
+> propósito, não são o mesmo tipo. `anti_bot_blocked`/`rate_limited` falham o
+> job explicitamente SEM relançar (o circuit breaker cooldown, não a
+> redelivery da SQS, governa a próxima tentativa); razões transientes
+> (`network`/`unknown`) relançam para que o `import-worker.ts` deixe a
+> mensagem na fila para o redrive da DLQ.
+
 ## Consumido por
 
-- `src/workers/import-worker.ts` (Plano 01-05) — drives a pipeline completa e persiste os resultados no [[Import|ImportJob]].
+- `src/workers/import-worker.ts` ([[Workers]], Plano 01-05) — `handleImportMessage` relê o `ImportJob` autoritativo, checa idempotência (status terminal = no-op), e chama `processImportJob(job)` dentro de um limitador `p-queue`.
