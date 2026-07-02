@@ -18,10 +18,10 @@ Núcleo do MVP: **colar link → receita confiável**. Extensão de browser, car
 - [x] **PIPE-01**: Dado uma URL, o worker baixa o vídeo via yt-dlp (IG/TikTok/YouTube num único motor)
 - [x] **PIPE-02**: O worker extrai o áudio e transcreve via Whisper (hospedado), com pré-filtro para clipes sem fala/só música (evita transcrição alucinada)
 - [x] **PIPE-03**: O worker captura a caption do post e os metadados de origem (plataforma, URL do vídeo, @ do autor, URL do perfil quando extraíveis)
-- [ ] **PIPE-04**: O worker extrai 1 keyframe representativo do vídeo como imagem da receita (melhor frame)
-- [ ] **PIPE-05**: O vídeo/áudio baixado é apagado após o processamento (não re-hospeda mídia de terceiros)
+- [x] **PIPE-04**: O worker extrai 1 keyframe representativo do vídeo como imagem da receita (melhor frame)
+- [x] **PIPE-05**: O vídeo/áudio baixado é apagado após o processamento (não re-hospeda mídia de terceiros)
 - [x] **PIPE-06**: Um `ImportJob` rastreia o estado do trabalho (queued → downloading → transcribing → extracting → ready_for_review → published/failed) com idempotência, retry e DLQ
-- [ ] **PIPE-07**: Falha de download por bloqueio de plataforma é um estado tratado e monitorado (circuit breaker + telemetria de taxa de sucesso por plataforma), com mensagem específica ao usuário
+- [x] **PIPE-07**: Falha de download por bloqueio de plataforma é um estado tratado e monitorado (circuit breaker + telemetria de taxa de sucesso por plataforma), com mensagem específica ao usuário
 
 ### Extração estruturada
 
@@ -111,10 +111,10 @@ Mapeamento confirmado pelo roadmapper em `.planning/ROADMAP.md` (2026-07-01).
 | PIPE-01 | Phase 1 (Video Pipeline Foundation) | Complete |
 | PIPE-02 | Phase 1 (Video Pipeline Foundation) | Complete |
 | PIPE-03 | Phase 1 (Video Pipeline Foundation) | Complete |
-| PIPE-04 | Phase 1 (Video Pipeline Foundation) | Pending |
-| PIPE-05 | Phase 1 (Video Pipeline Foundation) | Pending |
+| PIPE-04 | Phase 1 (Video Pipeline Foundation) | Complete |
+| PIPE-05 | Phase 1 (Video Pipeline Foundation) | Complete |
 | PIPE-06 | Phase 1 (Video Pipeline Foundation) | Complete |
-| PIPE-07 | Phase 1 (Video Pipeline Foundation) | Pending |
+| PIPE-07 | Phase 1 (Video Pipeline Foundation) | Complete |
 | CAP-02 | Phase 1 (Video Pipeline Foundation) | Complete |
 | EXT-01 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
 | EXT-02 | Phase 2 (Structured Extraction & Recipe Persistence) | Pending |
