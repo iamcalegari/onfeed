@@ -11,10 +11,12 @@ import {
 import { enqueueIngestJob } from "@/infra/queue/ingest-queue.js";
 import { getUserId, requireAuth } from "@/modules/auth/auth.guard.js";
 import { isProUser } from "@/modules/billing/entitlement.repository.js";
+import { getLikeCount, getUserLiked } from "@/modules/likes/like.repository.js";
 import { consumeDailyAdaptQuota } from "@/modules/usage/usage.repository.js";
 import { adaptRecipe } from "./recipe.generation.js";
 import {
   getRecipeById,
+  getRecipeByShareSlug,
   getVariantCount,
   getVariantsByParentId,
   rejectVariant,
@@ -176,6 +178,39 @@ export const recipeRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Outra requisição já está traduzindo: devolve pt-BR enquanto isso
       return recipe;
+    },
+  );
+
+  // Rota pública por token (D-01/D-03, Fase 5) — SEM requireAuth: o
+  // shareSlug secreto é a única autorização (nunca resolve por objectId).
+  // 404 uniforme para token ausente/errado/de receita apagada (T-05-09, no
+  // existence leak). Like state só é calculado quando há sessão
+  // (getUserId), mesmo idioma soft-auth de GET /recipes/:id acima —
+  // curtir em si continua exigindo login no front (D-01). `visibility` vai
+  // no payload para o front aplicar o redirect D-12 (/r/[token] ->
+  // /recipe/[id] uma vez pública).
+  app.get(
+    "/recipes/share/:token",
+    {
+      schema: {
+        tags: ["recipes"],
+        params: Type.Object({ token: Type.String() }),
+      },
+    },
+    async (request, reply) => {
+      const recipe = await getRecipeByShareSlug(request.params.token);
+      if (!recipe) return reply.notFound("Receita não encontrada");
+
+      const userId = getUserId(request);
+      const [likeCount, liked] = await Promise.all([
+        getLikeCount(recipe._id!),
+        userId ? getUserLiked(userId, recipe._id!) : Promise.resolve(false),
+      ]);
+
+      return {
+        recipe,
+        likes: { count: likeCount, liked },
+      };
     },
   );
 

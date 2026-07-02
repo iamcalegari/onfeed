@@ -574,6 +574,26 @@ export async function getRecipeById(
   return null;
 }
 
+/**
+ * Lookup público por token (Fase 5, D-03/D-04) — o `shareSlug` secreto é a
+ * ÚNICA autorização; nenhum branch de visibility/ownership aqui (mais
+ * simples que `getRecipeById`, que resolve ownership por objectId). Retorna
+ * `null` (nunca lança) em miss, mesmo idioma "não existe" usado no resto do
+ * arquivo, para a rota devolver 404 uniforme sem vazar existência.
+ *
+ * Redirecionar para a URL canônica `/recipe/[id]` quando `visibility` já
+ * virou "public" (D-12) é decisão da camada de rota/página — esta função
+ * continua um lookup puro.
+ */
+export async function getRecipeByShareSlug(token: string): Promise<Recipe | null> {
+  const projection = { embedding: 0, embeddingText: 0 };
+  const recipe = (await RecipeModel.find(
+    { shareSlug: token } as never,
+    { projection },
+  )) as Recipe | null;
+  return recipe;
+}
+
 /** Persiste a URL da thumbnail (geração lazy / upload). */
 export async function setThumbnail(id: string, url: string): Promise<void> {
   await RecipeModel.update(
