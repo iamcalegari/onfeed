@@ -149,3 +149,7 @@ None - no external service configuration required. Operational note (not user se
 ---
 *Phase: 02-structured-extraction-recipe-persistence*
 *Completed: 2026-07-02*
+
+## Self-Check: PASSED
+
+All 6 claimed files found on disk; all 5 claimed commit hashes found in git log.
