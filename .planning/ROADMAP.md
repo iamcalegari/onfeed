@@ -57,7 +57,14 @@ Plans:
   4. The persisted recipe has a Voyage embedding and is retrievable through the existing hybrid I/E/T/N search for the importing user.
   5. When overall extraction confidence is low (sparse/conflicting transcript vs. caption, many ungrounded fields), the job is explicitly marked as requiring review — it is structurally impossible for this state to auto-publish.
 
-**Plans**: TBD
+**Plans**: 0/5 plans executed
+
+- [ ] 02-01-PLAN.md
+- [ ] 02-02-PLAN.md
+- [ ] 02-03-PLAN.md
+- [ ] 02-04-PLAN.md
+- [ ] 02-05-PLAN.md
+
 **Research flag**: yes — PT-BR Whisper transcription accuracy on cooking slang/informal register needs empirical validation against real onFeed sample clips before locking in a transcription provider default (see research/SUMMARY.md Research Flags).
 
 ### Phase 3: Capture & Mandatory Review UI
@@ -113,7 +120,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Video Pipeline Foundation | 6/6 | Complete   | 2026-07-02 |
-| 2. Structured Extraction & Recipe Persistence | 0/TBD | Not started | - |
+| 2. Structured Extraction & Recipe Persistence | 0/5 | Planned    |  |
 | 3. Capture & Mandatory Review UI | 0/TBD | Not started | - |
 | 4. Cost/Quota Gating & Dedup | 0/TBD | Not started | - |
 | 5. Publish, Promotion & Full Citizenship | 0/TBD | Not started | - |
