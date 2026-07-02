@@ -1,8 +1,8 @@
 ---
 phase: 4
 slug: cost-quota-gating-dedup
-status: draft
-nyquist_compliant: false
+status: approved
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-07-02
 ---
