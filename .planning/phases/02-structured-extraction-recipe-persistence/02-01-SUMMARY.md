@@ -183,6 +183,10 @@ None - no external service configuration required. `IMPORT_EXTRACTION_MODEL` is 
 - Plan 02-05 (pipeline integration) can rely on `ImportJob.recipeId` and `ImportFailureReason: "extraction_failed"` (with a user-safe message already wired in `pipeline.ts`) being available to patch in after extraction runs.
 - No blockers identified. All 3 tasks' `<done>` criteria met; `npm run typecheck` and the fast Vitest suite (75/75) are green.
 
+## Self-Check: PASSED
+
+All created files and all referenced commit hashes verified present on disk / in `git log`.
+
 ---
 *Phase: 02-structured-extraction-recipe-persistence*
 *Completed: 2026-07-01*
