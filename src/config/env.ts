@@ -127,6 +127,52 @@ export const env = {
     // Teto de duração de vídeo aceito (segundos) — mitigação de DoS por
     // download/transcrição de vídeos desproporcionalmente longos (~10min).
     maxDurationSec: Number(optional("IMPORT_MAX_DURATION_SEC", "600")),
+
+    // Gate de quota diária de import por plano (COST-03). Mesma lógica do
+    // adaptDailyLimitFree/Pro acima: Free bate cedo (cada import percorre
+    // download + ASR + LLM), PRO tem teto alto anti-abuso, não um limite
+    // "normal" de uso.
+    dailyLimitFree: Number(optional("IMPORT_DAILY_LIMIT_FREE", "3")),
+    dailyLimitPro: Number(optional("IMPORT_DAILY_LIMIT_PRO", "50")),
+
+    // Tabela de preço por unidade (centavos de USD), usada só para registrar
+    // custo operacional do pipeline de import (COST-02) — NÃO é billing-crítico,
+    // é estimativa para acompanhamento interno. Todos os valores são estimativas
+    // de BAIXA confiança levantadas em 2026-07-02 (RESEARCH A1–A4) e por isso
+    // vivem em env com default, nunca hardcoded no pipeline (D-08): corrigir um
+    // preço errado deve ser trocar uma env var, não um deploy de código.
+    //
+    // - priceCentsPerGbEgress: proxy grosseiro. O vídeo baixa para o disco do
+    //   worker (yt-dlp) e NÃO transita pelo S3, então não há egress real do
+    //   nosso storage — os bytes brutos (baixados) são a métrica confiável;
+    //   o valor em centavos aqui é best-effort (RESEARCH A4 / Open Question 1).
+    // - priceCentsPerAsrMinuteGroq / priceCentsPerAsrMinuteOpenai: preço por
+    //   minuto de áudio transcrito, primário (Groq) e fallback (OpenAI).
+    // - priceCentsPerMtokLlmInput / priceCentsPerMtokLlmOutput: preço por
+    //   milhão de tokens do modelo de extração (Sonnet 4.5). O valor de input
+    //   é a figura mais incerta do lote — RESEARCH A2 encontrou ambiguidade
+    //   entre preço introdutório e preço padrão da Anthropic; um humano deve
+    //   conferir esse número antes do lançamento.
+    // - priceCentsPerMtokEmbedding: preço por milhão de tokens de embedding
+    //   (Voyage), usado na canonicalização de ingredientes durante o import.
+    priceCentsPerGbEgress: Number(
+      optional("IMPORT_PRICE_CENTS_PER_GB_EGRESS", "9"),
+    ),
+    priceCentsPerAsrMinuteGroq: Number(
+      optional("IMPORT_PRICE_CENTS_PER_ASR_MIN_GROQ", "0.0667"),
+    ),
+    priceCentsPerAsrMinuteOpenai: Number(
+      optional("IMPORT_PRICE_CENTS_PER_ASR_MIN_OPENAI", "0.6"),
+    ),
+    priceCentsPerMtokLlmInput: Number(
+      optional("IMPORT_PRICE_CENTS_PER_MTOK_LLM_IN", "300"),
+    ),
+    priceCentsPerMtokLlmOutput: Number(
+      optional("IMPORT_PRICE_CENTS_PER_MTOK_LLM_OUT", "1500"),
+    ),
+    priceCentsPerMtokEmbedding: Number(
+      optional("IMPORT_PRICE_CENTS_PER_MTOK_EMBED", "6"),
+    ),
   },
 
   // Thumbnails (Bedrock + S3 + CloudFront). Tudo opcional: sem bucket/região,
