@@ -80,7 +80,13 @@ Plans:
   4. The user can edit any field (title, ingredients incl. quantity/unit, steps, tips) inline before confirming.
   5. The recipe is only considered valid/saved after the user explicitly confirms the review — there is no code path that treats an unconfirmed extraction as final.
 
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+- [ ] 03-01-PLAN.md — Backend confirm/edit: Recipe.confirmedAt (BSON+type+setup:db), PATCH /import/:jobId/recipe, GET /import/mine, ImportRecipeEditSchema, confirm-gate tests
+- [ ] 03-02-PLAN.md — GET /recipes/:id visibility guard (private import owner-only via importJobId→ImportJob.userId) + test
+- [ ] 03-03-PLAN.md — Frontend plumbing: import types, api.ts/actions.ts wrappers, useImportPolling hook, GroundingBadge
+- [ ] 03-04-PLAN.md — Capture entry (/import + PasteLinkButton) + live progress (/import/[jobId] + ImportProgress) + TopBar nav
+- [ ] 03-05-PLAN.md — Mandatory review screen (/import/[jobId]/review + ImportReviewForm) + Minhas importações (/import/mine + ImportsList)
 **UI hint**: yes
 
 ### Phase 4: Cost/Quota Gating & Dedup
@@ -121,7 +127,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Video Pipeline Foundation | 6/6 | Complete   | 2026-07-02 |
 | 2. Structured Extraction & Recipe Persistence | 5/5 | Complete   | 2026-07-02 |
-| 3. Capture & Mandatory Review UI | 0/TBD | Not started | - |
+| 3. Capture & Mandatory Review UI | 0/5 | Not started | - |
 | 4. Cost/Quota Gating & Dedup | 0/TBD | Not started | - |
 | 5. Publish, Promotion & Full Citizenship | 0/TBD | Not started | - |
 
