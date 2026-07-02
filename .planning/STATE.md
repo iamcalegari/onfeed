@@ -6,14 +6,14 @@ current_phase: 1
 current_phase_name: Video Pipeline Foundation
 status: executing
 stopped_at: Phase 1 context gathered
-last_updated: "2026-07-01T19:30:09.275Z"
+last_updated: "2026-07-02T00:03:10.632Z"
 last_activity: 2026-07-01
 last_activity_desc: Phase 1 execution started
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 6
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 ## Current Position
 
 Phase: 1 (Video Pipeline Foundation) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-07-01 — Phase 1 execution started
 
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 01-video-pipeline-foundation P01 | 35min | 3 tasks | 10 files |
+| Phase 01 P03 | 45min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,9 @@ Recent decisions affecting current work:
 - [Phase 1]: ImportJobMessage carries only { jobId } — the Mongo ImportJob doc is the sole source of truth for progress/idempotency (PIPE-06)
 - [Phase 1]: Repository unit test mocks ImportJobModel instead of requiring a live Mongo connection — no test container introduced this phase
 - [Phase 1]: ImportJobModel allowedMethods includes METHODS.UPDATE for atomic in-place status transitions, unlike FavoriteModel
+- [Phase ?]: youtube-dl-exec named export (youtubeDl) used instead of default export — CJS/NodeNext callable-type mismatch
+- [Phase ?]: youtube-dl-exec install requires YOUTUBE_DL_SKIP_DOWNLOAD=true locally (postinstall binary fetch timeout); real binary guaranteed by worker Dockerfile (Plan 06)
+- [Phase ?]: Groq->OpenAI transcription fallback is a runtime try/catch in transcribe(), never an env-time swap; size guard (25MB) routes oversized audio straight to OpenAI
 
 ### Pending Todos
 
@@ -91,6 +95,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-01T19:18:32.003Z
+Last session: 2026-07-02T00:02:08.735Z
 Stopped at: Phase 1 context gathered
 Resume file: .planning/phases/01-video-pipeline-foundation/01-CONTEXT.md

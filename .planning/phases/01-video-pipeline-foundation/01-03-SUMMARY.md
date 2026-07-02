@@ -228,3 +228,7 @@ None. Both adapters are fully implemented (not stubbed) — the only deferred wo
 ---
 *Phase: 01-video-pipeline-foundation*
 *Completed: 2026-07-01*
+
+## Self-Check: PASSED
+
+All 8 created source files verified present on disk (downloader.port.ts, ytdlp.downloader.ts, ytdlp.downloader.test.ts, ytdlp.downloader.integration.test.ts, transcription.port.ts, groq.transcriber.ts, openai.transcriber.ts, transcription.test.ts). All 4 relevant commit hashes (994c8d1, ed382ba, dc81fdc, fbc95bb) verified present in git log.
