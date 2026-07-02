@@ -165,6 +165,18 @@ export function ResultCard({
             {rank}º
           </div>
         )}
+
+        {/* Badge "sua importação" — D-10: import privado do dono, neutro (sem glow) */}
+        {hit.source === "imported" && (
+          <div style={{
+            position: "absolute", top: rk ? 44 : 10, left: 10,
+            background: "var(--t-bg-section)", color: "var(--t-text-secondary)",
+            fontSize: 10.5, fontWeight: 700,
+            padding: "4px 9px", borderRadius: 20,
+          }}>
+            🎬 sua importação
+          </div>
+        )}
       </div>
 
       {/* Conteúdo */}

@@ -995,6 +995,10 @@ function DeckCard({
   const medal = rank ? MEDAL[rank] : undefined;
   const isPerfect = hit.matchScore >= 85;
   const isVariant = hit.source === "variant";
+  // D-10 (Fase 5): badge neutro de "sua importação" — deliberadamente SEM
+  // glow/shimmer (diferente do tratamento de variante, que é achievement
+  // social). NUNCA soma a medalClass/variant-glow abaixo.
+  const isImported = hit.source === "imported";
 
   const medalClass = medal ? (rank === 1 ? "medal-gold" : "") : isVariant ? "variant-glow" : "";
 
@@ -1055,6 +1059,16 @@ function DeckCard({
             <span className="text-[10px] font-bold uppercase tracking-wide text-amber-200">
               Variante
             </span>
+          </div>
+        )}
+
+        {/* Badge "sua importação" — pill estático neutro, sem glow/shimmer (D-10) */}
+        {isImported && !medal && !isVariant && (
+          <div
+            className="absolute left-3 top-3 z-30 rounded-full px-2.5 py-1"
+            style={{ background: "var(--t-bg-section)", color: "var(--t-text-secondary)" }}
+          >
+            <span className="text-[10.5px] font-bold">🎬 sua importação</span>
           </div>
         )}
 
