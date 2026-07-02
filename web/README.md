@@ -1,6 +1,6 @@
 ---
 tags: [frontend, nextjs, overview]
-updated: 2026-06-22
+updated: 2026-07-02
 ---
 
 # Web (Frontend)
@@ -40,6 +40,15 @@ app/
 │
 └── (auth)/                      # login/signup via Clerk
 ```
+
+> [!TIP] Reconhecimento de link de vídeo — fonte única em `lib/video-url.ts`
+> `isLikelyVideoUrl()` é o único regex client-side de "parece link de vídeo"
+> (Instagram/TikTok — incl. `vm.`/`vt.`/`m.tiktok.com` — /YouTube), usado por
+> `PasteLinkButton`, `ImportShortcut` e `import/page.tsx`. É só UX (feedback
+> instantâneo/prefill), nunca o gate: quem valida de verdade é o
+> `detectPlatform()` do backend ([[Import]]). Antes o regex vivia copiado nos
+> 3 lugares e o suporte a `vt.tiktok.com` faltou nas três cópias ao mesmo
+> tempo — manter em sincronia com `PLATFORM_PATTERNS` do backend.
 
 ## Configuração de Ambiente
 

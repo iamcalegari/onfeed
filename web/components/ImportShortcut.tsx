@@ -4,10 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 
-/** Mesmo reconhecimento client-side do PasteLinkButton — só UX (decidir o
- * prefill), nunca o gate: quem valida de verdade é o detectPlatform() do back. */
-const LIKELY_URL_RE =
-  /^https?:\/\/(www\.)?(instagram\.com|tiktok\.com|vm\.tiktok\.com|youtube\.com|youtu\.be)\//i;
+import { isLikelyVideoUrl } from "@/lib/video-url";
 
 /**
  * Atalho para o fluxo onFeed Import. Card compacto com a ação primária
@@ -34,7 +31,7 @@ export function ImportShortcut({ className = "" }: { className?: string }) {
       // readText() precisa ser o primeiro await sob o gesto — se algo async rodar
       // antes, alguns navegadores quebram a cadeia de user-activation.
       const text = (await navigator.clipboard?.readText())?.trim();
-      if (text && LIKELY_URL_RE.test(text)) {
+      if (text && isLikelyVideoUrl(text)) {
         target = `/import?url=${encodeURIComponent(text)}`;
       }
     } catch {

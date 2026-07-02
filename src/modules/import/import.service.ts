@@ -26,7 +26,10 @@ export type SupportedPlatform = "instagram" | "tiktok" | "youtube";
  */
 const PLATFORM_PATTERNS: Array<[SupportedPlatform, RegExp]> = [
   ["youtube", /^https?:\/\/(www\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)/i],
-  ["tiktok", /^https?:\/\/(www\.|vm\.)?tiktok\.com\//i],
+  // vm./vt. são os domínios curtos oficiais de compartilhamento do app (vt. é
+  // o que o app gera no Brasil); m. é o site mobile. Todos TikTok-owned —
+  // continuam dentro do princípio de allowlist estrita (nada de lookalikes).
+  ["tiktok", /^https?:\/\/(www\.|vm\.|vt\.|m\.)?tiktok\.com\//i],
   ["instagram", /^https?:\/\/(www\.)?instagram\.com\/(reel|p)\//i],
 ];
 

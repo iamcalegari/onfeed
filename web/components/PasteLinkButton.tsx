@@ -4,15 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { startImportAction } from "@/app/actions";
-
-/** Reconhecimento client-side de URL — só UX (feedback instantâneo), nunca o
- * gate de segurança: quem decide de verdade é o detectPlatform() do backend. */
-const LIKELY_URL_RE =
-  /^https?:\/\/(www\.)?(instagram\.com|tiktok\.com|vm\.tiktok\.com|youtube\.com|youtu\.be)\//i;
-
-function isLikelyUrl(text: string): boolean {
-  return LIKELY_URL_RE.test(text.trim());
-}
+import { isLikelyVideoUrl } from "@/lib/video-url";
 
 /**
  * Campo de URL + "Colar link" (clipboard sob gesto, com fallback silencioso
@@ -30,7 +22,7 @@ export function PasteLinkButton({ initialUrl = "" }: { initialUrl?: string }) {
   const [pending, startTransition] = useTransition();
 
   const trimmed = url.trim();
-  const showInvalidHint = touched && trimmed.length > 0 && !isLikelyUrl(trimmed);
+  const showInvalidHint = touched && trimmed.length > 0 && !isLikelyVideoUrl(trimmed);
 
   function handlePasteClick() {
     setPasteHint(null);
@@ -40,7 +32,7 @@ export function PasteLinkButton({ initialUrl = "" }: { initialUrl?: string }) {
       ?.readText()
       .then((text) => {
         const clean = text?.trim();
-        if (clean && isLikelyUrl(clean)) {
+        if (clean && isLikelyVideoUrl(clean)) {
           setUrl(clean);
           setTouched(true);
           setPasteHint(null);

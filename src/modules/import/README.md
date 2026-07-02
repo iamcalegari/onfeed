@@ -108,6 +108,18 @@ Pipeline de import de receita a partir de vídeo (Instagram/TikTok/YouTube). O
 `ImportJob` é um documento de state machine — a fonte única da verdade tanto
 para progresso quanto para idempotência (PIPE-06).
 
+> [!WARNING] Fix jul/2026 — link curto `vt.tiktok.com` rejeitado como inválido
+> O app do TikTok no Brasil gera links de compartilhamento
+> `https://vt.tiktok.com/...`, mas a allowlist só aceitava `vm.tiktok.com` —
+> o import recusava o link em 4 lugares ao mesmo tempo (backend + 3 cópias do
+> regex no front). Corrigido: `PLATFORM_PATTERNS` aceita `vm.`/`vt.`/`m.`
+> (todos domínios TikTok-owned, allowlist continua estrita — testes cobrem
+> lookalikes `vt-tiktok.com`/`vt.tiktok.com.evil.com`), e o regex do front
+> foi consolidado em `web/lib/video-url.ts` (`isLikelyVideoUrl`) — fonte
+> única, sem drift entre cópias. Limitação conhecida: o link curto redireciona
+> para a URL canônica `www.tiktok.com/@user/video/…`, então o dedup por
+> `normalizedUrl` trata curto vs. completo do mesmo vídeo como URLs distintas.
+
 ## Arquivos
 
 | Arquivo | Responsabilidade |
@@ -187,7 +199,7 @@ passarem: cria o `ImportJob` (`status: "queued"`), chama
 
 > [!INFO] detectPlatform é a fronteira de segurança contra SSRF
 > `detectPlatform` usa uma allowlist estrita de domínio (só
-> `youtube.com`/`youtu.be`, `tiktok.com`/`vm.tiktok.com`,
+> `youtube.com`/`youtu.be`, `tiktok.com`/`vm.`/`vt.`/`m.tiktok.com`,
 > `instagram.com`) — não uma checagem frouxa de "parece uma URL de vídeo".
 > Qualquer URL fora dessas 3 plataformas (IP interno, host arbitrário,
 > `file:`/`javascript:`) retorna `null` e é rejeitada com 400 antes do job

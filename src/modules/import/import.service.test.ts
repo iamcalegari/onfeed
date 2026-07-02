@@ -46,6 +46,8 @@ describe("detectPlatform (CAP-02 / SSRF boundary)", () => {
     ["https://www.youtube.com/shorts/abc123", "youtube"],
     ["https://www.tiktok.com/@user/video/123456789", "tiktok"],
     ["https://vm.tiktok.com/ZMabc123/", "tiktok"],
+    ["https://vt.tiktok.com/ZSabc123/", "tiktok"],
+    ["https://m.tiktok.com/v/123456789.html", "tiktok"],
     ["https://www.instagram.com/reel/Cabc123/", "instagram"],
     ["https://instagram.com/p/Cabc123/", "instagram"],
   ])("classifies %s as %s", (url, expected) => {
@@ -71,6 +73,11 @@ describe("detectPlatform (CAP-02 / SSRF boundary)", () => {
 
   it("returns null for an internal hostname disguised as a plausible link", () => {
     expect(detectPlatform("http://internal-service.local/video")).toBeNull();
+  });
+
+  it("returns null for a lookalike do domínio curto do TikTok (allowlist estrita)", () => {
+    expect(detectPlatform("https://vt-tiktok.com/ZSabc123/")).toBeNull();
+    expect(detectPlatform("https://vt.tiktok.com.evil.com/ZSabc123/")).toBeNull();
   });
 });
 

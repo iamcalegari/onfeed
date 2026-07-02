@@ -4,11 +4,9 @@ import { redirect } from "next/navigation";
 
 import { PasteLinkButton } from "@/components/PasteLinkButton";
 import { getMe } from "@/lib/api";
+import { isLikelyVideoUrl } from "@/lib/video-url";
 
 export const metadata = { title: "Importar receita" };
-
-const LIKELY_URL_RE =
-  /^https?:\/\/(www\.)?(instagram\.com|tiktok\.com|vm\.tiktok\.com|youtube\.com|youtu\.be)\//i;
 
 export default async function ImportPage({
   searchParams,
@@ -22,7 +20,7 @@ export default async function ImportPage({
   // se bater no reconhecimento client-side — link cru de query nunca é o gate
   // (o detectPlatform() do backend valida de verdade na submissão).
   const { url } = await searchParams;
-  const prefillUrl = typeof url === "string" && LIKELY_URL_RE.test(url.trim()) ? url.trim() : "";
+  const prefillUrl = typeof url === "string" && isLikelyVideoUrl(url) ? url.trim() : "";
 
   // Cota de importação do dia — mostra "X/N grátis hoje" ANTES de o usuário
   // bater no gate (COST-03 UX): free descobre o limite de forma proativa, não
