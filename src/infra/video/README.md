@@ -1,6 +1,6 @@
 ---
-tags: [backend, infra, video-pipeline, ffmpeg, yt-dlp, groq, openai]
-updated: 2026-07-01
+tags: [backend, infra, video-pipeline, ffmpeg, yt-dlp, groq, openai, cost-telemetry, quota]
+updated: 2026-07-02
 ---
 
 # Video Infra
@@ -33,7 +33,7 @@ documento [[Import|ImportJob]], consumida por [[Workers|import-worker.ts]].
 | `transcription.port.ts` | Orquestrador de transcrição (PIPE-02, D-04): `transcribe()` tenta Groq, cai para OpenAI em qualquer falha (fallback é try/catch em runtime, não troca por env). Guarda de tamanho (25MB, tier free Groq) roteia direto ao fallback antes de chamar o SDK. `TranscriptionError` tipado se ambos falharem |
 | `groq.transcriber.ts` | Adapter Groq (`whisper-large-v3-turbo`, hint de idioma `pt`) — primário |
 | `openai.transcriber.ts` | Adapter OpenAI (`whisper-1`, hint de idioma `pt`) — fallback, acionado só quando o Groq falha |
-| `pipeline.ts` | Orquestração por-job (PIPE-01..05, PIPE-07): `processImportJob(job)` compõe breaker → download → VAD → transcrever/pular → extracting (stub) → keyframe → S3 → cleanup, escrevendo status do [[Import\|ImportJob]] a cada fronteira de etapa. `try/finally` remove o diretório `mkdtemp`'d do job incondicionalmente (PIPE-05 camada 1) |
+| `pipeline.ts` | Orquestração por-job (PIPE-01..05, PIPE-07): `processImportJob(job)` compõe breaker → download → VAD → transcrever/pular → extracting (extração real, Fase 2) → keyframe → S3 → cleanup, escrevendo status do [[Import\|ImportJob]] a cada fronteira de etapa. `try/finally` remove o diretório `mkdtemp`'d do job incondicionalmente (PIPE-05 camada 1). Fase 4 (Plano 06): grava telemetria de custo por-estágio em `costCents` e devolve a cota reservada em `failJob()` — ver callout abaixo |
 
 > [!WARNING] Fronteira de command injection: ffmpeg via `execFile` + args array
 > `ffmpeg.exec.ts` é o único lugar que invoca o binário ffmpeg, sempre via
@@ -108,6 +108,48 @@ documento [[Import|ImportJob]], consumida por [[Workers|import-worker.ts]].
 > redelivery da SQS, governa a próxima tentativa); razões transientes
 > (`network`/`unknown`) relançam para que o `import-worker.ts` deixe a
 > mensagem na fila para o redrive da DLQ.
+
+> [!INFO] Telemetria de custo por-estágio (COST-02, Fase 4 Plano 06)
+> `pipeline.ts` registra, em cada fronteira de estágio, unidades brutas +
+> centavos estimados em `ImportJob.costCents`: `download` (bytes medidos via
+> `stat()` no arquivo baixado), `transcription` (minutos de áudio, `0` quando
+> `noSpeechDetected`), `extraction` (tokens de input/output do LLM, expostos
+> por `extractImportedRecipe` como `{ recipe, usage }` — a mesma chamada,
+> sem metering extra). `totalCents` soma os estágios conhecidos; `embedding`
+> fica omitido nesta versão (`persistExtractedRecipe` ainda não expõe tokens
+> de embedding de volta ao pipeline). Todo centavo é derivado da tabela de
+> preço em `env.import` (ver [[Config]]) — **nunca** uma constante hardcoded
+> aqui (D-08): trocar um preço errado é trocar uma env var, não um deploy.
+>
+> Uma única linha `[pipeline] cost` é logada por job bem-sucedido, com
+> **só números agregados** (bytes, minutos, tokens, centavos) — nunca o
+> transcript/legenda/payload do LLM (mesma disciplina de `logOutcome`,
+> CONCERNS.md).
+>
+> [!WARNING] Preços são estimativas de baixa confiança, não billing-grade
+> Os valores em `env.import.priceCents*` foram levantados manualmente
+> (RESEARCH A1–A4) e servem para acompanhamento operacional interno — **não**
+> são a fonte de verdade para cobrança real. As unidades brutas (bytes,
+> minutos, tokens) são o dado durável; os centavos derivados podem ficar
+> desatualizados se o preço do provedor mudar sem a env var ser corrigida.
+
+> [!INFO] Refund de cota único em `failJob()` (COST-01/D-07)
+> `failJob()` é o **único** caminho de código que escreve `status: "failed"`
+> no `ImportJob` — por isso é o único lugar seguro para devolver a vaga de
+> cota diária reservada na submissão (`consumeDailyImportQuota`, ver
+> [[Usage]]). Logo após o write de falha, `failJob` chama
+> `refundDailyImportQuota(job.userId, day)`, com `day` = o dia **RESERVADO**
+> (`job.insertedAt`), nunca `new Date()` — um job que falha depois da virada
+> UTC relativa à submissão devolveria a vaga no contador do dia errado se
+> usasse "hoje" às cegas.
+>
+> O refund é exatamente-uma-vez mesmo sob redelivery *at-least-once* da SQS:
+> o guard `TERMINAL_STATUSES` no-op em `src/workers/import-worker.ts` impede
+> que `processImportJob`/`failJob` rodem de novo para um job já em `failed`
+> — o doc Mongo, não o payload SQS, é a fonte da verdade de idempotência
+> (PIPE-06). O refund **nunca** vive fora de `failJob` (nunca no topo de
+> `processImportJob` nem em lógica por-tentativa) — isso duplicaria a
+> devolução sob redelivery.
 
 ## Consumido por
 
