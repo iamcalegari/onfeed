@@ -3,6 +3,33 @@ tags: [backend, module, core, idor, security]
 updated: 2026-07-02
 ---
 
+> [!WARNING] GET /recipes/share/:token — link público por shareSlug (Fase 5, D-01/D-03/D-04)
+> Rota **pública** (sem `requireAuth`) que resolve uma receita SOMENTE pelo
+> `shareSlug` secreto — nunca por objectId. `shareSlug` é um token CSPRNG
+> (`node:crypto` `randomBytes(24).toString("base64url")`, 192 bits de
+> entropia) gerado por [[Import]]'s `confirmImportedRecipe` na MESMA escrita
+> que seta `confirmedAt` (D-04): todo import confirmado já nasce linkável,
+> sem uma ação de "publicar link" separada. A idempotência de
+> `confirmedAt` garante que o token nunca é regerado num segundo confirm.
+>
+> `getRecipeByShareSlug(token)` (`recipe.repository.ts`) é um lookup PURO —
+> sem branch de visibility/ownership, porque o próprio token é a única
+> autorização (D-03): `RecipeModel.find({ shareSlug: token })`, retornando
+> `null` (nunca lança) em miss. A rota devolve `reply.notFound(...)`
+> uniformemente para token ausente, errado, ou de receita já apagada —
+> indistinguíveis entre si (T-05-09, no existence leak). Uma receita
+> privada e nunca compartilhada (sem `shareSlug`) é estruturalmente
+> inalcançável por essa rota (T-05-10, IDOR-safe): não existe caminho de
+> código que resolva por `_id`.
+>
+> A resposta inclui `likes: { count, liked }` — `liked` só é calculado
+> quando `getUserId(request)` resolve uma sessão (mesmo idioma soft-auth de
+> `GET /recipes/:id`); curtir em si continua exigindo login no front (D-01).
+> O payload também expõe `recipe.visibility` para o front aplicar o
+> redirect canônico `/r/[token]` → `/recipe/[id]` uma vez que a receita
+> vira `public` (D-12) — `/r/[token]` continua válido para sempre, mesmo
+> depois da promoção.
+
 > [!WARNING] GET /recipes/:id — guard de visibilidade (Fase 3, Plano 02, T-03-05/T-03-06)
 > A rota continua **pública** (sem `requireAuth` — receitas do catálogo seguem
 > funcionando anônimas), mas agora passa `getUserId(request)` (string ou
@@ -39,9 +66,10 @@ Módulo central do sistema. Gerencia o catálogo de receitas, o pipeline de inge
 |---|---|
 | `recipe.types.ts` | Interfaces TypeScript: `Recipe`, `RecipeIngredient`, `RecipeStep`, `RecipeSearchHit`, `DimensionScores` |
 | `recipe.model.ts` | Schema MongoDB + validadores BSON + índices (vector search, ingredient lookup) |
-| `recipe.repository.ts` | `hybridSearch` — pipeline de busca vetorial + re-rank I/E/T/N; owner-scoped via `ownerId` (Fase 2, D-14). `listImportedRecipesByOwner` — listagem "Minhas importações" (D-09): `findMany` puro por `source:"imported"` + `createdBy.userId`, **sem** `$vectorSearch` (query vazia daria 500 no Atlas). `getRecipeById(id)` / `getRecipeById(id, userId \| null)` — IDOR-safe, resolve ownership de import via `importJobId → ImportJob.userId` (Fase 3, T-03-05). |
-| `recipe.repository.test.ts` | Fase 2: prova isolamento cross-user do filtro `$or` owner-scoped, preservação do comportamento de catálogo sem `ownerId`, exclusão de `'imported'` de `DEFAULTS.sources`, e IDOR-safety de `getRecipeById`. Fase 3: resolução de ownership de import privado via `importJobId` (dono, não-dono, anônimo). |
+| `recipe.repository.ts` | `hybridSearch` — pipeline de busca vetorial + re-rank I/E/T/N; owner-scoped via `ownerId` (Fase 2, D-14). `listImportedRecipesByOwner` — listagem "Minhas importações" (D-09): `findMany` puro por `source:"imported"` + `createdBy.userId`, **sem** `$vectorSearch` (query vazia daria 500 no Atlas). `getRecipeById(id)` / `getRecipeById(id, userId \| null)` — IDOR-safe, resolve ownership de import via `importJobId → ImportJob.userId` (Fase 3, T-03-05). `getRecipeByShareSlug(token)` — lookup público puro por `shareSlug` (Fase 5, D-03/D-04), sem branch de visibility/ownership. `promoteImportToPublic` — flips `visibility: private → public` mantendo `source:"imported"` (Fase 5, D-05). |
+| `recipe.repository.test.ts` | Fase 2: prova isolamento cross-user do filtro `$or` owner-scoped, preservação do comportamento de catálogo sem `ownerId`, exclusão de `'imported'` de `DEFAULTS.sources`, e IDOR-safety de `getRecipeById`. Fase 3: resolução de ownership de import privado via `importJobId` (dono, não-dono, anônimo). Fase 5: `getRecipeByShareSlug` — resolve por token, `null` em miss (sem lançar), nunca resolve por objectId (T-05-10). |
 | `recipe.routes.visibility.test.ts` | Fase 3 (Plano 02): `GET /recipes/:id` — anônimo vê público, anônimo/outro usuário levam 404 em import privado, dono vê o próprio import privado, overlay `lang=en` preservado |
+| `recipe.routes.share.test.ts` | Fase 5 (Plano 03): `GET /recipes/share/:token` — anônimo resolve 200 sem `requireAuth`, token desconhecido/de receita deletada 404 uniforme (T-05-09), `_id` tentado como `:token` nunca resolve (T-05-10), like state presente só com sessão |
 | `recipe.ingestion.ts` | Pipeline de ingestão única: extração LLM → canonicalização → embedding → persist |
 | `recipe.extraction.ts` | Chama [[LLM (Anthropic)]] para extrair estrutura de um texto/receita crua |
 | `recipe.generation.ts` | Gera receita nova via LLM a partir de ingredientes (feature "adaptar") |
@@ -146,6 +174,7 @@ RawRecipeInput
 
 ```
 GET  /api/v1/recipes/:id           → receita completa (detalhes)
+GET  /api/v1/recipes/share/:token  → receita pública por shareSlug (Fase 5, sem requireAuth)
 POST /api/v1/recipes/adapt         → gera variação da receita pro que o usuário tem
 POST /api/v1/recipes/:id/thumbnail/trigger  → dispara geração lazy de imagem
 GET  /api/v1/recipes/:id/thumbnail → URL atual (null se ainda gerando)

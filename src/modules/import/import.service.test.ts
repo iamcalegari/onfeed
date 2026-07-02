@@ -20,8 +20,9 @@ vi.mock("@/infra/queue/sqs.client.js", () => ({
 
 // RecipeModel: mockado para que import.service.ts (que agora o importa para
 // confirmImportedRecipe, Fase 3 Task 3) não registre a coleção real do mongoat.
+const recipeModelUpdate = vi.fn();
 vi.mock("@/modules/recipes/recipe.model.js", () => ({
-  RecipeModel: { update: vi.fn() },
+  RecipeModel: { update: (...args: unknown[]) => recipeModelUpdate(...args) },
 }));
 
 // listImportedRecipesByOwner: espiona a delegação de listMyImportedRecipes sem
@@ -29,14 +30,19 @@ vi.mock("@/modules/recipes/recipe.model.js", () => ({
 // (não hybridSearch/$vectorSearch — um queryVector vazio dava 500 no Atlas).
 // getRecipeById: usado por confirmImportedRecipe.
 const listImportedRecipesByOwnerMock = vi.fn().mockResolvedValue([]);
+const getRecipeByIdMock = vi.fn();
 vi.mock("@/modules/recipes/recipe.repository.js", () => ({
   listImportedRecipesByOwner: (...args: unknown[]) => listImportedRecipesByOwnerMock(...args),
-  getRecipeById: vi.fn(),
+  getRecipeById: (...args: unknown[]) => getRecipeByIdMock(...args),
 }));
 
-const { detectPlatform, normalizeUrl, enqueueImportJob, listMyImportedRecipes } = await import(
-  "./import.service.js"
-);
+const {
+  detectPlatform,
+  normalizeUrl,
+  enqueueImportJob,
+  listMyImportedRecipes,
+  confirmImportedRecipe,
+} = await import("./import.service.js");
 
 describe("detectPlatform (CAP-02 / SSRF boundary)", () => {
   it.each([
@@ -156,5 +162,90 @@ describe("listMyImportedRecipes (D-09 'Minhas importações' — filtro puro own
     listImportedRecipesByOwnerMock.mockResolvedValueOnce(hits);
 
     await expect(listMyImportedRecipes("user_D")).resolves.toBe(hits);
+  });
+});
+
+describe("confirmImportedRecipe — shareSlug CSPRNG (Fase 5, D-03/D-04)", () => {
+  const PATCH = {
+    title: "Risoto de cogumelos",
+    intro: "Um risoto cremoso.",
+    ingredients: [{ name: "arroz arbóreo", quantity: 300, unit: "g" }],
+    steps: [{ text: "Refogue o arroz na manteiga." }],
+  };
+
+  beforeEach(() => {
+    recipeModelUpdate.mockReset().mockResolvedValue(undefined);
+    getRecipeByIdMock.mockReset();
+  });
+
+  it("escreve um shareSlug não-vazio e URL-safe no MESMO $set que confirmedAt", async () => {
+    getRecipeByIdMock.mockResolvedValue({
+      _id: "recipe1",
+      ingredients: [{ raw: "arroz", canonicalId: "c1", core: true, isStaple: false }],
+      steps: [{ text: "..." }],
+      confirmedAt: undefined,
+    });
+
+    const result = await confirmImportedRecipe(
+      "507f1f77bcf86cd799439011",
+      "user_A",
+      PATCH,
+    );
+
+    expect(result).toEqual({ alreadyConfirmed: false });
+    expect(recipeModelUpdate).toHaveBeenCalledTimes(1);
+    const [, updateDoc] = recipeModelUpdate.mock.calls[0] as [
+      unknown,
+      { $set: { shareSlug?: string; confirmedAt?: Date } },
+    ];
+    const { shareSlug, confirmedAt } = updateDoc.$set;
+    expect(shareSlug).toBeTruthy();
+    expect(typeof shareSlug).toBe("string");
+    // base64url: só [A-Za-z0-9_-], sem padding '='
+    expect(shareSlug).toMatch(/^[A-Za-z0-9_-]+$/);
+    // randomBytes(24) -> 32 chars em base64url (>= 128 bits de entropia)
+    expect(shareSlug!.length).toBeGreaterThanOrEqual(22);
+    expect(confirmedAt).toBeInstanceOf(Date);
+  });
+
+  it("duas chamadas de confirm (duas receitas distintas) geram tokens diferentes", async () => {
+    getRecipeByIdMock.mockResolvedValue({
+      _id: "recipe1",
+      ingredients: [],
+      steps: [],
+      confirmedAt: undefined,
+    });
+
+    await confirmImportedRecipe("507f1f77bcf86cd799439011", "user_A", PATCH);
+    await confirmImportedRecipe("507f1f77bcf86cd799439022", "user_A", PATCH);
+
+    const [, firstUpdate] = recipeModelUpdate.mock.calls[0] as [
+      unknown,
+      { $set: { shareSlug: string } },
+    ];
+    const [, secondUpdate] = recipeModelUpdate.mock.calls[1] as [
+      unknown,
+      { $set: { shareSlug: string } },
+    ];
+    expect(firstUpdate.$set.shareSlug).not.toBe(secondUpdate.$set.shareSlug);
+  });
+
+  it("idempotente — recipe já confirmada (confirmedAt setado) não regera token, retorna alreadyConfirmed sem escrever", async () => {
+    getRecipeByIdMock.mockResolvedValue({
+      _id: "recipe1",
+      ingredients: [],
+      steps: [],
+      confirmedAt: new Date("2026-07-01T00:00:00Z"),
+      shareSlug: "existing-token-abc",
+    });
+
+    const result = await confirmImportedRecipe(
+      "507f1f77bcf86cd799439011",
+      "user_A",
+      PATCH,
+    );
+
+    expect(result).toEqual({ alreadyConfirmed: true });
+    expect(recipeModelUpdate).not.toHaveBeenCalled();
   });
 });

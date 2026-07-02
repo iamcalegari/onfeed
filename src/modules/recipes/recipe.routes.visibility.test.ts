@@ -33,6 +33,11 @@ vi.mock("@/modules/billing/entitlement.repository.js", () => ({
   isProUser: vi.fn(),
 }));
 
+vi.mock("@/modules/likes/like.repository.js", () => ({
+  getLikeCount: vi.fn(),
+  getUserLiked: vi.fn(),
+}));
+
 vi.mock("@/modules/usage/usage.repository.js", () => ({
   consumeDailyAdaptQuota: vi.fn(),
 }));
@@ -47,6 +52,7 @@ vi.mock("./recipe.translation.js", () => ({
 
 vi.mock("./recipe.repository.js", () => ({
   getRecipeById: vi.fn(),
+  getRecipeByShareSlug: vi.fn(),
   getVariantCount: vi.fn(),
   getVariantsByParentId: vi.fn(),
   rejectVariant: vi.fn(),

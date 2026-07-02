@@ -30,8 +30,13 @@ vi.mock("@/modules/import/import-job.repository.js", () => ({
   getImportJob: (...args: unknown[]) => getImportJob(...args),
 }));
 
-const { hybridSearch, getRecipeById, DEFAULT_SEARCH_SOURCES, listImportedRecipesByOwner } =
-  await import("./recipe.repository.js");
+const {
+  hybridSearch,
+  getRecipeById,
+  getRecipeByShareSlug,
+  DEFAULT_SEARCH_SOURCES,
+  listImportedRecipesByOwner,
+} = await import("./recipe.repository.js");
 
 function minimalParams(overrides: Partial<Parameters<typeof hybridSearch>[0]> = {}) {
   return {
@@ -191,6 +196,54 @@ describe("getRecipeById — IDOR-safe owner overload (D-14 / T-02-07)", () => {
       visibility: "private",
       importJobId: "job_1",
     });
+  });
+});
+
+describe("getRecipeByShareSlug — lookup público por token (Fase 5, D-03/D-04, T-05-09/T-05-10)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("resolve a receita quando o shareSlug bate (token é a única autorização, sem branch de visibility)", async () => {
+    const recipe = { _id: "recipe1", title: "Risoto", shareSlug: "abc123XYZ_-", visibility: "private" };
+    find.mockResolvedValue(recipe);
+
+    const result = await getRecipeByShareSlug("abc123XYZ_-");
+
+    expect(find).toHaveBeenCalledWith(
+      { shareSlug: "abc123XYZ_-" },
+      { projection: { embedding: 0, embeddingText: 0 } },
+    );
+    expect(result).toEqual(recipe);
+  });
+
+  it("retorna null (nunca lança) para um token desconhecido — 404 uniforme na rota (T-05-09, no existence leak)", async () => {
+    find.mockResolvedValue(null);
+
+    const result = await getRecipeByShareSlug("token-inexistente");
+
+    expect(result).toBeNull();
+  });
+
+  it("nunca resolve por objectId — o filtro é SEMPRE shareSlug, mesmo se o token parecer um _id (T-05-10, IDOR-safety)", async () => {
+    find.mockResolvedValue(null);
+
+    await getRecipeByShareSlug("507f1f77bcf86cd799439011");
+
+    const [filter] = find.mock.calls[0] as [Record<string, unknown>];
+    expect(filter).toEqual({ shareSlug: "507f1f77bcf86cd799439011" });
+    expect(filter).not.toHaveProperty("_id");
+  });
+
+  it("uma receita privada e não-compartilhada (sem shareSlug) é inalcançável por este caminho — find retorna null quando o filtro não casa", async () => {
+    // Simula o comportamento real do Mongo: uma receita private SEM
+    // shareSlug nunca casa com { shareSlug: token } para nenhum token —
+    // o driver real retornaria null aqui, nunca a receita privada.
+    find.mockResolvedValue(null);
+
+    const result = await getRecipeByShareSlug("qualquer-token-tentado");
+
+    expect(result).toBeNull();
   });
 });
 
