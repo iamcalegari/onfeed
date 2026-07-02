@@ -13,6 +13,12 @@ const execFileAsync = promisify(execFile);
 
 const FFMPEG_BIN = process.env.FFMPEG_PATH ?? "ffmpeg";
 
+// Teto duro por operação (SIGKILL): clipes de import têm ≤ maxDurationSec
+// (~3min) — qualquer operação ffmpeg legítima termina em segundos. Sem o
+// teto, um ffmpeg pendurado (input truncado/corrompido) congela o job e,
+// via handleMessage sequencial do worker, a fila inteira.
+const FFMPEG_TIMEOUT_MS = 3 * 60_000;
+
 export interface FfmpegResult {
   stdout: string;
   stderr: string;
@@ -25,7 +31,10 @@ export interface FfmpegResult {
  * decide o que fazer com a saída.
  */
 export async function runFfmpeg(args: string[]): Promise<FfmpegResult> {
-  const { stdout, stderr } = await execFileAsync(FFMPEG_BIN, args);
+  const { stdout, stderr } = await execFileAsync(FFMPEG_BIN, args, {
+    timeout: FFMPEG_TIMEOUT_MS,
+    killSignal: "SIGKILL",
+  });
   return { stdout, stderr };
 }
 

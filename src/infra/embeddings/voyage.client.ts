@@ -11,6 +11,12 @@ interface VoyageResponse {
 
 const MAX_RETRIES = 5;
 
+// Teto por tentativa: sem AbortSignal, um fetch cuja resposta nunca chega
+// segura o await indefinidamente — dentro do worker de import isso congelava
+// a fila inteira (handleMessage sequencial). 429/5xx continuam cobertos pelo
+// retry com backoff acima; o abort vira TypeError e propaga como falha.
+const REQUEST_TIMEOUT_MS = 60_000;
+
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -20,19 +26,34 @@ async function callVoyage(
   inputType: "document" | "query",
   attempt = 0,
 ): Promise<number[][]> {
-  const res = await fetch(VOYAGE_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${env.voyage.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: env.voyage.model,
-      input,
-      input_type: inputType,
-      output_dimension: env.voyage.dimensions,
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(VOYAGE_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${env.voyage.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: env.voyage.model,
+        input,
+        input_type: inputType,
+        output_dimension: env.voyage.dimensions,
+      }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (err) {
+    // Timeout é transiente como 429/5xx — entra no mesmo backoff.
+    if ((err as Error).name === "TimeoutError" && attempt < MAX_RETRIES) {
+      const waitMs = Math.min(30_000, 4_000 * 2 ** attempt);
+      console.warn(
+        `[voyage] timeout após ${REQUEST_TIMEOUT_MS}ms, retry ${attempt + 1}/${MAX_RETRIES} em ${Math.round(waitMs / 1000)}s`,
+      );
+      await sleep(waitMs);
+      return callVoyage(input, inputType, attempt + 1);
+    }
+    throw err;
+  }
 
   // 429 (rate limit) e 5xx são transitórios — espera e tenta de novo.
   // No free tier da Voyage o limite é 3 RPM, então o backoff cresce até ~30s.

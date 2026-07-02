@@ -232,10 +232,17 @@ export interface ImportExtractionResult {
   usage: ImportExtractionUsage;
 }
 
+// Teto por-request (só desta chamada — não muda o client compartilhado): o
+// default do SDK é 10min + retries, tempo demais dentro do worker de import,
+// onde um handler lento segura o consumo da fila (handleMessage sequencial).
+const EXTRACTION_TIMEOUT_MS = 3 * 60_000;
+
 export async function extractImportedRecipe(
   input: ImportExtractionInput,
 ): Promise<ImportExtractionResult> {
-  const res = await anthropic.messages.parse(buildImportParams(input));
+  const res = await anthropic.messages.parse(buildImportParams(input), {
+    timeout: EXTRACTION_TIMEOUT_MS,
+  });
 
   if (!res.parsed_output) {
     throw new Error(

@@ -83,6 +83,26 @@ documento [[Import|ImportJob]], consumida por [[Workers|import-worker.ts]].
 > Whisper, que é documentadamente pouco confiável em segmentos alucinados
 > (ver `01-RESEARCH.md` Common Pitfalls §3).
 
+## Timeouts por etapa (incidente 2026-07-02)
+
+> [!warning] Nenhuma chamada externa do pipeline pode ficar sem teto
+> Um subprocesso/chamada pendurado congela o job — e, via `handleMessage`
+> sequencial do worker ([[Workers]]), a fila inteira. Foi o modo de falha de
+> 2026-07-02 (job preso em `extracting`, worker sem consumir o dia todo).
+
+- `ytdlp.downloader.ts` — `--socket-timeout 30` (stall de rede, classificado
+  `network` pelo yt-dlp) + spawn timeout com `SIGKILL` como backstop
+  (metadata 90s, download 5min; kill vira `DownloadError("network")` →
+  transiente/redrive, nunca `unknown`).
+- `ffmpeg.exec.ts` — `runFfmpeg` roda com teto de 3min + `SIGKILL` (clipes
+  têm ≤ `maxDurationSec`; operação legítima termina em segundos).
+- Extração LLM (`import.extraction.ts`, [[Import]]) — timeout por-request de
+  3min no `messages.parse` (o default do SDK é 10min + retries).
+- Embeddings (`voyage.client.ts`) — `AbortSignal.timeout(60s)` por tentativa;
+  timeout entra no mesmo retry/backoff de 429/5xx.
+- Backstop de última instância: `handleMessageTimeout` de 15min no consumer
+  ([[Workers]]).
+
 ## Convenção de testes
 
 - `*.test.ts` — suite rápida (`npm run test`), sem dependência de binário/SDK/rede externos. `ytdlp.downloader.test.ts` mocka `youtube-dl-exec`; `transcription.test.ts` injeta funções `Transcriber` mockadas via `TranscribeDeps` (nenhum dos dois toca as SDKs/binário real).

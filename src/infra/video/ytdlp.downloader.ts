@@ -30,6 +30,29 @@ export type DownloadFailureReason =
   | "duration_exceeded" // PIPE-02/T-03-02 — teto de duração antes do download caro
   | "unknown";
 
+/**
+ * Tetos duros (SIGKILL via spawn timeout) para os subprocessos yt-dlp. Sem
+ * eles, um yt-dlp pendurado (anti-bot que segura a conexão aberta, stall de
+ * rede) nunca retorna — e como o worker processa uma mensagem por vez, um
+ * único hang congelava o consumo da fila inteira (incidente de 2026-07-02).
+ * O --socket-timeout (flag nativa) cobre stalls de rede de forma graciosa;
+ * o spawn timeout é o backstop para qualquer outro modo de travamento.
+ */
+const METADATA_TIMEOUT_MS = 90_000;
+const DOWNLOAD_TIMEOUT_MS = 5 * 60_000;
+const SOCKET_TIMEOUT_SEC = 30;
+
+/** Erro de subprocesso morto pelo spawn timeout — vira "network" (transiente,
+ * elegível a redrive), nunca "unknown". */
+function timeoutAwareError(err: unknown, timeoutMs: number): DownloadError {
+  const e = err as { stderr?: string; killed?: boolean; signalCode?: string };
+  if (e.killed === true || e.signalCode === "SIGKILL") {
+    return new DownloadError("network", `yt-dlp morto após timeout de ${timeoutMs}ms`);
+  }
+  const stderr = e.stderr ?? String(err);
+  return new DownloadError(classifyYtdlpError(stderr), stderr);
+}
+
 export class DownloadError extends Error {
   constructor(
     public reason: DownloadFailureReason,
@@ -108,14 +131,18 @@ function mapToVideoMetadata(raw: unknown): VideoMetadata {
 export async function fetchMetadata(url: string): Promise<VideoMetadata> {
   let raw: unknown;
   try {
-    raw = await youtubedl(url, {
-      dumpSingleJson: true,
-      noCheckCertificates: true,
-      noWarnings: true,
-    });
+    raw = await youtubedl(
+      url,
+      {
+        dumpSingleJson: true,
+        noCheckCertificates: true,
+        noWarnings: true,
+        socketTimeout: SOCKET_TIMEOUT_SEC,
+      },
+      { timeout: METADATA_TIMEOUT_MS, killSignal: "SIGKILL" },
+    );
   } catch (err) {
-    const stderr = (err as { stderr?: string }).stderr ?? String(err);
-    throw new DownloadError(classifyYtdlpError(stderr), stderr);
+    throw timeoutAwareError(err, METADATA_TIMEOUT_MS);
   }
   return mapToVideoMetadata(raw);
 }
@@ -137,15 +164,19 @@ export async function downloadVideo(url: string, outputPath: string): Promise<Do
   }
 
   try {
-    await youtubedl(url, {
-      output: outputPath,
-      format: "best[ext=mp4]/best", // container previsível para o ffmpeg a jusante
-      noCheckCertificates: true,
-      noWarnings: true,
-    });
+    await youtubedl(
+      url,
+      {
+        output: outputPath,
+        format: "best[ext=mp4]/best", // container previsível para o ffmpeg a jusante
+        noCheckCertificates: true,
+        noWarnings: true,
+        socketTimeout: SOCKET_TIMEOUT_SEC,
+      },
+      { timeout: DOWNLOAD_TIMEOUT_MS, killSignal: "SIGKILL" },
+    );
   } catch (err) {
-    const stderr = (err as { stderr?: string }).stderr ?? String(err);
-    throw new DownloadError(classifyYtdlpError(stderr), stderr);
+    throw timeoutAwareError(err, DOWNLOAD_TIMEOUT_MS);
   }
 
   return { videoPath: outputPath, meta };

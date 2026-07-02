@@ -98,6 +98,13 @@ export function createImportConsumer(): Consumer {
     // ~6x o p95 esperado de processamento (RESEARCH Pitfall 4) — download +
     // transcrição + keyframe realisticamente leva 30s-3min.
     visibilityTimeout: 20 * 60,
+    // sqs-consumer processa UMA mensagem por vez: sem este teto, um único job
+    // pendurado (yt-dlp/ffmpeg/LLM sem resposta) congela o worker inteiro para
+    // sempre — foi exatamente o modo de falha de 2026-07-02 (job preso em
+    // "extracting" às 03:47 UTC deixou a fila sem consumo o dia todo).
+    // 15min < visibilityTimeout (20min): o handler é abortado antes de a
+    // mensagem voltar a ficar visível, evitando processamento duplo.
+    handleMessageTimeout: 15 * 60 * 1000,
     handleMessage: async (message) => {
       await handleImportMessage(message.Body ?? "{}");
       return message; // ack (delete) — sucesso ou no-op idempotente
@@ -109,6 +116,13 @@ export function createImportConsumer(): Consumer {
     // redrive policy (maxReceiveCount, config de infra da Plan 06) mover
     // para a DLQ após tentativas repetidas.
     console.error("[import-worker] processing error", err);
+  });
+
+  consumer.on("timeout_error", (err) => {
+    // handleMessageTimeout estourou — o job ficou pendurado além do teto. A
+    // mensagem NÃO é deletada (volta via redrive); o job Mongo fica no último
+    // status não-terminal até uma redelivery reprocessá-lo do zero.
+    console.error("[import-worker] handler timeout (job pendurado abortado)", err);
   });
 
   consumer.on("error", (err) => {

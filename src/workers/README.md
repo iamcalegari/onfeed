@@ -56,3 +56,19 @@ retorna sem lançar, então a mensagem É deletada (ack) mesmo em falha — evit
 que a redelivery automática da SQS acelere um bloqueio de plataforma; o
 circuit breaker (`platform-breaker.ts`, [[Video Infra]]) é quem decide quando
 tentar aquela plataforma de novo.
+
+## Teto por mensagem (handleMessageTimeout)
+
+> [!warning] Um job pendurado NÃO pode congelar a fila
+> O `sqs-consumer` processa **uma mensagem por vez**: `handleMessage` só
+> retorna quando o pipeline inteiro termina. No incidente de 2026-07-02, um
+> job preso em `extracting` (chamada externa sem resposta) segurou o handler
+> para sempre — o worker parou de consumir a fila o dia todo e todo import
+> novo ficou eternamente em "Na fila".
+
+`Consumer.create` agora define `handleMessageTimeout: 15min` (< o
+`visibilityTimeout` de 20min, para o abort acontecer antes de a mensagem
+voltar a ficar visível). Handler estourado emite `timeout_error` (logado) e a
+mensagem segue para redrive/DLQ via `maxReceiveCount`. Complementa os tetos
+por etapa dentro do pipeline ([[Video Infra]] — yt-dlp/ffmpeg/LLM/Voyage);
+este é o backstop de última instância.
