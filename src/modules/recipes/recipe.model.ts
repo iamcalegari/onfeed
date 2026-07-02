@@ -50,6 +50,31 @@ const creatorSchema: ModelValidationSchema = {
   },
 };
 
+// Grounding por campo (Fase 2 — onFeed Import). Só presente em source: "imported".
+const groundingSchema: ModelValidationSchema = {
+  bsonType: "object",
+  required: ["titleGrounding", "quantityGrounding", "stepGrounding", "nutrition", "sourceDivergence"],
+  properties: {
+    titleGrounding: { bsonType: "string", enum: ["grounded", "inferred", "ambiguous"] },
+    quantityGrounding: { bsonType: "object" },
+    stepGrounding: { bsonType: "object" },
+    nutrition: { bsonType: "string", enum: ["inferred"] },
+    sourceDivergence: { bsonType: "array", items: { bsonType: "string" } },
+  },
+};
+
+// Metadados desnormalizados do post/vídeo de origem (Fase 2 — onFeed Import).
+const sourceMetaSchema: ModelValidationSchema = {
+  bsonType: "object",
+  required: ["platform", "sourceUrl"],
+  properties: {
+    platform: { bsonType: "string" },
+    authorHandle: { bsonType: "string" },
+    authorUrl: { bsonType: "string" },
+    sourceUrl: { bsonType: "string" },
+  },
+};
+
 const schema: ModelValidationSchema = {
   bsonType: "object",
   required: [
@@ -85,6 +110,15 @@ const schema: ModelValidationSchema = {
     dietaryTags: { bsonType: "array", items: { bsonType: "string" } },
     avgRating:   { bsonType: "number" },
     ratingCount: { bsonType: "number" },
+    // Fase 2 (onFeed Import) — intencionalmente OPTIONAL aqui: docs de catálogo
+    // existentes não têm visibility; default 'public' é aplicado na camada de
+    // app (persistExtractedRecipe), não no schema (mongoat valida todo insert).
+    visibility: { bsonType: "string", enum: ["private", "public"] },
+    grounding: groundingSchema,
+    importJobId: { bsonType: "objectId" },
+    sourceMeta: sourceMetaSchema,
+    reviewRequired: { bsonType: "bool" },
+    confidenceScore: { bsonType: "number" },
     equipment: {
       bsonType: "array",
       items: {
@@ -97,7 +131,7 @@ const schema: ModelValidationSchema = {
     nutrition: nutritionSchema,
     source: {
       bsonType: "string",
-      enum: ["curated", "generated_pending", "generated_validated", "variant", "rejected", "user"],
+      enum: ["curated", "generated_pending", "generated_validated", "variant", "rejected", "user", "imported"],
     },
     embeddingText: { bsonType: "string" },
     embedding: { bsonType: "array", items: { bsonType: "number" } },
@@ -133,5 +167,7 @@ export const RecipeModel = new Model<Recipe>({
     // sparse: receitas sem parentRecipeId (base/user) não entram no índice
     { key: { parentRecipeId: 1 }, name: "parent_recipe_lookup", sparse: true },
     { key: { dietaryTags: 1 }, name: "dietary_tags_lookup", sparse: true },
+    // sparse: só receitas importadas (source: "imported") têm importJobId.
+    { key: { importJobId: 1 }, name: "import_job_lookup", sparse: true },
   ],
 });

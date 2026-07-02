@@ -4,7 +4,32 @@ export type RecipeSource =
   | "generated_validated"// (legado) gerada e aprovada
   | "variant"            // promovida de pending após threshold de likes
   | "rejected"           // rejeitada pelo admin
-  | "user";              // submetida diretamente por usuário
+  | "user"               // submetida diretamente por usuário
+  | "imported";          // extraída de vídeo (onFeed Import — Fase 2)
+
+/** Visibilidade da receita. Import sempre nasce 'private'; promoção pública é Fase 5. */
+export type RecipeVisibility = "private" | "public";
+
+/** Nível de confiança de um campo extraído (Fase 2 — onFeed Import). */
+export type GroundingLevel = "grounded" | "inferred" | "ambiguous";
+
+/**
+ * Grounding por campo de uma receita importada — honestidade explícita sobre
+ * o que veio literal do transcript/caption vs o que o LLM inferiu/estimou.
+ * Só existe em receitas `source: "imported"`; alimenta o gate de revisão
+ * (D-01..D-03) e a tela de revisão (Fase 3).
+ */
+export interface RecipeGrounding {
+  titleGrounding: GroundingLevel;
+  /** chave = canonicalId (ou índice, se ainda não canonicalizado) do ingrediente */
+  quantityGrounding: Record<string, GroundingLevel>;
+  /** chave = índice do passo */
+  stepGrounding: Record<string, GroundingLevel>;
+  /** nutrição é sempre estimada pelo mecanismo do catálogo (D-10) — nunca perguntada ao modelo */
+  nutrition: "inferred";
+  /** campos onde transcript e caption divergem explicitamente (D-08) */
+  sourceDivergence: string[];
+}
 
 /** Crédito de quem gerou uma receita variante. */
 export interface RecipeCreator {
@@ -82,6 +107,23 @@ export interface Recipe {
   avgRating?: number;
   /** Total de avaliações. */
   ratingCount?: number;
+  /** Visibilidade — receitas importadas nascem 'private'; catálogo é 'public'. */
+  visibility: RecipeVisibility;
+  /** Grounding por campo — só presente em receitas source: "imported" (Fase 2). */
+  grounding?: RecipeGrounding;
+  /** Back-reference ao ImportJob que originou esta receita (Fase 2). */
+  importJobId?: string;
+  /** Metadados do post/vídeo de origem, desnormalizados (Fase 2). */
+  sourceMeta?: {
+    platform: string;
+    authorHandle?: string;
+    authorUrl?: string;
+    sourceUrl: string;
+  };
+  /** true quando a extração ficou abaixo do limiar de confiança (Fase 2/3). */
+  reviewRequired?: boolean;
+  /** score agregado de confiança 0..1 (Fase 2/3). */
+  confidenceScore?: number;
   title: string;
   /** Tradução lazy do intro para inglês (gerada sob demanda na primeira request lang=en). */
   introEn?: string;

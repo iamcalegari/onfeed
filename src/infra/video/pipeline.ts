@@ -64,6 +64,7 @@ const USER_SAFE_MESSAGES: Record<ImportFailureReason, string> = {
   no_speech_detected: "Não detectamos fala no vídeo.",
   transcription_failed: "Não foi possível transcrever o áudio do vídeo.",
   download_timeout: "O download do vídeo expirou. Tentaremos novamente.",
+  extraction_failed: "Não foi possível estruturar a receita a partir do vídeo.",
   unknown_error: "Ocorreu um erro inesperado ao processar o vídeo.",
 };
 
