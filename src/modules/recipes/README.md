@@ -39,7 +39,7 @@ Módulo central do sistema. Gerencia o catálogo de receitas, o pipeline de inge
 |---|---|
 | `recipe.types.ts` | Interfaces TypeScript: `Recipe`, `RecipeIngredient`, `RecipeStep`, `RecipeSearchHit`, `DimensionScores` |
 | `recipe.model.ts` | Schema MongoDB + validadores BSON + índices (vector search, ingredient lookup) |
-| `recipe.repository.ts` | `hybridSearch` — pipeline de busca vetorial + re-rank I/E/T/N; owner-scoped via `ownerId` (Fase 2, D-14). `getRecipeById(id)` / `getRecipeById(id, userId \| null)` — IDOR-safe, resolve ownership de import via `importJobId → ImportJob.userId` (Fase 3, T-03-05). |
+| `recipe.repository.ts` | `hybridSearch` — pipeline de busca vetorial + re-rank I/E/T/N; owner-scoped via `ownerId` (Fase 2, D-14). `listImportedRecipesByOwner` — listagem "Minhas importações" (D-09): `findMany` puro por `source:"imported"` + `createdBy.userId`, **sem** `$vectorSearch` (query vazia daria 500 no Atlas). `getRecipeById(id)` / `getRecipeById(id, userId \| null)` — IDOR-safe, resolve ownership de import via `importJobId → ImportJob.userId` (Fase 3, T-03-05). |
 | `recipe.repository.test.ts` | Fase 2: prova isolamento cross-user do filtro `$or` owner-scoped, preservação do comportamento de catálogo sem `ownerId`, exclusão de `'imported'` de `DEFAULTS.sources`, e IDOR-safety de `getRecipeById`. Fase 3: resolução de ownership de import privado via `importJobId` (dono, não-dono, anônimo). |
 | `recipe.routes.visibility.test.ts` | Fase 3 (Plano 02): `GET /recipes/:id` — anônimo vê público, anônimo/outro usuário levam 404 em import privado, dono vê o próprio import privado, overlay `lang=en` preservado |
 | `recipe.ingestion.ts` | Pipeline de ingestão única: extração LLM → canonicalização → embedding → persist |

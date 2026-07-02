@@ -454,6 +454,51 @@ export async function searchByTitle(
 }
 
 /**
+ * Lista as receitas importadas de um usuário para a tela "Minhas importações"
+ * (D-09, Fase 3). É FILTRO PURO por dono + `source: "imported"` — NÃO passa por
+ * `$vectorSearch`: não há query semântica aqui, e o `hybridSearch` exige um
+ * queryVector de 1024 dims; um vetor vazio faz o Atlas devolver 500 ("vector
+ * field is indexed with 1024 dimensions but queried with 0"). Owner-scoped por
+ * construção (`createdBy.userId === userId`), então nunca vaza imports de outro
+ * usuário nem despeja o catálogo público. Inclui `reviewRequired`/`confirmedAt`
+ * para alimentar o status "Em revisão" / "Confirmada".
+ */
+export async function listImportedRecipesByOwner(
+  userId: string,
+  limit = 50,
+): Promise<RecipeSearchHit[]> {
+  const docs = (await RecipeModel.findMany(
+    { source: "imported", "createdBy.userId": userId } as never,
+    {
+      limit,
+      sort: { insertedAt: -1 }, // import mais recente primeiro
+      projection: { embedding: 0, embeddingText: 0, ingredients: 0 },
+    },
+  )) as (Recipe & { _id: { toString(): string } })[];
+
+  return (docs ?? []).map((r) => ({
+    _id:            String(r._id),
+    title:          r.title,
+    intro:          r.intro ?? "",
+    country:        r.country ?? "",
+    thumbnailUrl:   r.thumbnailUrl ?? "",
+    prepTimeMin:    r.prepTimeMin ?? 0,
+    servings:       r.servings ?? 1,
+    source:         r.source,
+    ...(r.createdBy !== undefined && { createdBy: r.createdBy }),
+    // Listagem, não busca: scores neutros (o usuário já é dono, não há ranking).
+    matchScore:     100,
+    scores:         { i: 1, e: 1, t: 1, n: 1 },
+    missing:        [],
+    missingCoreCount: 0,
+    cookableNow:    false,
+    ...(r.nutrition !== undefined && { nutrition: r.nutrition }),
+    ...(r.reviewRequired !== undefined && { reviewRequired: r.reviewRequired }),
+    ...(r.confirmedAt !== undefined && { confirmedAt: r.confirmedAt }),
+  }));
+}
+
+/**
  * Receita completa para a tela de detalhe (sem o embedding pesado).
  *
  * Assinatura de 3 estados no 2º argumento — distingue caller TRUSTED

@@ -11,11 +11,13 @@ vi.mock("@/infra/database/search-indexes.js", () => ({
 const aggregate = vi.fn();
 const find = vi.fn();
 const findById = vi.fn();
+const findMany = vi.fn();
 vi.mock("./recipe.model.js", () => ({
   RecipeModel: {
     aggregate: (...args: unknown[]) => aggregate(...args),
     find: (...args: unknown[]) => find(...args),
     findById: (...args: unknown[]) => findById(...args),
+    findMany: (...args: unknown[]) => findMany(...args),
   },
 }));
 
@@ -28,9 +30,8 @@ vi.mock("@/modules/import/import-job.repository.js", () => ({
   getImportJob: (...args: unknown[]) => getImportJob(...args),
 }));
 
-const { hybridSearch, getRecipeById, DEFAULT_SEARCH_SOURCES } = await import(
-  "./recipe.repository.js"
-);
+const { hybridSearch, getRecipeById, DEFAULT_SEARCH_SOURCES, listImportedRecipesByOwner } =
+  await import("./recipe.repository.js");
 
 function minimalParams(overrides: Partial<Parameters<typeof hybridSearch>[0]> = {}) {
   return {
@@ -190,5 +191,69 @@ describe("getRecipeById — IDOR-safe owner overload (D-14 / T-02-07)", () => {
       visibility: "private",
       importJobId: "job_1",
     });
+  });
+});
+
+describe("listImportedRecipesByOwner (D-09 'Minhas importações' — filtro puro, sem $vectorSearch)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("filtra por source:'imported' + createdBy.userId do dono via findMany — NUNCA aggregate/$vectorSearch (regressão do 500 'queried with 0')", async () => {
+    findMany.mockResolvedValueOnce([]);
+
+    await listImportedRecipesByOwner("user_A");
+
+    // O bug era passar queryVector:[] ao hybridSearch → $vectorSearch (aggregate)
+    // → Atlas 500. A listagem tem que ser find puro, jamais aggregate.
+    expect(aggregate).not.toHaveBeenCalled();
+    expect(findMany).toHaveBeenCalledTimes(1);
+    const [filter, options] = findMany.mock.calls[0] as [
+      Record<string, unknown>,
+      Record<string, unknown>,
+    ];
+    expect(filter).toEqual({ source: "imported", "createdBy.userId": "user_A" });
+    expect(options.sort).toEqual({ insertedAt: -1 });
+    // embedding pesado nunca projetado.
+    expect((options.projection as Record<string, number>).embedding).toBe(0);
+  });
+
+  it("mapeia os docs para hits incluindo reviewRequired/confirmedAt (status 'Em revisão'/'Confirmada')", async () => {
+    const confirmedAt = new Date("2026-07-02T00:00:00Z");
+    findMany.mockResolvedValueOnce([
+      {
+        _id: { toString: () => "r_em_revisao" },
+        title: "Risoto (em revisão)",
+        source: "imported",
+        reviewRequired: true,
+      },
+      {
+        _id: { toString: () => "r_confirmada" },
+        title: "Risoto (confirmada)",
+        source: "imported",
+        reviewRequired: false,
+        confirmedAt,
+      },
+    ]);
+
+    const hits = await listImportedRecipesByOwner("user_A");
+
+    expect(hits).toHaveLength(2);
+    const [emRevisao, confirmada] = hits as [
+      (typeof hits)[number],
+      (typeof hits)[number],
+    ];
+    expect(emRevisao).toMatchObject({ _id: "r_em_revisao", reviewRequired: true });
+    expect(emRevisao.confirmedAt).toBeUndefined();
+    expect(confirmada).toMatchObject({ _id: "r_confirmada", reviewRequired: false, confirmedAt });
+  });
+
+  it("repassa o limit fornecido", async () => {
+    findMany.mockResolvedValueOnce([]);
+
+    await listImportedRecipesByOwner("user_B", 5);
+
+    const [, options] = findMany.mock.calls[0] as [unknown, Record<string, unknown>];
+    expect(options.limit).toBe(5);
   });
 });

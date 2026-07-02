@@ -5,10 +5,8 @@ import { env } from "@/config/env.js";
 import { sqsClient } from "@/infra/queue/sqs.client.js";
 import { RecipeModel } from "@/modules/recipes/recipe.model.js";
 import {
-  DEFAULT_SEARCH_SOURCES,
   getRecipeById,
-  hybridSearch,
-  type HybridSearchParams,
+  listImportedRecipesByOwner,
 } from "@/modules/recipes/recipe.repository.js";
 import type { RecipeIngredient, RecipeSearchHit, RecipeStep } from "@/modules/recipes/recipe.types.js";
 import type { ImportJobMessage } from "./import-job.types.js";
@@ -98,15 +96,15 @@ export async function enqueueImportJob(jobId: string): Promise<void> {
  */
 export async function listMyImportedRecipes(
   userId: string,
-  params?: Partial<HybridSearchParams>,
+  opts?: { limit?: number },
 ): Promise<RecipeSearchHit[]> {
-  return hybridSearch({
-    queryVector: [],
-    haveIds: [],
-    ...params,
-    ownerId: userId,
-    sources: [...(params?.sources ?? DEFAULT_SEARCH_SOURCES), "imported"],
-  });
+  // "Minhas importações" (D-09) é LISTAGEM, não busca: só as receitas
+  // `source: "imported"` do próprio usuário, ordenadas por import mais recente.
+  // Delega ao filtro puro do repositório — NÃO usa hybridSearch/$vectorSearch
+  // (um queryVector vazio fazia o Atlas devolver 500 "vector field is indexed
+  // with 1024 dimensions but queried with 0", e passar DEFAULT_SEARCH_SOURCES
+  // ainda despejaria o catálogo público). Owner-scoped por construção.
+  return listImportedRecipesByOwner(userId, opts?.limit);
 }
 
 /**

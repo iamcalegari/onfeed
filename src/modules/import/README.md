@@ -26,6 +26,19 @@ updated: 2026-07-02
 > só para `source: "variant"` no frontend). Descoberto executando o Plano
 > 03-05 (frontend `/import/mine`), corrigido no módulo backend correspondente.
 
+> [!WARNING] Fix — UAT Fase 3: `GET /import/mine` dava 500 no Atlas
+> `listMyImportedRecipes` reusava `hybridSearch({ queryVector: [] })` — mas
+> "Minhas importações" é LISTAGEM, não busca semântica. O Atlas rejeita um
+> `$vectorSearch` com vetor vazio: _"vector field is indexed with 1024
+> dimensions but queried with 0"_. Além disso, o composto antigo somava
+> `DEFAULT_SEARCH_SOURCES`, o que despejaria o catálogo público. Corrigido:
+> `listMyImportedRecipes` agora delega a `listImportedRecipesByOwner` ([[Recipes]])
+> — um `findMany` puro filtrado por `source:"imported"` + `createdBy.userId`,
+> ordenado por `insertedAt` desc, **sem** `$vectorSearch`. Owner-scoped por
+> construção. Regressão travada em `recipe.repository.test.ts` (assert
+> `aggregate` nunca chamado). Descoberto no UAT ao vivo — os testes mockados
+> não exercem o `$vectorSearch` real.
+
 > [!INFO] Fase 2 (onFeed Import) completa
 > Plano 02-01 estendeu `ImportJob`/`Recipe` com os campos que a extração real
 > preenche (`recipeId`, `reviewRequired`, `confidenceScore`,
@@ -55,7 +68,7 @@ para progresso quanto para idempotência (PIPE-06).
 | `import-job.model.ts` | Schema Mongoat: coleção `import_jobs`, índices em `status`/`userId` |
 | `import-job.repository.ts` | `createImportJob`, `getImportJob` (opcionalmente escopado por `userId`), `updateImportJobStatus` |
 | `import-job.repository.test.ts` | Testes unitários do repositório (`ImportJobModel` mockado) |
-| `import.service.ts` | `detectPlatform` (fronteira SSRF), `normalizeUrl`, `enqueueImportJob`, `listMyImportedRecipes` (Fase 2, Plano 02-03 — owner-scoped), `confirmImportedRecipe` (Fase 3, Plano 03-01 — gate de confirmação REV-04) |
+| `import.service.ts` | `detectPlatform` (fronteira SSRF), `normalizeUrl`, `enqueueImportJob`, `listMyImportedRecipes` (D-09 — delega a `listImportedRecipesByOwner`, filtro puro owner-scoped; **não** hybridSearch), `confirmImportedRecipe` (Fase 3, Plano 03-01 — gate de confirmação REV-04) |
 | `import.service.test.ts` | Testes unitários (allowlist SSRF, normalização, enqueue, invariante ownerId-sempre-junto-com-'imported' de `listMyImportedRecipes`) |
 | `import.routes.ts` | `POST /import`, `GET /import/:jobId`, `PATCH /import/:jobId/recipe`, `GET /import/mine` (rotas exigem [[Auth]]); exporta `ImportRecipeEditSchema`/`ImportRecipeEditPatch` (Fase 3, Plano 03-01) |
 | `import.routes.confirm.test.ts` | Fase 3 (Plano 03-01): testes HTTP (`fastify.inject`) do PATCH — confirm applies edits, not ready (409, table-test por status), idempotent (409 no segundo confirm), rejects protected fields (400), owner scope (404) |

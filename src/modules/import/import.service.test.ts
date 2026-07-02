@@ -24,13 +24,13 @@ vi.mock("@/modules/recipes/recipe.model.js", () => ({
   RecipeModel: { update: vi.fn() },
 }));
 
-// hybridSearch: espiona os params compostos por listMyImportedRecipes sem
-// tocar Mongo/Atlas real (D-14 — provar o invariante ownerId-sempre-junto-com-
-// 'imported' em sources). getRecipeById: usado por confirmImportedRecipe.
-const hybridSearchMock = vi.fn().mockResolvedValue([]);
+// listImportedRecipesByOwner: espiona a delegação de listMyImportedRecipes sem
+// tocar Mongo/Atlas real. "Minhas importações" (D-09) é FILTRO PURO owner-scoped
+// (não hybridSearch/$vectorSearch — um queryVector vazio dava 500 no Atlas).
+// getRecipeById: usado por confirmImportedRecipe.
+const listImportedRecipesByOwnerMock = vi.fn().mockResolvedValue([]);
 vi.mock("@/modules/recipes/recipe.repository.js", () => ({
-  DEFAULT_SEARCH_SOURCES: ["curated", "generated_validated", "variant", "user"],
-  hybridSearch: (...args: unknown[]) => hybridSearchMock(...args),
+  listImportedRecipesByOwner: (...args: unknown[]) => listImportedRecipesByOwnerMock(...args),
   getRecipeById: vi.fn(),
 }));
 
@@ -112,53 +112,42 @@ describe("enqueueImportJob", () => {
   });
 });
 
-describe("listMyImportedRecipes (EXT-04 concrete calling path / D-14 invariant)", () => {
+describe("listMyImportedRecipes (D-09 'Minhas importações' — filtro puro owner-scoped)", () => {
   beforeEach(() => {
-    hybridSearchMock.mockClear();
+    listImportedRecipesByOwnerMock.mockClear();
   });
 
-  it("always calls hybridSearch with ownerId === the passed userId AND a sources array containing 'imported'", async () => {
+  it("delega a listImportedRecipesByOwner com o userId do caller (owner-scoped, sem hybridSearch)", async () => {
     await listMyImportedRecipes("user_A");
 
-    expect(hybridSearchMock).toHaveBeenCalledTimes(1);
-    const [calledParams] = hybridSearchMock.mock.calls[0] as [Record<string, unknown>];
-    expect(calledParams.ownerId).toBe("user_A");
-    expect(calledParams.sources).toContain("imported");
+    expect(listImportedRecipesByOwnerMock).toHaveBeenCalledTimes(1);
+    const [calledUserId] = listImportedRecipesByOwnerMock.mock.calls[0] as [string, number?];
+    expect(calledUserId).toBe("user_A");
   });
 
-  it("layers 'imported' on top of the standard DEFAULT_SEARCH_SOURCES set when no sources override is passed", async () => {
-    await listMyImportedRecipes("user_A");
+  it("nunca passa o userId de outro caller — o escopo de dono é o único argumento de identidade", async () => {
+    await listMyImportedRecipes("user_B");
 
-    const [calledParams] = hybridSearchMock.mock.calls[0] as [Record<string, unknown>];
-    expect(calledParams.sources).toEqual([
-      "curated",
-      "generated_validated",
-      "variant",
-      "user",
-      "imported",
-    ]);
-  });
-
-  it("there is no code path that includes 'imported' in sources without also setting ownerId", async () => {
-    // Varre todas as invocações feitas neste describe block: sempre que
-    // 'imported' aparece em sources, ownerId tem que estar presente.
-    await listMyImportedRecipes("user_B", { sources: ["curated"] });
-
-    for (const call of hybridSearchMock.mock.calls) {
-      const calledParams = call[0] as Record<string, unknown>;
-      const sources = calledParams.sources as string[];
-      if (sources.includes("imported")) {
-        expect(calledParams.ownerId).toBeTruthy();
-      }
+    for (const call of listImportedRecipesByOwnerMock.mock.calls) {
+      expect(call[0]).toBe("user_B");
     }
   });
 
-  it("passes ownerId through even when the caller overrides other params (e.g. a custom sources list)", async () => {
-    await listMyImportedRecipes("user_C", { sources: ["curated"], limit: 5 });
+  it("repassa o limit opcional quando fornecido", async () => {
+    await listMyImportedRecipes("user_C", { limit: 5 });
 
-    const [calledParams] = hybridSearchMock.mock.calls[0] as [Record<string, unknown>];
-    expect(calledParams.ownerId).toBe("user_C");
-    expect(calledParams.sources).toEqual(["curated", "imported"]);
-    expect(calledParams.limit).toBe(5);
+    const [calledUserId, calledLimit] = listImportedRecipesByOwnerMock.mock.calls[0] as [
+      string,
+      number?,
+    ];
+    expect(calledUserId).toBe("user_C");
+    expect(calledLimit).toBe(5);
+  });
+
+  it("retorna exatamente o que o repositório devolve (wrapper fino)", async () => {
+    const hits = [{ _id: "r1", title: "Risoto" }];
+    listImportedRecipesByOwnerMock.mockResolvedValueOnce(hits);
+
+    await expect(listMyImportedRecipes("user_D")).resolves.toBe(hits);
   });
 });
