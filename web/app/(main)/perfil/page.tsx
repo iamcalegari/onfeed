@@ -145,6 +145,7 @@ export default function PerfilPage() {
   const ini = profileName ? initials(profileName) : "👤";
 
   const SETTINGS = [
+    { icon: "📥", title: "Importar receita",         sub: "Cole o link de um vídeo e extraia a receita", href: "/import"   },
     { icon: "🥑", title: "Preferências de dieta", sub: "Restrições e preferências alimentares", href: "/settings" },
     { icon: "🧺", title: "Minha despensa",          sub: "Ingredientes que você sempre tem",      href: "/pantry"   },
     { icon: "⚙️", title: "Configurações",           sub: "Conta, notificações e dados",           href: "/settings" },
