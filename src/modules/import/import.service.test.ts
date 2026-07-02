@@ -2,9 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // env.ts valida MONGODB_URI/etc via required() no module-load — mock evita
 // arrastar essa validação para a suite rápida (mesma decisão de
-// ytdlp.downloader.test.ts / import-job.repository.test.ts).
+// ytdlp.downloader.test.ts / import-job.repository.test.ts). voyage.model
+// é necessário desde a Fase 3 (Task 3): import.service.ts agora importa
+// RecipeModel (recipe.model.ts), cujo documentDefaults lê env.voyage.model
+// no module-load.
 vi.mock("@/config/env.js", () => ({
-  env: { sqs: { importQueueUrl: "https://sqs.example.com/import-queue" } },
+  env: {
+    sqs: { importQueueUrl: "https://sqs.example.com/import-queue" },
+    voyage: { model: "voyage-3" },
+  },
 }));
 
 const sendMock = vi.fn().mockResolvedValue({});
@@ -12,13 +18,20 @@ vi.mock("@/infra/queue/sqs.client.js", () => ({
   sqsClient: { send: (...args: unknown[]) => sendMock(...args) },
 }));
 
+// RecipeModel: mockado para que import.service.ts (que agora o importa para
+// confirmImportedRecipe, Fase 3 Task 3) não registre a coleção real do mongoat.
+vi.mock("@/modules/recipes/recipe.model.js", () => ({
+  RecipeModel: { update: vi.fn() },
+}));
+
 // hybridSearch: espiona os params compostos por listMyImportedRecipes sem
 // tocar Mongo/Atlas real (D-14 — provar o invariante ownerId-sempre-junto-com-
-// 'imported' em sources).
+// 'imported' em sources). getRecipeById: usado por confirmImportedRecipe.
 const hybridSearchMock = vi.fn().mockResolvedValue([]);
 vi.mock("@/modules/recipes/recipe.repository.js", () => ({
   DEFAULT_SEARCH_SOURCES: ["curated", "generated_validated", "variant", "user"],
   hybridSearch: (...args: unknown[]) => hybridSearchMock(...args),
+  getRecipeById: vi.fn(),
 }));
 
 const { detectPlatform, normalizeUrl, enqueueImportJob, listMyImportedRecipes } = await import(

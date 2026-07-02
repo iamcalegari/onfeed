@@ -112,4 +112,53 @@ export const importRoutes: FastifyPluginAsync = async (fastify) => {
       return job;
     },
   );
+
+  // Confirmação explícita do usuário (REV-04): flip reviewRequired:false +
+  // confirmedAt + aplica as edições de conteúdo. O id da receita a editar
+  // vem SEMPRE de job.recipeId (derivado do job owner-scoped) — nunca do
+  // corpo da request (T-03-01, IDOR-safe como GET /import/:jobId).
+  app.patch(
+    "/import/:jobId/recipe",
+    {
+      preHandler: requireAuth,
+      schema: {
+        params: Type.Object({ jobId: Type.String() }),
+        body: ImportRecipeEditSchema,
+      },
+    },
+    async (request, reply) => {
+      const userId = getUserId(request)!;
+
+      const job = await getImportJob(request.params.jobId, userId);
+      if (!job) return reply.notFound();
+
+      // Pitfall 3: PATCH só é aceito com o job no terminal pré-confirmação
+      // ready_for_review — qualquer outro status (queued/downloading/
+      // transcribing/extracting/failed) é rejeitado com 409, sem escrita.
+      if (job.status !== "ready_for_review") {
+        return reply.code(409).send({ error: "job_not_ready_for_review" });
+      }
+      if (!job.recipeId) return reply.internalServerError();
+
+      const result = await confirmImportedRecipe(job.recipeId, userId, request.body);
+      if (result.alreadyConfirmed) {
+        // Idempotente: segunda confirmação da mesma receita já confirmada —
+        // 409 em vez de reaplicar silenciosamente um novo conjunto de edições
+        // (Pitfall 3).
+        return reply.code(409).send({ error: "already_confirmed" });
+      }
+
+      return reply.send({ recipeId: job.recipeId });
+    },
+  );
+
+  // "Minhas importações" (D-09): SEMPRE via listMyImportedRecipes(userId) —
+  // nunca uma chamada direta a hybridSearch com sources:['imported'], que
+  // poderia esquecer ownerId e vazar imports privados de outro usuário
+  // (D-14, Anti-pattern).
+  app.get(
+    "/import/mine",
+    { preHandler: requireAuth },
+    async (request) => listMyImportedRecipes(getUserId(request)!),
+  );
 };
