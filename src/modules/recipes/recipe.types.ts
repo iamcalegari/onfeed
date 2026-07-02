@@ -124,6 +124,8 @@ export interface Recipe {
   reviewRequired?: boolean;
   /** score agregado de confiança 0..1 (Fase 2/3). */
   confidenceScore?: number;
+  /** Setado apenas por confirmImportedRecipe no PATCH de confirmação explícita do usuário (REV-04, Fase 3). */
+  confirmedAt?: Date;
   title: string;
   /** Tradução lazy do intro para inglês (gerada sob demanda na primeira request lang=en). */
   introEn?: string;
@@ -175,4 +177,7 @@ export interface RecipeSearchHit {
   nutrition?: Nutrition;
   avgRating?: number;
   ratingCount?: number;
+  /** só presente em receitas source: "imported" — alimenta o status na tela "Minhas importações" (Fase 3). */
+  reviewRequired?: boolean;
+  confirmedAt?: Date;
 }

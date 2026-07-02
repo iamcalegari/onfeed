@@ -12,6 +12,7 @@ import {
   type NutritionGoals,
 } from "@/lib/nutritionPlan";
 import { setPendingSlot } from "@/lib/planStorage";
+import { ImportShortcut } from "@/components/ImportShortcut";
 
 /* ── Streak ──────────────────────────────────────────────────── */
 const STREAK_KEY = "onfeed:streak";
@@ -247,6 +248,9 @@ export default function HojePage() {
           </span>
         </button>
       </header>
+
+      {/* ── Atalho: importar receita de vídeo (onFeed Import) ── */}
+      <ImportShortcut />
 
       {/* ── MacroRing Card ─────────────────────────────────── */}
       <div style={{

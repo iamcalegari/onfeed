@@ -12,6 +12,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/favorites": "Favoritos",
   "/settings":  "Configurações",
   "/onboarding":"Configurar metas",
+  "/import":    "Importar receita",
 };
 
 export function TopBar({ clerkEnabled }: { clerkEnabled: boolean }) {

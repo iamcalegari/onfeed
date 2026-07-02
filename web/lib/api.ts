@@ -7,6 +7,9 @@ import type {
   FavoriteRecipe,
   GeneratedPlan,
   GeneratePlanRequest,
+  ImportedRecipeListItem,
+  ImportJob,
+  ImportRecipeEditPatch,
   NutritionGoal,
   PantryIngredient,
   RatingStats,
@@ -331,4 +334,64 @@ export async function subscribePro(
     throw new Error(msg);
   }
   return res.json() as Promise<{ initPoint: string }>;
+}
+
+// --- onFeed Import (Fase 3 — captura + revisão obrigatória) ---
+
+/** Inicia a importação de um vídeo (Instagram/TikTok/YouTube). Retorna o jobId para polling. */
+export async function startImport(url: string): Promise<{ jobId: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/import`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ url }),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Import falhou: ${res.status} ${await res.text()}`);
+  }
+  return res.json() as Promise<{ jobId: string }>;
+}
+
+/** Lê o status atual de um job de importação (usado pelo polling). */
+export async function getImportJob(jobId: string): Promise<ImportJob> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/import/${encodeURIComponent(jobId)}`,
+    { cache: "no-store", headers: { ...(await authHeaders()) } },
+  );
+  if (!res.ok) {
+    throw new Error(`Status falhou: ${res.status} ${await res.text()}`);
+  }
+  return res.json() as Promise<ImportJob>;
+}
+
+/** Confirma (com edições opcionais) a receita extraída de um job pronto para revisão. */
+export async function confirmImportRecipe(
+  jobId: string,
+  patch: ImportRecipeEditPatch,
+): Promise<{ recipeId: string }> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/import/${encodeURIComponent(jobId)}/recipe`,
+    {
+      method: "PATCH",
+      headers: { "content-type": "application/json", ...(await authHeaders()) },
+      body: JSON.stringify(patch),
+      cache: "no-store",
+    },
+  );
+  if (!res.ok) {
+    throw new Error(`Confirmação falhou: ${res.status} ${await res.text()}`);
+  }
+  return res.json() as Promise<{ recipeId: string }>;
+}
+
+/** Lista as receitas importadas pelo usuário autenticado (owner-scoped). */
+export async function listMyImports(): Promise<ImportedRecipeListItem[]> {
+  const res = await fetch(`${API_BASE}/api/v1/import/mine`, {
+    cache: "no-store",
+    headers: { ...(await authHeaders()) },
+  });
+  if (!res.ok) {
+    throw new Error(`Listagem falhou: ${res.status} ${await res.text()}`);
+  }
+  return res.json() as Promise<ImportedRecipeListItem[]>;
 }

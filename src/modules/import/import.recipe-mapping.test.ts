@@ -94,6 +94,9 @@ describe("mapExtractedToRecipe", () => {
     expect(options.source).toBe("imported");
     expect(options.visibility).toBe("private");
     expect(options.importJobId).toBe("job1");
+    // createdBy.userId é o que listMyImportedRecipes (D-09) usa para escopar
+    // hybridSearch({ ownerId }) — sem isso /import/mine sempre voltaria vazio.
+    expect(options.createdBy).toEqual([{ userId: "user_1", username: "user_1" }]);
     expect(options.sourceMeta).toEqual({
       platform: "youtube",
       authorHandle: "@chef",

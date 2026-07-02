@@ -28,7 +28,12 @@ app/
 │   ├── recipe/[id]/page.tsx     # detalhe da receita (OG meta tags, ingredientes, passos)
 │   ├── favorites/page.tsx       # FavoritesList (swipe, busca)
 │   ├── pantry/page.tsx          # PantryManager
-│   └── settings/page.tsx        # preferências (idioma, sistema de medida)
+│   ├── settings/page.tsx        # preferências (idioma, sistema de medida)
+│   └── import/                  # onFeed Import (Fase 3 — captura + revisão obrigatória)
+│       ├── page.tsx             # PasteLinkButton — cola o link do vídeo
+│       ├── [jobId]/page.tsx     # ImportProgress — polling do status de extração
+│       ├── [jobId]/review/      # ImportReviewForm — revisão obrigatória (REV-01..04)
+│       └── mine/page.tsx        # ImportsList — "Minhas importações" (D-09)
 │
 ├── (cook)/                      # layout fullscreen sem nav
 │   └── recipe/[id]/cook/        # CookMode — passo a passo

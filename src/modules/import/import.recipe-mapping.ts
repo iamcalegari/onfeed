@@ -64,6 +64,16 @@ export function mapExtractedToRecipe(
   const options: IngestOptions = {
     source: "imported",
     visibility: "private",
+    // createdBy.userId é o que listMyImportedRecipes (D-09) usa pra escopar
+    // hybridSearch({ ownerId }) — sem isso o $or de visibilidade nunca
+    // autoriza o dono do import e /import/mine sempre volta vazio. username
+    // não tem um valor real disponível aqui (sem lookup de perfil Clerk
+    // neste contexto) e nunca é exibido para receitas imported (o bloco
+    // "Por @username" só renderiza para source:"variant" — ver
+    // recipe/[id]/page.tsx isVariant), então repete o userId como placeholder
+    // (mesmo fallback já usado em web/app/actions.ts: id quando não há
+    // username).
+    createdBy: [{ userId: job.userId, username: job.userId }],
     ...(job._id && { importJobId: String(job._id) }),
     sourceMeta: {
       platform: job.platform,

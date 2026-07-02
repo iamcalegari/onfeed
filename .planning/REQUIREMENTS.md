@@ -9,7 +9,7 @@ Núcleo do MVP: **colar link → receita confiável**. Extensão de browser, car
 
 ### Captura (paste link)
 
-- [ ] **CAP-01**: Usuário pode colar a URL de um vídeo (Instagram, TikTok ou YouTube) numa tela do app e iniciar a importação
+- [x] **CAP-01**: Usuário pode colar a URL de um vídeo (Instagram, TikTok ou YouTube) numa tela do app e iniciar a importação
 - [x] **CAP-02**: O app valida a URL/plataforma antes de enfileirar; URL inválida ou plataforma não suportada retorna erro claro
 - [ ] **CAP-03**: Importações duplicadas da mesma URL (normalizada) são deduplicadas — reusa o resultado existente em vez de reprocessar
 
@@ -33,10 +33,10 @@ Núcleo do MVP: **colar link → receita confiável**. Extensão de browser, car
 
 ### Revisão obrigatória
 
-- [ ] **REV-01**: Antes de salvar, o usuário vê uma tela de revisão/edição da receita extraída
-- [ ] **REV-02**: Campos de baixa confiança são sinalizados visualmente (inferido vs declarado) para correção
-- [ ] **REV-03**: Usuário pode editar título, ingredientes (quantidade/unidade), passos e dicas antes de confirmar
-- [ ] **REV-04**: A receita só é persistida como válida após a confirmação do usuário na revisão
+- [x] **REV-01**: Antes de salvar, o usuário vê uma tela de revisão/edição da receita extraída
+- [x] **REV-02**: Campos de baixa confiança são sinalizados visualmente (inferido vs declarado) para correção
+- [x] **REV-03**: Usuário pode editar título, ingredientes (quantidade/unidade), passos e dicas antes de confirmar
+- [x] **REV-04**: A receita só é persistida como válida após a confirmação do usuário na revisão
 
 ### Cidadania no catálogo
 
@@ -121,11 +121,11 @@ Mapeamento confirmado pelo roadmapper em `.planning/ROADMAP.md` (2026-07-01).
 | EXT-03 | Phase 2 (Structured Extraction & Recipe Persistence) | Complete |
 | EXT-04 | Phase 2 (Structured Extraction & Recipe Persistence) | Complete |
 | EXT-05 | Phase 2 (Structured Extraction & Recipe Persistence) | Complete |
-| CAP-01 | Phase 3 (Capture & Mandatory Review UI) | Pending |
-| REV-01 | Phase 3 (Capture & Mandatory Review UI) | Pending |
-| REV-02 | Phase 3 (Capture & Mandatory Review UI) | Pending |
-| REV-03 | Phase 3 (Capture & Mandatory Review UI) | Pending |
-| REV-04 | Phase 3 (Capture & Mandatory Review UI) | Pending |
+| CAP-01 | Phase 3 (Capture & Mandatory Review UI) | Complete |
+| REV-01 | Phase 3 (Capture & Mandatory Review UI) | Complete |
+| REV-02 | Phase 3 (Capture & Mandatory Review UI) | Complete |
+| REV-03 | Phase 3 (Capture & Mandatory Review UI) | Complete |
+| REV-04 | Phase 3 (Capture & Mandatory Review UI) | Complete |
 | CAP-03 | Phase 4 (Cost/Quota Gating & Dedup) | Pending |
 | COST-01 | Phase 4 (Cost/Quota Gating & Dedup) | Pending |
 | COST-02 | Phase 4 (Cost/Quota Gating & Dedup) | Pending |

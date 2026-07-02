@@ -1,6 +1,6 @@
 ---
 tags: [frontend, components]
-updated: 2026-06-22
+updated: 2026-07-02
 ---
 
 # Componentes Web
@@ -46,6 +46,13 @@ Componentes React reutilizáveis do frontend Next.js 15 (App Router). Todos em `
 | `LikeButton` | Botão de like com contador |
 | `PantryManager` | Gerenciamento da despensa: autocomplete + tags removíveis |
 | `ShareButton` | Botão de compartilhar (Web Share API) |
+
+### onFeed Import (Fase 3 — captura + revisão obrigatória)
+| Componente | Descrição |
+|---|---|
+| `GroundingBadge` | Pill "Confira isto — inferido/impreciso" para campos não-grounded de uma receita importada (REV-02); `grounded` renderiza `null` — 2 estados, não 3-color traffic-lighting |
+| `ImportReviewForm` | Tela de revisão obrigatória (`/import/[jobId]/review`, REV-01..04): zipa `grounding.quantityGrounding[i]`/`stepGrounding[i]` com `ingredients[i]`/`steps[i]` UMA VEZ no fetch (nunca indexa o array de grounding dentro de um `.map()` de render); título/intro/ingredientes/passos editáveis em estado local — nada persiste até o clique em "Confirmar receita", que dispara um único PATCH content-only e navega para `/recipe/[id]` |
+| `ImportsList` | Lista "Minhas importações" (`/import/mine`, D-09), mesmo row shape de `FavoritesList` mas SEM a máquina de swipe-to-delete (nenhuma exclusão nesta fase); status "Confirmada" (tem `confirmedAt`) → deep-link pro detalhe, "Em revisão" → deep-link pra tela de revisão |
 
 ## Padrões
 

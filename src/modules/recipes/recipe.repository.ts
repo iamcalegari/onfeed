@@ -1,6 +1,7 @@
 import { type Document, ObjectId } from "mongodb";
 
 import { RECIPE_VECTOR_INDEX } from "@/infra/database/search-indexes.js";
+import { getImportJob } from "@/modules/import/import-job.repository.js";
 import { RecipeModel } from "./recipe.model.js";
 import type {
   Equipment,
@@ -400,6 +401,12 @@ export async function hybridSearch(
         nutrition: 1,
         avgRating: 1,
         ratingCount: 1,
+        // reviewRequired/confirmedAt: projetados para que GET /import/mine (Fase 3)
+        // consiga renderizar o status ("Em revisão"/"Confirmada") sem uma query
+        // extra — inofensivo para os demais chamadores de hybridSearch (campos
+        // ausentes em receitas não-importadas, undefined no hit).
+        reviewRequired: 1,
+        confirmedAt: 1,
       },
     },
   ];
@@ -447,31 +454,124 @@ export async function searchByTitle(
 }
 
 /**
+ * Lista as receitas importadas de um usuário para a tela "Minhas importações"
+ * (D-09, Fase 3). É FILTRO PURO por dono + `source: "imported"` — NÃO passa por
+ * `$vectorSearch`: não há query semântica aqui, e o `hybridSearch` exige um
+ * queryVector de 1024 dims; um vetor vazio faz o Atlas devolver 500 ("vector
+ * field is indexed with 1024 dimensions but queried with 0"). Owner-scoped por
+ * construção (`createdBy.userId === userId`), então nunca vaza imports de outro
+ * usuário nem despeja o catálogo público. Inclui `reviewRequired`/`confirmedAt`
+ * para alimentar o status "Em revisão" / "Confirmada".
+ */
+export async function listImportedRecipesByOwner(
+  userId: string,
+  limit = 50,
+): Promise<RecipeSearchHit[]> {
+  const docs = (await RecipeModel.findMany(
+    { source: "imported", "createdBy.userId": userId } as never,
+    {
+      limit,
+      sort: { insertedAt: -1 }, // import mais recente primeiro
+      projection: { embedding: 0, embeddingText: 0, ingredients: 0 },
+    },
+  )) as (Recipe & { _id: { toString(): string } })[];
+
+  return (docs ?? []).map((r) => ({
+    _id:            String(r._id),
+    title:          r.title,
+    intro:          r.intro ?? "",
+    country:        r.country ?? "",
+    thumbnailUrl:   r.thumbnailUrl ?? "",
+    prepTimeMin:    r.prepTimeMin ?? 0,
+    servings:       r.servings ?? 1,
+    source:         r.source,
+    ...(r.createdBy !== undefined && { createdBy: r.createdBy }),
+    // Listagem, não busca: scores neutros (o usuário já é dono, não há ranking).
+    matchScore:     100,
+    scores:         { i: 1, e: 1, t: 1, n: 1 },
+    missing:        [],
+    missingCoreCount: 0,
+    cookableNow:    false,
+    ...(r.nutrition !== undefined && { nutrition: r.nutrition }),
+    ...(r.reviewRequired !== undefined && { reviewRequired: r.reviewRequired }),
+    ...(r.confirmedAt !== undefined && { confirmedAt: r.confirmedAt }),
+  }));
+}
+
+/**
  * Receita completa para a tela de detalhe (sem o embedding pesado).
  *
- * Quando `userId` é informado, a checagem de ownership é dobrada NO MESMO
+ * Assinatura de 3 estados no 2º argumento — distingue caller TRUSTED
+ * (interno) de caller UNTRUSTED (rota pública), o mesmo idioma de
+ * `getImportJob(jobId, userId?)`:
+ * - Argumento OMITIDO: chamada interna/trusted (adaptação, likes, confirm
+ *   flow — ownership já resolvida a montante por quem chamou) — retorna a
+ *   receita independente de visibility, comportamento pré-existente
+ *   inalterado.
+ * - `null`: caller UNTRUSTED sem sessão (rota pública, requisição
+ *   anônima) — aplica o guard de visibilidade; privado nunca é retornado.
+ * - `string`: caller UNTRUSTED com sessão — aplica o guard de
+ *   visibilidade com ownership check (dono vê o próprio privado).
+ *
+ * Para os dois últimos casos, a checagem de ownership é dobrada NO MESMO
  * filtro Mongo (idioma de getImportJob) — nunca busca-e-compara depois. Uma
  * receita privada de outro dono resolve `null`, o mesmo "não existe" de um
- * id inexistente (IDOR-safe, D-14 / T-02-07). Sem `userId`, o comportamento
- * é inalterado (compatibilidade com callers existentes).
+ * id inexistente (IDOR-safe, D-14 / T-02-07 / T-03-05).
+ *
+ * IMPORTS (T-03-05/T-03-06): receitas `source:"imported"` são persistidas
+ * com `visibility:"private"` + `importJobId`, mas SEM `createdBy[]`
+ * (import.recipe-mapping.ts não popula esse campo) — então o `$or` do
+ * fast-path sozinho nunca autoriza o dono de um import (createdBy.userId é
+ * vazio). Quando o filtro combinado não encontra nada, refazemos uma
+ * segunda leitura SEM filtro de ownership; se o doc existir, for privado e
+ * tiver `importJobId`, resolvemos o dono via `ImportJob.userId`
+ * (getImportJob sem passar userId — resolução interna de ownership, não
+ * uma request). Sem match (dono errado ou anônimo), o resultado final
+ * continua `null` — sem vazar a existência do import (no existence leak).
  */
-export async function getRecipeById(id: string, userId?: string): Promise<Recipe | null> {
+export async function getRecipeById(id: string): Promise<Recipe | null>;
+export async function getRecipeById(
+  id: string,
+  userId: string | null,
+): Promise<Recipe | null>;
+export async function getRecipeById(
+  id: string,
+  ...rest: [userId: string | null] | []
+): Promise<Recipe | null> {
   const projection = { embedding: 0, embeddingText: 0 };
-  if (userId) {
-    const recipe = await RecipeModel.find(
-      {
-        _id: new ObjectId(id),
-        $or: [
-          { visibility: { $ne: "private" } },
-          { visibility: "private", "createdBy.userId": userId },
-        ],
-      } as never,
-      { projection },
-    );
-    return (recipe as Recipe | null) ?? null;
+
+  // Argumento omitido: caller trusted/interno — comportamento pré-existente,
+  // inalterado (retorna qualquer receita, sem filtro de visibility).
+  if (rest.length === 0) {
+    const recipe = await RecipeModel.findById(id, { projection });
+    return recipe as Recipe | null;
   }
-  const recipe = await RecipeModel.findById(id, { projection });
-  return recipe as Recipe | null;
+  const [userId] = rest;
+
+  // Caller untrusted (rota pública) — userId é `string` (autenticado) ou
+  // `null` (anônimo); ambos passam pelo guard de visibilidade abaixo.
+  const recipe = (await RecipeModel.find(
+    {
+      _id: new ObjectId(id),
+      $or: [
+        { visibility: { $ne: "private" } },
+        ...(userId ? [{ visibility: "private", "createdBy.userId": userId }] : []),
+      ],
+    } as never,
+    { projection },
+  )) as Recipe | null;
+  if (recipe) return recipe;
+  if (!userId) return null; // anônimo nunca resolve um privado pelo fallback de import
+
+  // Fast-path não encontrou (pode ser: não existe, ou é um import privado
+  // cujo dono só é resolvível via importJobId → ImportJob.userId).
+  const candidate = (await RecipeModel.findById(id, { projection })) as Recipe | null;
+  if (!candidate || candidate.visibility !== "private" || !candidate.importJobId) {
+    return null;
+  }
+  const job = await getImportJob(candidate.importJobId);
+  if (job?.userId === userId) return candidate;
+  return null;
 }
 
 /** Persiste a URL da thumbnail (geração lazy / upload). */

@@ -1,14 +1,16 @@
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
+import { ObjectId } from "mongodb";
 
 import { env } from "@/config/env.js";
 import { sqsClient } from "@/infra/queue/sqs.client.js";
+import { RecipeModel } from "@/modules/recipes/recipe.model.js";
 import {
-  DEFAULT_SEARCH_SOURCES,
-  hybridSearch,
-  type HybridSearchParams,
+  getRecipeById,
+  listImportedRecipesByOwner,
 } from "@/modules/recipes/recipe.repository.js";
-import type { RecipeSearchHit } from "@/modules/recipes/recipe.types.js";
+import type { RecipeIngredient, RecipeSearchHit, RecipeStep } from "@/modules/recipes/recipe.types.js";
 import type { ImportJobMessage } from "./import-job.types.js";
+import type { ImportRecipeEditPatch } from "./import.routes.js";
 
 /**
  * Plataformas suportadas pelo pipeline de import (D-07 — motor único yt-dlp).
@@ -94,13 +96,94 @@ export async function enqueueImportJob(jobId: string): Promise<void> {
  */
 export async function listMyImportedRecipes(
   userId: string,
-  params?: Partial<HybridSearchParams>,
+  opts?: { limit?: number },
 ): Promise<RecipeSearchHit[]> {
-  return hybridSearch({
-    queryVector: [],
-    haveIds: [],
-    ...params,
-    ownerId: userId,
-    sources: [...(params?.sources ?? DEFAULT_SEARCH_SOURCES), "imported"],
+  // "Minhas importações" (D-09) é LISTAGEM, não busca: só as receitas
+  // `source: "imported"` do próprio usuário, ordenadas por import mais recente.
+  // Delega ao filtro puro do repositório — NÃO usa hybridSearch/$vectorSearch
+  // (um queryVector vazio fazia o Atlas devolver 500 "vector field is indexed
+  // with 1024 dimensions but queried with 0", e passar DEFAULT_SEARCH_SOURCES
+  // ainda despejaria o catálogo público). Owner-scoped por construção.
+  return listImportedRecipesByOwner(userId, opts?.limit);
+}
+
+/**
+ * Confirma uma receita importada (REV-04): aplica as edições de conteúdo do
+ * usuário, seta reviewRequired:false e confirmedAt numa ÚNICA
+ * RecipeModel.update — este é o ÚNICO código-caminho que escreve
+ * confirmedAt / flip reviewRequired:false (nenhuma outra rota faz isso).
+ *
+ * Idempotência (Pitfall 3): se a receita já está confirmada
+ * (confirmedAt já setado), a função é um no-op seguro — nunca reaplica um
+ * segundo conjunto de edições por cima de uma receita já confirmada.
+ *
+ * NÃO re-roda resolveCanonicalForIngestion ao editar ingredients[].name
+ * (Open Q1 resolvida): mantém o PATCH síncrono/rápido sem chamada Voyage no
+ * caminho da request. canonicalId/core/isStaple/raw dos ingredientes
+ * existentes são preservados; só name/quantity/unit são sobrescritos pelo
+ * patch do usuário. A função nunca toca grounding, confidenceScore,
+ * canonicalId ou embedding.
+ *
+ * `userId` é threaded por auditoria/consistência — o ownership real já foi
+ * garantido pela rota via o job owner-scoped (getImportJob(jobId, userId));
+ * esta função não repete um segundo guard de Mongo por userId.
+ */
+export async function confirmImportedRecipe(
+  recipeId: string,
+  _userId: string,
+  patch: ImportRecipeEditPatch,
+): Promise<{ alreadyConfirmed: true } | { alreadyConfirmed: false }> {
+  const recipe = await getRecipeById(recipeId);
+  if (!recipe) {
+    throw new Error("recipe_not_found");
+  }
+
+  // Idempotente: já confirmada anteriormente — no-op seguro, não reaplica
+  // um novo patch por cima (Pitfall 3).
+  if (recipe.confirmedAt) {
+    return { alreadyConfirmed: true };
+  }
+
+  const existingIngredients = recipe.ingredients;
+  const ingredients: RecipeIngredient[] = patch.ingredients.map((edited, index) => {
+    const existing = existingIngredients[index];
+    return {
+      // Preserva proveniência/canonicalização — só name/quantity/unit são
+      // editáveis pelo usuário (Open Q1: sem re-canonicalização síncrona).
+      raw: existing?.raw ?? edited.name,
+      canonicalId: existing?.canonicalId ?? "",
+      core: existing?.core ?? false,
+      isStaple: existing?.isStaple ?? false,
+      ...(existing?.nameEn !== undefined && { nameEn: existing.nameEn }),
+      name: edited.name,
+      ...(edited.quantity !== undefined && { quantity: edited.quantity }),
+      ...(edited.unit !== undefined && { unit: edited.unit }),
+    };
   });
+
+  const steps: RecipeStep[] = patch.steps.map((edited, index) => {
+    const existing = recipe.steps[index];
+    return {
+      text: edited.text,
+      ...(existing?.textEn !== undefined && { textEn: existing.textEn }),
+      ...(existing?.minutes !== undefined && { minutes: existing.minutes }),
+    };
+  });
+
+  await RecipeModel.update(
+    { _id: new ObjectId(recipeId) } as never,
+    {
+      $set: {
+        title: patch.title,
+        intro: patch.intro,
+        ingredients,
+        steps,
+        reviewRequired: false,
+        confirmedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    },
+  );
+
+  return { alreadyConfirmed: false };
 }

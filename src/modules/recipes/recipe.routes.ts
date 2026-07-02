@@ -128,7 +128,14 @@ export const recipeRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, reply) => {
-      const recipe = await getRecipeById(request.params.id);
+      // Soft-auth (T-03-05): NÃO usa requireAuth — a rota continua pública
+      // para receitas do catálogo (anônimo deve seguir funcionando). O
+      // userId (ou `null` se anônimo) é passado explicitamente para acionar
+      // o guard de visibilidade em getRecipeById: uma receita `private`
+      // (import ainda não revisado) só resolve para o dono; qualquer outro
+      // caller — incluindo anônimo — cai no MESMO 404 de "não encontrada"
+      // abaixo, sem vazar a existência do import (no existence leak).
+      const recipe = await getRecipeById(request.params.id, getUserId(request));
       if (!recipe) return reply.notFound("Receita não encontrada");
 
       if (request.query.lang !== "en") return recipe;

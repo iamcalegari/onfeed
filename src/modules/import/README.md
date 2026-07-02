@@ -1,7 +1,43 @@
 ---
-tags: [backend, module, video-pipeline, import, ssrf, idor, llm-extraction, confidence-gate]
+tags: [backend, module, video-pipeline, import, ssrf, idor, llm-extraction, confidence-gate, confirm-gate]
 updated: 2026-07-02
 ---
+
+> [!INFO] Fase 3 (Capture/Review UI) — Plano 03-01 (backend confirm/edit)
+> Adiciona o gate de confirmação explícita (REV-04): `Recipe.confirmedAt`
+> (BSON + TS), `confirmImportedRecipe` (`import.service.ts`),
+> `PATCH /import/:jobId/recipe` e `GET /import/mine` (`import.routes.ts`).
+> Até agora a API só sabia enfileirar (`POST /import`) e sondar
+> (`GET /import/:jobId`) — não havia caminho HTTP para persistir edições do
+> usuário, sair de "aguardando revisão" ou listar imports. Ver §Confirmação
+> (Plano 03-01) abaixo. **Nota:** `npm run setup:db` (sync do validator
+> `confirmedAt` no Atlas live) é um gate humano deste plano — ver
+> `03-01-SUMMARY.md`.
+
+> [!WARNING] Fix — Plano 03-05: `createdBy` faltava em receitas importadas
+> `mapExtractedToRecipe` nunca setava `options.createdBy`, então o `$or` de
+> visibilidade que `hybridSearch({ ownerId })` monta (`{ visibility:
+> "private", "createdBy.userId": ownerId }`) nunca autorizava o dono de um
+> import — `GET /import/mine` (via `listMyImportedRecipes`) sempre voltava
+> vazio, mesmo com jobs `ready_for_review`/confirmados. Corrigido setando
+> `createdBy: [{ userId: job.userId, username: job.userId }]` no mapeamento
+> (`username` repete o `userId` como placeholder — não há lookup de perfil
+> Clerk neste contexto, e o campo nunca é exibido para `source: "imported"`,
+> só para `source: "variant"` no frontend). Descoberto executando o Plano
+> 03-05 (frontend `/import/mine`), corrigido no módulo backend correspondente.
+
+> [!WARNING] Fix — UAT Fase 3: `GET /import/mine` dava 500 no Atlas
+> `listMyImportedRecipes` reusava `hybridSearch({ queryVector: [] })` — mas
+> "Minhas importações" é LISTAGEM, não busca semântica. O Atlas rejeita um
+> `$vectorSearch` com vetor vazio: _"vector field is indexed with 1024
+> dimensions but queried with 0"_. Além disso, o composto antigo somava
+> `DEFAULT_SEARCH_SOURCES`, o que despejaria o catálogo público. Corrigido:
+> `listMyImportedRecipes` agora delega a `listImportedRecipesByOwner` ([[Recipes]])
+> — um `findMany` puro filtrado por `source:"imported"` + `createdBy.userId`,
+> ordenado por `insertedAt` desc, **sem** `$vectorSearch`. Owner-scoped por
+> construção. Regressão travada em `recipe.repository.test.ts` (assert
+> `aggregate` nunca chamado). Descoberto no UAT ao vivo — os testes mockados
+> não exercem o `$vectorSearch` real.
 
 > [!INFO] Fase 2 (onFeed Import) completa
 > Plano 02-01 estendeu `ImportJob`/`Recipe` com os campos que a extração real
@@ -32,9 +68,11 @@ para progresso quanto para idempotência (PIPE-06).
 | `import-job.model.ts` | Schema Mongoat: coleção `import_jobs`, índices em `status`/`userId` |
 | `import-job.repository.ts` | `createImportJob`, `getImportJob` (opcionalmente escopado por `userId`), `updateImportJobStatus` |
 | `import-job.repository.test.ts` | Testes unitários do repositório (`ImportJobModel` mockado) |
-| `import.service.ts` | `detectPlatform` (fronteira SSRF), `normalizeUrl`, `enqueueImportJob`, `listMyImportedRecipes` (Fase 2, Plano 02-03 — owner-scoped) |
+| `import.service.ts` | `detectPlatform` (fronteira SSRF), `normalizeUrl`, `enqueueImportJob`, `listMyImportedRecipes` (D-09 — delega a `listImportedRecipesByOwner`, filtro puro owner-scoped; **não** hybridSearch), `confirmImportedRecipe` (Fase 3, Plano 03-01 — gate de confirmação REV-04) |
 | `import.service.test.ts` | Testes unitários (allowlist SSRF, normalização, enqueue, invariante ownerId-sempre-junto-com-'imported' de `listMyImportedRecipes`) |
-| `import.routes.ts` | `POST /import`, `GET /import/:jobId` (rotas exigem [[Auth]]) |
+| `import.routes.ts` | `POST /import`, `GET /import/:jobId`, `PATCH /import/:jobId/recipe`, `GET /import/mine` (rotas exigem [[Auth]]); exporta `ImportRecipeEditSchema`/`ImportRecipeEditPatch` (Fase 3, Plano 03-01) |
+| `import.routes.confirm.test.ts` | Fase 3 (Plano 03-01): testes HTTP (`fastify.inject`) do PATCH — confirm applies edits, not ready (409, table-test por status), idempotent (409 no segundo confirm), rejects protected fields (400), owner scope (404) |
+| `import.routes.mine.test.ts` | Fase 3 (Plano 03-01): GET /import/mine sempre delega a `listMyImportedRecipes(userId)`, nunca hybridSearch direto |
 | `import.extraction.ts` | Fase 2 (Plano 02-02): `ImportedRecipeSchema` (zod + grounding inline), `IMPORT_RECONCILIATION_SYSTEM_PROMPT`, `buildImportUserContent`, `extractImportedRecipe(input)` — extração LLM real de transcript+caption em receita estruturada |
 | `import.extraction.test.ts` | Testes unitários (LLM mockado): shape do schema, ambíguo preservado literal (D-04), título inferido (D-06), seções delimitadas do user-content |
 | `import.confidence.ts` | Fase 2 (Plano 02-04): `computeConfidence(recipe, opts)` — gate puro de score agregado + `reviewRequired` estrutural (EXT-02/EXT-05) |
@@ -73,11 +111,18 @@ queued → downloading → transcribing → extracting → ready_for_review
 ## Rotas
 
 ```
-POST   /api/v1/import           body: { url }
-                                 → 202 { jobId }
-                                 → 400 { error: "invalid_url" | "unsupported_platform" }
-GET    /api/v1/import/:jobId    → ImportJob (só se o caller for o dono)
-                                 → 404 (job de outro usuário OU inexistente — indistinguível)
+POST   /api/v1/import                  body: { url }
+                                        → 202 { jobId }
+                                        → 400 { error: "invalid_url" | "unsupported_platform" }
+GET    /api/v1/import/:jobId           → ImportJob (só se o caller for o dono)
+                                        → 404 (job de outro usuário OU inexistente — indistinguível)
+PATCH  /api/v1/import/:jobId/recipe    body: ImportRecipeEditSchema (title/intro/ingredients/steps)
+                                        → 200 { recipeId }
+                                        → 404 (job de outro usuário OU inexistente)
+                                        → 409 { error: "job_not_ready_for_review" } (status != ready_for_review)
+                                        → 409 { error: "already_confirmed" } (segunda confirmação — idempotente-safe)
+                                        → 400 (campo não-editável no body: additionalProperties:false)
+GET    /api/v1/import/mine             → RecipeSearchHit[] (só imports do próprio caller)
 ```
 
 `POST /import` roda `detectPlatform(url)` **antes** de criar qualquer doc ou
@@ -101,6 +146,61 @@ chama `enqueueImportJob(job._id)` e responde `202` com o `jobId`.
 > existe" de "não é seu", o que bloqueia enumeração de jobId (IDOR, T-04-02).
 > Essa rota não tem precedente no restante do código (é superfície de
 > ataque nova desta fase) — o check é explícito, não herdado do guard de auth.
+
+## Confirmação / Edição (Fase 3 — Plano 03-01)
+
+`PATCH /import/:jobId/recipe` é o gate de confirmação explícita (REV-04):
+nenhuma receita importada sai de "aguardando revisão" (`reviewRequired:
+true`) sem um PATCH bem-sucedido do próprio dono do job.
+
+```
+PATCH /import/:jobId/recipe
+  → getImportJob(jobId, userId)         (mesmo ownership check de GET /import/:jobId)
+  → 404 se job === null
+  → 409 se job.status !== "ready_for_review"           (Pitfall 3)
+  → confirmImportedRecipe(job.recipeId, userId, body)
+  → 409 "already_confirmed" se a receita já tinha confirmedAt (idempotente)
+  → 200 { recipeId }
+```
+
+> [!WARNING] recipeId vem SEMPRE do job, nunca do body
+> A rota deriva o id da receita a editar de `job.recipeId` (resolvido pelo
+> lookup owner-scoped `getImportJob(jobId, userId)`) — o corpo do PATCH não
+> tem (e `ImportRecipeEditSchema` rejeitaria) um campo `recipeId`. Isso
+> fecha o mesmo vetor de IDOR de `GET /import/:jobId` (T-03-01): mesmo que
+> um atacante adivinhe o id de outra receita, não há como injetá-lo no
+> PATCH — só o `jobId` na URL é usado, e esse já é owner-scoped.
+
+> [!INFO] ImportRecipeEditSchema — additionalProperties:false, conteúdo apenas
+> Aceita SOMENTE `title`, `intro`, `ingredients[].{name,quantity,unit}`,
+> `steps[].text`. `grounding`, `reviewRequired`, `confidenceScore`,
+> `canonicalId` e `recipeId` são todos rejeitados com 400 se presentes no
+> body (Pitfall 5, T-03-02) — o servidor é o ÚNICO a setar
+> `reviewRequired:false` / `confirmedAt`; grounding é proveniência imutável
+> da extração LLM e nunca é editável pelo usuário.
+
+> [!TIP] Idempotência — segunda confirmação nunca reaplica dados diferentes
+> `confirmImportedRecipe` checa `recipe.confirmedAt` ANTES de escrever. Se já
+> setado, retorna `{ alreadyConfirmed: true }` e a rota responde `409
+> "already_confirmed"` sem tocar o documento — protege contra um segundo
+> PATCH (aba antiga, duplo clique, retry de rede) sobrescrever silenciosamente
+> uma edição já confirmada com um payload diferente (Pitfall 3, T-03-04).
+
+> [!WARNING] Edição de ingrediente NÃO re-roda a canonicalização (limitação conhecida)
+> `confirmImportedRecipe` preserva `canonicalId`/`core`/`isStaple`/`raw` de
+> cada ingrediente existente pelo índice — só `name`/`quantity`/`unit` são
+> sobrescritos pelo patch do usuário. Editar um `name` para algo muito
+> diferente do original NÃO dispara `resolveCanonicalForIngestion` de novo
+> (decisão da Open Question 1 do research: mantém o PATCH síncrono, sem
+> chamada Voyage no caminho da request). Isso pode desalinhar
+> temporariamente `canonicalId` do `name` editado até uma futura passada de
+> reconciliação — a edição de nome NÃO é descoped, só a re-canonicalização
+> síncrona é.
+
+`GET /import/mine` é um wrapper fino sobre `listMyImportedRecipes(userId)`
+(já existente desde a Fase 2/Plano 02-03) — nunca chama `hybridSearch`
+diretamente (D-14, Anti-pattern do research), então herda automaticamente o
+invariante "ownerId sempre junto com `'imported'` em sources".
 
 ## ImportJobModel (Mongoat)
 
@@ -132,10 +232,16 @@ existente).
 
 - Referencia [[Recipes]] indiretamente — o objetivo final do pipeline é criar
   uma receita a partir do `ImportJob` completo (fora do escopo deste plan).
-- Usa `hybridSearch`/`DEFAULT_SEARCH_SOURCES` de [[Recipes]] diretamente via
-  `listMyImportedRecipes` (Plano 02-03) — busca owner-scoped D-14.
-- Usa [[Auth]] (`requireAuth` nas duas rotas; ownership check adicional em
-  `GET /import/:jobId` via `getImportJob(jobId, userId)`).
+- Usa `hybridSearch`/`DEFAULT_SEARCH_SOURCES`/`getRecipeById` de [[Recipes]]
+  diretamente via `listMyImportedRecipes` (Plano 02-03) e `confirmImportedRecipe`
+  (Plano 03-01) — busca owner-scoped D-14.
+- Usa `RecipeModel` (`recipe.model.ts`, [[Recipes]]) diretamente em
+  `confirmImportedRecipe` para o `$set` atômico de
+  título/intro/ingredients/steps/reviewRequired/confirmedAt (Plano 03-01) —
+  mesmo idioma de `setThumbnail`/`setTranslation` em `recipe.repository.ts`.
+- Usa [[Auth]] (`requireAuth` em todas as rotas; ownership check adicional em
+  `GET /import/:jobId` e `PATCH /import/:jobId/recipe` via
+  `getImportJob(jobId, userId)`).
 - Depende de `src/infra/video/*` (downloader/transcription/keyframe) — esse
   módulo só cria e enfileira o `ImportJob`; quem baixa/transcreve/extrai é o
   worker dedicado (`src/workers/import-worker.ts`, plans seguintes).
