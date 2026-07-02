@@ -604,6 +604,25 @@ export async function promoteToVariant(recipeId: string): Promise<void> {
   );
 }
 
+/**
+ * Promove um import confirmado de private → public (Fase 5, D-05).
+ *
+ * Mantém `source: "imported"` de propósito — NUNCA flipa para "variant" —
+ * para que o grounding por campo e os créditos de `sourceMeta`/`createdBy[]`
+ * continuem renderizando após a promoção (SOC-05 cai de graça, D-09).
+ *
+ * O filtro `source: "imported", visibility: "private"` é o guard de
+ * idempotência: um segundo trigger sobre um import já público não casa com
+ * nada e é um no-op seguro (mesmo padrão de `promoteToVariant` acima, que
+ * guarda em `source: "generated_pending"`).
+ */
+export async function promoteImportToPublic(recipeId: string): Promise<void> {
+  await RecipeModel.update(
+    { _id: new ObjectId(recipeId), source: "imported", visibility: "private" } as never,
+    { $set: { visibility: "public", updatedAt: new Date() } },
+  );
+}
+
 /** Admin rejeita a variante. */
 export async function rejectVariant(recipeId: string): Promise<void> {
   await RecipeModel.update(
